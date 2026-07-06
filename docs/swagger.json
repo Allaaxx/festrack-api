@@ -201,34 +201,53 @@
                     }
                 }
             }
+        },
+        "/api/transactions": {
+            "post": {
+                "summary": "Create transaction",
+                "tags": [
+                    "Transaction"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CreateTransactionParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Transaction created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/Transaction"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid params",
+                        "schema": {
+                            "$ref": "#/definitions/InvalidParamResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/UserNotFoundResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/InternalServerErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "CreateUserParams": {
-            "type": "object",
-            "properties": {
-                "first_name": {
-                    "type": "string"
-                },
-                "last_name": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string",
-                    "format": "email"
-                },
-                "password": {
-                    "type": "string",
-                    "format": "password"
-                }
-            },
-            "required": [
-                "first_name",
-                "last_name",
-                "email",
-                "password"
-            ]
-        },
         "User": {
             "type": "object",
             "properties": {
@@ -281,6 +300,91 @@
                 "balance"
             ]
         },
+        "CreateUserParams": {
+            "type": "object",
+            "properties": {
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string",
+                    "format": "email"
+                },
+                "password": {
+                    "type": "string",
+                    "format": "password"
+                }
+            },
+            "required": [
+                "first_name",
+                "last_name",
+                "email",
+                "password"
+            ]
+        },
+        "UserNotFoundResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "User not found"
+                }
+            }
+        },
+        "Transaction": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "28a47836-8e98-444d-bb59-7b5047b1afd5"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "33be0cb5-5541-46f4-ab12-88690e66da0d"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Salary"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "EARNING",
+                    "description": "EARNING | EXPENSE | INVESTIMENT"
+                },
+                "amount": {
+                    "type": "number",
+                    "example": "1000"
+                }
+            }
+        },
+        "CreateTransactionParams": {
+            "type": "object",
+            "properties": {
+                "user_id": {
+                    "type": "string",
+                    "example": "33be0cb5-5541-46f4-ab12-88690e66da0d"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "EARNING",
+                    "description": "EARNING | EXPENSE | INVESTIMENT"
+                },
+                "amount": {
+                    "type": "number",
+                    "example": "1000"
+                },
+                "date": {
+                    "type": "string",
+                    "example": "2026-07-06T14:39:52.985Z"
+                }
+            }
+        },
         "InvalidParamResponse": {
             "type": "object",
             "properties": {
@@ -296,15 +400,6 @@
                 "message": {
                     "type": "string",
                     "example": "Internal server error"
-                }
-            }
-        },
-        "UserNotFoundResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string",
-                    "example": "User not found"
                 }
             }
         }
