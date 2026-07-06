@@ -44,6 +44,43 @@
                 }
             }
         },
+        "/api/users/{userId}/balance": {
+            "get": {
+                "summary": "Get user balance",
+                "tags": [
+                    "User"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "userId",
+                        "required": true,
+                        "type": "string",
+                        "description": "User ID"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User balance",
+                        "schema": {
+                            "$ref": "#/definitions/UserBalance"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/UserNotFoundResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/InternalServerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/users/{userId}": {
             "get": {
                 "summary": "Get user by ID",
@@ -218,6 +255,30 @@
                 "last_name",
                 "email",
                 "password"
+            ]
+        },
+        "UserBalance": {
+            "type": "object",
+            "properties": {
+                "earnings": {
+                    "type": "number",
+                    "example": "10000"
+                },
+                "expenses": {
+                    "type": "number",
+                    "example": "3000"
+                },
+                "investiments": {
+                    "type": "number",
+                    "example": "2000"
+                },
+                "balance": {
+                    "type": "number",
+                    "example": "5000"
+                }
+            },
+            "required": [
+                "balance"
             ]
         },
         "InvalidParamResponse": {
