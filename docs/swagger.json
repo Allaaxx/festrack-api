@@ -428,18 +428,22 @@
             "type": "object",
             "properties": {
                 "first_name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "John"
                 },
                 "last_name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Doe"
                 },
                 "email": {
                     "type": "string",
-                    "format": "email"
+                    "format": "email",
+                    "example": "john@doe.com"
                 },
                 "password": {
                     "type": "string",
-                    "format": "password"
+                    "format": "password",
+                    "example": "password"
                 }
             },
             "required": [
@@ -507,7 +511,14 @@
                     "type": "string",
                     "example": "2026-07-06T14:39:52.985Z"
                 }
-            }
+            },
+            "required": [
+                "user_id",
+                "name",
+                "type",
+                "amount",
+                "date"
+            ]
         },
         "UpdateTransactionParams": {
             "type": "object",
@@ -528,7 +539,13 @@
                     "type": "string",
                     "example": "2026-07-06T14:39:52.985Z"
                 }
-            }
+            },
+            "required": [
+                "name",
+                "type",
+                "amount",
+                "date"
+            ]
         },
         "TransactionNotFoundResponse": {
             "type": "object",
