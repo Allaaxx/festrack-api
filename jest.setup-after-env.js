@@ -1,4 +1,7 @@
-import { prisma } from './prisma/prisma';
+import { jest } from '@jest/globals';
+import { prisma } from './prisma/prisma.js';
+
+globalThis.jest = jest;
 
 beforeEach(async () => {
     await prisma.transaction.deleteMany({});

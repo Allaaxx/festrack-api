@@ -1,7 +1,7 @@
 import { TransactionNotFoundError } from '../../errors/transaction.js';
 import { transaction } from '../../tests/index.js';
 import { UpdateTransactionController } from './update-transaction.js';
-const { faker } = require('@faker-js/faker');
+import { faker } from '@faker-js/faker';
 
 describe('Update Transaction Controller', () => {
     class UpdateTransactionUseCaseStub {

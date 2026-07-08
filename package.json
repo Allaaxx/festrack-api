@@ -5,7 +5,7 @@
     "main": "index.js",
     "type": "module",
     "scripts": {
-        "test": "dotenv -e .env.test -- jest --passWithNoTests --silent --runInBand --detectOpenHandles --forceExit",
+        "test": "dotenv -e .env.test -- node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests --silent --runInBand --detectOpenHandles --forceExit",
         "test:coverage": "npm run test -- --coverage",
         "test:watch": "npm run test --  --watch  --detectOpenHandles",
         "postinstall": "husky install && prisma generate",
@@ -18,13 +18,10 @@
     "author": "",
     "license": "ISC",
     "devDependencies": {
-        "@babel/core": "^7.29.0",
-        "@babel/preset-env": "^7.29.2",
         "@eslint/js": "^10.0.1",
         "@faker-js/faker": "^10.4.0",
         "@types/jest": "^30.0.0",
         "@types/node": "^25.6.0",
-        "babel-jest": "^30.3.0",
         "eslint": "^10.0.3",
         "eslint-config-prettier": "^10.1.8",
         "git-commit-msg-linter": "^5.0.8",

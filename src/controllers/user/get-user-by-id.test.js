@@ -1,5 +1,5 @@
-const { faker } = require('@faker-js/faker');
-import { user } from '../../tests';
+import { faker } from '@faker-js/faker';
+import { user } from '../../tests/index.js';
 import { GetUserByIdController } from './get-user-by-id.js';
 describe('Get User By Id Controller', () => {
     class GetUserByIdUseCaseStub {
