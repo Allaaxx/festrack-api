@@ -57,3 +57,15 @@ jobs:
 
             - name: Prisma migrate
               run: npx prisma migrate deploy
+
+    deploy:
+        runs-on: ubuntu-latest
+        needs: migrate
+        environment: production
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
+
+            - name: Deploy
+              run: |
+                  curl "${{ secrets.RENDER_DEPLOY_HOOK_URL}}"
