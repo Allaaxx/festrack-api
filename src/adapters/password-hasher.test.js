@@ -13,4 +13,4 @@ describe('Password Hasher Adapter', () => {
         expect(typeof result).toBe('string');
         expect(result).not.toBe(password);
     });
-})
+});

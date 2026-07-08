@@ -23,7 +23,7 @@ export class CreateTransactionController {
             }
 
             if (error instanceof UserNotFoundError) {
-                return userNotFoundResponse()
+                return userNotFoundResponse();
             }
 
             console.error(error);

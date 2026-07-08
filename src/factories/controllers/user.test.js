@@ -1,5 +1,5 @@
 import { CreateUserController, DeleteUserController, GetUserBalanceController, GetUserByIdController, UpdateUserController } from '../../controllers';
-import { makeCreateUserController, makeDeleteUserController, makeGetUserBalanceController, makeGetUserByIdController, makeUpdateUserController } from './user.js'
+import { makeCreateUserController, makeDeleteUserController, makeGetUserBalanceController, makeGetUserByIdController, makeUpdateUserController } from './user.js';
 
 describe('User Controller Factories', () => {
     it('should return a valid GetUserByIdController instance', () => {

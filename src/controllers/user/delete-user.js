@@ -1,4 +1,3 @@
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import {
     checkIfIdIsValid,
     invalidIdResponse,
@@ -27,7 +26,7 @@ export class DeleteUserController {
             return ok(deletedUser);
         } catch (error) {
             if (error instanceof UserNotFoundError) {
-                return userNotFoundResponse()
+                return userNotFoundResponse();
             }
             console.error(error);
             return serverError();

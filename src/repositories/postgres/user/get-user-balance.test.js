@@ -1,11 +1,11 @@
 import { faker } from '@faker-js/faker';
-import { prisma } from '../../../../prisma/prisma'
-import { user as fakeUser } from '../../../tests'
+import { prisma } from '../../../../prisma/prisma';
+import { user as fakeUser } from '../../../tests';
 import { PostgresGetUserBalanceRepository } from "./get-user-balance";
 import { TransactionType } from '@prisma/client';
 describe('Get User Balance Repository', () => {
     it('should get user balance on db', async () => {
-        await prisma.user.create({ data: fakeUser })
+        await prisma.user.create({ data: fakeUser });
         await prisma.transaction.createMany({
             data: [
                 {
@@ -78,7 +78,7 @@ describe('Get User Balance Repository', () => {
             _sum: {
                 amount: true,
             }
-        })
+        });
         expect(prismaSpy).toHaveBeenCalledWith({
             where: {
                 user_id: fakeUser.id,
@@ -87,7 +87,7 @@ describe('Get User Balance Repository', () => {
             _sum: {
                 amount: true,
             }
-        })
+        });
         expect(prismaSpy).toHaveBeenCalledWith({
             where: {
                 user_id: fakeUser.id,
@@ -96,15 +96,15 @@ describe('Get User Balance Repository', () => {
             _sum: {
                 amount: true,
             }
-        })
-    })
+        });
+    });
 
     it('should throw if Prisma throws', async () => {
-        const sut = new PostgresGetUserBalanceRepository()
-        jest.spyOn(prisma.transaction, 'aggregate').mockRejectedValueOnce(new Error())
+        const sut = new PostgresGetUserBalanceRepository();
+        jest.spyOn(prisma.transaction, 'aggregate').mockRejectedValueOnce(new Error());
 
-        const promise = sut.execute(fakeUser.id)
+        const promise = sut.execute(fakeUser.id);
 
-        await expect(promise).rejects.toThrow()
-    })
-})
+        await expect(promise).rejects.toThrow();
+    });
+});

@@ -9,11 +9,11 @@ export class PostgresDeleteUserRepository {
                     id: userId,
                 },
             });
-            // eslint-disable-next-line no-unused-vars
+             
         } catch (error) {
             if (error instanceof PrismaClientKnownRequestError) {
                 if (error.code === 'P2025') {
-                    throw new UserNotFoundError(userId)
+                    throw new UserNotFoundError(userId);
                 }
             }
 

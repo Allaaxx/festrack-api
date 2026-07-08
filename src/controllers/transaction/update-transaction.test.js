@@ -93,7 +93,7 @@ describe('Update Transaction Controller', () => {
         );
         const response = await sut.execute(baseHttpRequest);
         expect(response.statusCode).toBe(404);
-    })
+    });
 
     it('should call UpdateTransactionUseCase with correct values', async () => {
         const { sut, updateTransactionUseCase } = makeSut();

@@ -1,39 +1,39 @@
-import { PostgresGetUserByIdRepository } from './get-user-by-id.js'
-import { prisma } from '../../../../prisma/prisma.js'
-import { user as fakeUser } from '../../../tests/index.js'
+import { PostgresGetUserByIdRepository } from './get-user-by-id.js';
+import { prisma } from '../../../../prisma/prisma.js';
+import { user as fakeUser } from '../../../tests/index.js';
 
 describe('Postgres Get User By Id Repository', () => {
     it('should get user by id on db', async () => {
-        const user = await prisma.user.create({ data: fakeUser })
+        const user = await prisma.user.create({ data: fakeUser });
 
-        const sut = new PostgresGetUserByIdRepository()
+        const sut = new PostgresGetUserByIdRepository();
 
-        const result = await sut.execute(user.id)
+        const result = await sut.execute(user.id);
 
-        expect(result).toStrictEqual(user)
-    })
+        expect(result).toStrictEqual(user);
+    });
 
     it('should call Prisma with correct params', async () => {
-        const sut = new PostgresGetUserByIdRepository()
+        const sut = new PostgresGetUserByIdRepository();
 
-        const prismaSpy = jest.spyOn(prisma.user, 'findUnique')
+        const prismaSpy = jest.spyOn(prisma.user, 'findUnique');
 
-        await sut.execute(fakeUser.id)
+        await sut.execute(fakeUser.id);
 
         expect(prismaSpy).toHaveBeenCalledWith({
             where: {
                 id: fakeUser.id
             },
-        })
-    })
+        });
+    });
 
     it('should throw if Prisma throws', async () => {
-        const sut = new PostgresGetUserByIdRepository()
-        jest.spyOn(prisma.user, 'findUnique').mockRejectedValueOnce(new Error())
+        const sut = new PostgresGetUserByIdRepository();
+        jest.spyOn(prisma.user, 'findUnique').mockRejectedValueOnce(new Error());
 
-        const promise = sut.execute(fakeUser.id)
+        const promise = sut.execute(fakeUser.id);
 
-        await expect(promise).rejects.toThrow()
-    })
-})
+        await expect(promise).rejects.toThrow();
+    });
+});
 

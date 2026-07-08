@@ -1,7 +1,6 @@
 import request from 'supertest';
-import { app } from '../app.js'
-import { transaction, user } from '../tests/index.js'
-import { faker } from '@faker-js/faker';
+import { app } from '../app.js';
+import { transaction, user } from '../tests/index.js';
 import { TransactionType } from '@prisma/client';
 
 describe('Transaction Routes E2E Tests', () => {
@@ -11,7 +10,7 @@ describe('Transaction Routes E2E Tests', () => {
             .send({
                 ...user,
                 id: undefined,
-            })
+            });
 
         const response = await request(app)
             .post('/api/transactions')
@@ -19,14 +18,14 @@ describe('Transaction Routes E2E Tests', () => {
                 ...transaction,
                 user_id: createdUser.id,
                 id: undefined,
-            })
+            });
 
-        expect(response.status).toBe(201)
-        expect(response.body.user_id).toBe(createdUser.id)
-        expect(response.body.name).toBe(transaction.name)
-        expect(response.body.type).toBe(transaction.type)
-        expect(response.body.amount).toBe(String(transaction.amount))
-    })
+        expect(response.status).toBe(201);
+        expect(response.body.user_id).toBe(createdUser.id);
+        expect(response.body.name).toBe(transaction.name);
+        expect(response.body.type).toBe(transaction.type);
+        expect(response.body.amount).toBe(String(transaction.amount));
+    });
 
     it('GET /api/transaction?userId should return 200 when fetching transactions successfully', async () => {
         const { body: createdUser } = await request(app)
@@ -34,7 +33,7 @@ describe('Transaction Routes E2E Tests', () => {
             .send({
                 ...user,
                 id: undefined,
-            })
+            });
 
         const { body: createdTransaction } = await request(app)
             .post('/api/transactions')
@@ -42,13 +41,13 @@ describe('Transaction Routes E2E Tests', () => {
                 ...transaction,
                 user_id: createdUser.id,
                 id: undefined,
-            })
+            });
 
-        const response = await request(app).get(`/api/transactions?userId=${createdUser.id}`)
+        const response = await request(app).get(`/api/transactions?userId=${createdUser.id}`);
 
-        expect(response.status).toBe(200)
-        expect(response.body[0].id).toEqual(createdTransaction.id)
-    })
+        expect(response.status).toBe(200);
+        expect(response.body[0].id).toEqual(createdTransaction.id);
+    });
 
     it('PATCH /api/transactions/:transactionId should return 200 when updating a transaction successfully', async () => {
         const { body: createdUser } = await request(app)
@@ -56,7 +55,7 @@ describe('Transaction Routes E2E Tests', () => {
             .send({
                 ...user,
                 id: undefined,
-            })
+            });
 
         const { body: createdTransaction } = await request(app)
             .post('/api/transactions')
@@ -64,19 +63,19 @@ describe('Transaction Routes E2E Tests', () => {
                 ...transaction,
                 user_id: createdUser.id,
                 id: undefined,
-            })
+            });
 
         const response = await request(app)
             .patch(`/api/transactions/${createdTransaction.id}`)
             .send({
                 amount: 100,
                 type: TransactionType.INVESTMENT,
-            })
+            });
 
-        expect(response.status).toBe(200)
-        expect(response.body.type).toBe(TransactionType.INVESTMENT)
-        expect(response.body.amount).toBe(String(100))
-    })
+        expect(response.status).toBe(200);
+        expect(response.body.type).toBe(TransactionType.INVESTMENT);
+        expect(response.body.amount).toBe(String(100));
+    });
 
     it('DELETE /api/transactions/:transactionId should return 200 when deleting a transaction successfully', async () => {
         const { body: createdUser } = await request(app)
@@ -84,7 +83,7 @@ describe('Transaction Routes E2E Tests', () => {
             .send({
                 ...user,
                 id: undefined,
-            })
+            });
 
         const { body: createdTransaction } = await request(app)
             .post('/api/transactions')
@@ -92,13 +91,13 @@ describe('Transaction Routes E2E Tests', () => {
                 ...transaction,
                 user_id: createdUser.id,
                 id: undefined,
-            })
+            });
 
-        const response = await request(app).delete(`/api/transactions/${createdTransaction.id}`)
+        const response = await request(app).delete(`/api/transactions/${createdTransaction.id}`);
 
-        expect(response.status).toBe(200)
-        expect(response.body.id).toEqual(createdTransaction.id)
-    })
+        expect(response.status).toBe(200);
+        expect(response.body.id).toEqual(createdTransaction.id);
+    });
 
     it('PATCH /api/transactions/:transactionId should return 404 when transaction is not found', async () => {
         const response = await request(app)
@@ -106,20 +105,20 @@ describe('Transaction Routes E2E Tests', () => {
             .send({
                 amount: 100,
                 type: TransactionType.INVESTMENT,
-            })
+            });
 
-        expect(response.status).toBe(404)
-    })
+        expect(response.status).toBe(404);
+    });
 
     it('DELETE /api/transactions/:transactionId should return 404 when transaction is not found', async () => {
-        const response = await request(app).delete(`/api/transactions/${transaction.id}`)
+        const response = await request(app).delete(`/api/transactions/${transaction.id}`);
 
-        expect(response.status).toBe(404)
-    })
+        expect(response.status).toBe(404);
+    });
 
     it('GET /api/transactions/:userId should return 404 when fetching for non-existing user', async () => {
-        const response = await request(app).get(`/api/transactions/${user.id}`)
+        const response = await request(app).get(`/api/transactions/${user.id}`);
 
-        expect(response.status).toBe(404)
-    })
-})
+        expect(response.status).toBe(404);
+    });
+});
