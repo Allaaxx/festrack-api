@@ -18,6 +18,9 @@ jobs:
               with:
                   node-version: '24'
 
+            - name: Setup .env.test
+              run: echo "DATABASE_URL=postgresql://postgres:password@localhost:5433/finance-app" >> .env.test
+
             - name: Install Dependencies
               run: npm ci
 
