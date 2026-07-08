@@ -44,7 +44,9 @@ describe('Delete User Controller', () => {
 
     it('should return 404 if user is not found', async () => {
         const { sut, deleteUserUseCase } = makeSut();
-        jest.spyOn(deleteUserUseCase, 'execute').mockRejectedValueOnce(new UserNotFoundError());
+        jest.spyOn(deleteUserUseCase, 'execute').mockRejectedValueOnce(
+            new UserNotFoundError(),
+        );
 
         const result = await sut.execute(httpRequest);
 

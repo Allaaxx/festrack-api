@@ -43,7 +43,9 @@ describe('Transaction Routes E2E Tests', () => {
                 id: undefined,
             });
 
-        const response = await request(app).get(`/api/transactions?userId=${createdUser.id}`);
+        const response = await request(app).get(
+            `/api/transactions?userId=${createdUser.id}`,
+        );
 
         expect(response.status).toBe(200);
         expect(response.body[0].id).toEqual(createdTransaction.id);
@@ -93,7 +95,9 @@ describe('Transaction Routes E2E Tests', () => {
                 id: undefined,
             });
 
-        const response = await request(app).delete(`/api/transactions/${createdTransaction.id}`);
+        const response = await request(app).delete(
+            `/api/transactions/${createdTransaction.id}`,
+        );
 
         expect(response.status).toBe(200);
         expect(response.body.id).toEqual(createdTransaction.id);
@@ -111,7 +115,9 @@ describe('Transaction Routes E2E Tests', () => {
     });
 
     it('DELETE /api/transactions/:transactionId should return 404 when transaction is not found', async () => {
-        const response = await request(app).delete(`/api/transactions/${transaction.id}`);
+        const response = await request(app).delete(
+            `/api/transactions/${transaction.id}`,
+        );
 
         expect(response.status).toBe(404);
     });

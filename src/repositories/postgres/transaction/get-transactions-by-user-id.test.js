@@ -1,16 +1,15 @@
-import { prisma } from "../../../../prisma/prisma";
-import { PostgresGetTransactionsByUserIdRepository } from "./get-transactions-by-user-id";
-import { transaction, user } from "../../../tests";
-import dayjs from "dayjs";
+import { prisma } from '../../../../prisma/prisma';
+import { PostgresGetTransactionsByUserIdRepository } from './get-transactions-by-user-id';
+import { transaction, user } from '../../../tests';
+import dayjs from 'dayjs';
 
 describe('Postgres Get Transactions By User Id Repository', () => {
     it('should return transactions of the provided user', async () => {
-
         const sut = new PostgresGetTransactionsByUserIdRepository();
 
         await prisma.user.create({ data: user });
         await prisma.transaction.create({
-            data: { ...transaction, user_id: user.id }
+            data: { ...transaction, user_id: user.id },
         });
 
         const result = await sut.execute(user.id);
@@ -21,10 +20,14 @@ describe('Postgres Get Transactions By User Id Repository', () => {
         expect(result[0].user_id).toBe(user.id);
         expect(String(result[0].amount)).toBe(String(transaction.amount));
         expect(dayjs(result[0].date).daysInMonth()).toBe(
-            dayjs(transaction.date).daysInMonth()
+            dayjs(transaction.date).daysInMonth(),
         );
-        expect(dayjs(result[0].date).month()).toBe(dayjs(transaction.date).month());
-        expect(dayjs(result[0].date).year()).toBe(dayjs(transaction.date).year());
+        expect(dayjs(result[0].date).month()).toBe(
+            dayjs(transaction.date).month(),
+        );
+        expect(dayjs(result[0].date).year()).toBe(
+            dayjs(transaction.date).year(),
+        );
     });
 
     it('should return an empty array if no transactions are found', async () => {

@@ -41,7 +41,7 @@ describe('Delete Transaction Controller', () => {
     it('should return 404 when transaction is not found', async () => {
         const { sut, deleteTransactionUseCase } = makeSut();
         jest.spyOn(deleteTransactionUseCase, 'execute').mockRejectedValueOnce(
-            new TransactionNotFoundError()
+            new TransactionNotFoundError(),
         );
         const response = await sut.execute({
             params: {
@@ -83,7 +83,9 @@ describe('Delete Transaction Controller', () => {
 
     it('should return 404 when use case returns null', async () => {
         const { sut, deleteTransactionUseCase } = makeSut();
-        jest.spyOn(deleteTransactionUseCase, 'execute').mockResolvedValueOnce(null);
+        jest.spyOn(deleteTransactionUseCase, 'execute').mockResolvedValueOnce(
+            null,
+        );
 
         const response = await sut.execute({
             params: {

@@ -1,23 +1,18 @@
-import { prisma } from "../../../../prisma/prisma";
+import { prisma } from '../../../../prisma/prisma';
 import { PostgresUpdateTransactionRepository } from './update-transaction';
 import { transaction, user } from '../../../tests';
 import { faker } from '@faker-js/faker';
 import { TransactionType } from '@prisma/client';
-import dayjs from "dayjs";
+import dayjs from 'dayjs';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { TransactionNotFoundError } from '../../../errors/transaction';
-
-
 
 describe('Postgres Update Transaction Repository', () => {
     it('should update a transaction', async () => {
         await prisma.user.create({ data: user });
-        await prisma.transaction.create(
-            {
-                data:
-                    { ...transaction, user_id: user.id }
-            }
-        );
+        await prisma.transaction.create({
+            data: { ...transaction, user_id: user.id },
+        });
         const sut = new PostgresUpdateTransactionRepository();
 
         const params = {
@@ -25,7 +20,7 @@ describe('Postgres Update Transaction Repository', () => {
             name: faker.commerce.productName(),
             date: faker.date.anytime().toISOString(),
             type: TransactionType.EXPENSE,
-            amount: Number(faker.finance.amount())
+            amount: Number(faker.finance.amount()),
         };
 
         const result = await sut.execute(transaction.id, params);
@@ -35,7 +30,7 @@ describe('Postgres Update Transaction Repository', () => {
         expect(result.user_id).toBe(user.id);
         expect(String(result.amount)).toBe(String(params.amount));
         expect(dayjs(result.date).daysInMonth()).toBe(
-            dayjs(params.date).daysInMonth()
+            dayjs(params.date).daysInMonth(),
         );
         expect(dayjs(result.date).month()).toBe(dayjs(params.date).month());
         expect(dayjs(result.date).year()).toBe(dayjs(params.date).year());
@@ -43,9 +38,9 @@ describe('Postgres Update Transaction Repository', () => {
 
     it('shoul call Pirsma with correct params', async () => {
         await prisma.user.create({ data: user });
-        await prisma.transaction.create(
-            { data: { ...transaction, user_id: user.id } }
-        );
+        await prisma.transaction.create({
+            data: { ...transaction, user_id: user.id },
+        });
         const sut = new PostgresUpdateTransactionRepository();
         const prismaSpy = jest.spyOn(prisma.transaction, 'update');
 
@@ -62,13 +57,10 @@ describe('Postgres Update Transaction Repository', () => {
     it('should throw if Prisma throws', async () => {
         const sut = new PostgresUpdateTransactionRepository();
         jest.spyOn(prisma.transaction, 'update').mockRejectedValueOnce(
-            new Error('Error')
+            new Error('Error'),
         );
 
-        const promise = sut.execute(
-            transaction.id,
-            transaction
-        );
+        const promise = sut.execute(transaction.id, transaction);
 
         await expect(promise).rejects.toThrow();
     });
@@ -76,11 +68,13 @@ describe('Postgres Update Transaction Repository', () => {
     it('should throw TransactionNotFoundError if Prisma throws P2025', async () => {
         const sut = new PostgresUpdateTransactionRepository();
         jest.spyOn(prisma.transaction, 'update').mockRejectedValueOnce(
-            new PrismaClientKnownRequestError('', { code: 'P2025' })
+            new PrismaClientKnownRequestError('', { code: 'P2025' }),
         );
 
         const promise = sut.execute(transaction.id);
 
-        await expect(promise).rejects.toThrow(new TransactionNotFoundError(transaction.id));
+        await expect(promise).rejects.toThrow(
+            new TransactionNotFoundError(transaction.id),
+        );
     });
 });

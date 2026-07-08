@@ -18,7 +18,6 @@ describe('Transaction Controller Factory', () => {
         );
     });
 
-
     it('should return a valid UpdateTransactionController instance', () => {
         expect(makeUpdateTransactionController()).toBeInstanceOf(
             UpdateTransactionController,

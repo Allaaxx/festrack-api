@@ -9,7 +9,6 @@ export class PostgresDeleteUserRepository {
                     id: userId,
                 },
             });
-             
         } catch (error) {
             if (error instanceof PrismaClientKnownRequestError) {
                 if (error.code === 'P2025') {

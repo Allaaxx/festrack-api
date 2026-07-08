@@ -1,15 +1,15 @@
-import { prisma } from "../../../../prisma/prisma";
-import { PostgresDeleteTransactionRepository } from "./delete-transaction";
-import { transaction, user } from "../../../tests";
-import dayjs from "dayjs";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime/client";
-import { TransactionNotFoundError } from "../../../errors";
+import { prisma } from '../../../../prisma/prisma';
+import { PostgresDeleteTransactionRepository } from './delete-transaction';
+import { transaction, user } from '../../../tests';
+import dayjs from 'dayjs';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
+import { TransactionNotFoundError } from '../../../errors';
 
 describe('Postgres Delete Transaction Repository', () => {
     it('should delete a transaction on db', async () => {
         await prisma.user.create({ data: user });
         await prisma.transaction.create({
-            data: { ...transaction, user_id: user.id }
+            data: { ...transaction, user_id: user.id },
         });
 
         const sut = new PostgresDeleteTransactionRepository();
@@ -21,24 +21,27 @@ describe('Postgres Delete Transaction Repository', () => {
         expect(result.user_id).toBe(user.id);
         expect(String(result.amount)).toBe(String(transaction.amount));
         expect(dayjs(result.date).daysInMonth()).toBe(
-            dayjs(transaction.date).daysInMonth()
+            dayjs(transaction.date).daysInMonth(),
         );
-        expect(dayjs(result.date).month()).toBe(dayjs(transaction.date).month());
+        expect(dayjs(result.date).month()).toBe(
+            dayjs(transaction.date).month(),
+        );
         expect(dayjs(result.date).year()).toBe(dayjs(transaction.date).year());
     });
 
     it('should call Prisma with correct params', async () => {
         await prisma.user.create({ data: user });
         await prisma.transaction.create({
-            data: { ...transaction, user_id: user.id }
+            data: { ...transaction, user_id: user.id },
         });
         const prismaSpy = jest.spyOn(prisma.transaction, 'delete');
         const sut = new PostgresDeleteTransactionRepository();
 
-
         await sut.execute(transaction.id);
 
-        expect(prismaSpy).toHaveBeenCalledWith({ where: { id: transaction.id } });
+        expect(prismaSpy).toHaveBeenCalledWith({
+            where: { id: transaction.id },
+        });
     });
 
     it('should throw generic error if Prisma throws generic error', async () => {
@@ -53,12 +56,14 @@ describe('Postgres Delete Transaction Repository', () => {
         const sut = new PostgresDeleteTransactionRepository();
         jest.spyOn(prisma.transaction, 'delete').mockRejectedValue(
             new PrismaClientKnownRequestError('', {
-                code: 'P2025'
-            })
+                code: 'P2025',
+            }),
         );
 
         const promise = sut.execute(transaction.id);
 
-        expect(promise).rejects.toThrow(new TransactionNotFoundError(transaction.id));
+        expect(promise).rejects.toThrow(
+            new TransactionNotFoundError(transaction.id),
+        );
     });
 });

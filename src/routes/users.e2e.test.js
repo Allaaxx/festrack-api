@@ -64,7 +64,9 @@ describe('Users Routes E2E Tests', () => {
                 id: undefined,
             });
 
-        const response = await request(app).delete(`/api/users/${createdUser.id}`);
+        const response = await request(app).delete(
+            `/api/users/${createdUser.id}`,
+        );
 
         expect(response.status).toBe(200);
         expect(response.body).toEqual(createdUser);
@@ -78,31 +80,39 @@ describe('Users Routes E2E Tests', () => {
                 id: undefined,
             });
 
-        await request(app).post('/api/transactions').send({
-            user_id: createdUser.id,
-            name: faker.commerce.productName(10),
-            date: faker.date.anytime().toISOString(),
-            type: TransactionType.EARNING,
-            amount: 10000,
-        });
+        await request(app)
+            .post('/api/transactions')
+            .send({
+                user_id: createdUser.id,
+                name: faker.commerce.productName(10),
+                date: faker.date.anytime().toISOString(),
+                type: TransactionType.EARNING,
+                amount: 10000,
+            });
 
-        await request(app).post('/api/transactions').send({
-            user_id: createdUser.id,
-            name: faker.commerce.productName(10),
-            date: faker.date.anytime().toISOString(),
-            type: TransactionType.EXPENSE,
-            amount: 2000,
-        });
+        await request(app)
+            .post('/api/transactions')
+            .send({
+                user_id: createdUser.id,
+                name: faker.commerce.productName(10),
+                date: faker.date.anytime().toISOString(),
+                type: TransactionType.EXPENSE,
+                amount: 2000,
+            });
 
-        await request(app).post('/api/transactions').send({
-            user_id: createdUser.id,
-            name: faker.commerce.productName(10),
-            date: faker.date.anytime().toISOString(),
-            type: TransactionType.INVESTMENT,
-            amount: 2000,
-        });
+        await request(app)
+            .post('/api/transactions')
+            .send({
+                user_id: createdUser.id,
+                name: faker.commerce.productName(10),
+                date: faker.date.anytime().toISOString(),
+                type: TransactionType.INVESTMENT,
+                amount: 2000,
+            });
 
-        const response = await request(app).get(`/api/users/${createdUser.id}/balance`);
+        const response = await request(app).get(
+            `/api/users/${createdUser.id}/balance`,
+        );
 
         expect(response.status).toBe(200);
         expect(response.body).toEqual({
@@ -114,13 +124,17 @@ describe('Users Routes E2E Tests', () => {
     });
 
     it('GET /api/users/:userId should return 404 when user is not found', async () => {
-        const response = await request(app).get(`/api/users/${faker.string.uuid()}`);
+        const response = await request(app).get(
+            `/api/users/${faker.string.uuid()}`,
+        );
 
         expect(response.status).toBe(404);
     });
 
     it('GET /api/users/:userId/balance should return 404 when user is not found', async () => {
-        const response = await request(app).get(`/api/users/${faker.string.uuid()}/balance`);
+        const response = await request(app).get(
+            `/api/users/${faker.string.uuid()}/balance`,
+        );
 
         expect(response.status).toBe(404);
     });
@@ -139,7 +153,9 @@ describe('Users Routes E2E Tests', () => {
     });
 
     it('DELETE /api/users/:userId should return 404 when user is not found', async () => {
-        const response = await request(app).delete(`/api/users/${faker.string.uuid()}`);
+        const response = await request(app).delete(
+            `/api/users/${faker.string.uuid()}`,
+        );
 
         expect(response.status).toBe(404);
     });
@@ -202,7 +218,7 @@ describe('Users Routes E2E Tests', () => {
                 last_name: faker.person.lastName(),
                 email: faker.internet.email(),
                 password: faker.internet.password(),
-                phone: faker.phone.number()
+                phone: faker.phone.number(),
             });
 
         expect(response.status).toBe(400);
