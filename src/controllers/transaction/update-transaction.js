@@ -4,11 +4,13 @@ import { TransactionNotFoundError } from '../../errors/transaction.js';
 import {
     badRequest,
     checkIfIdIsValid,
+    forbidden,
     invalidIdResponse,
     ok,
     serverError,
     transactionNotFoundResponse,
 } from '../helpers/index.js';
+import { ForbiddenError } from '../../errors/index.js';
 export class UpdateTransactionController {
     constructor(updateTransactionUseCase) {
         this.updateTransactionUseCase = updateTransactionUseCase;
@@ -41,6 +43,9 @@ export class UpdateTransactionController {
             }
             if (error instanceof TransactionNotFoundError) {
                 return transactionNotFoundResponse();
+            }
+            if (error instanceof ForbiddenError) {
+                return forbidden();
             }
             console.error(error);
             return serverError();
