@@ -250,4 +250,20 @@ describe('Users Routes E2E Tests', () => {
 
         expect(response.status).toBe(404);
     });
+
+    it('POST /api/users/login should return 401 when password is wrong', async () => {
+        const { body: createdUser } = await request(app)
+            .post(`/api/users`)
+            .send({
+                ...user,
+                id: undefined,
+            });
+
+        const response = await request(app).post('/api/users/login').send({
+            email: createdUser.email,
+            password: faker.internet.password(),
+        });
+
+        expect(response.status).toBe(401);
+    });
 });
