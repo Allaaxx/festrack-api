@@ -15,19 +15,31 @@ describe('Login User Use Case', () => {
         }
     }
 
+    class TokensGeneratorAdapterStub {
+        execute() {
+            return {
+                accessToken: 'any_access_token',
+                refreshToken: 'any_refresh_token',
+            };
+        }
+    }
+
     const makeSut = () => {
         const getUserByEmailRepositoryStub = new GetUserByEmailRepositoryStub();
         const passwordComparatorAdapterStub =
             new PasswordComparatorAdapterStub();
+        const tokensGeneratorAdapterStub = new TokensGeneratorAdapterStub();
         const sut = new LoginUserUseCase(
             getUserByEmailRepositoryStub,
             passwordComparatorAdapterStub,
+            tokensGeneratorAdapterStub,
         );
 
         return {
             sut,
             getUserByEmailRepositoryStub,
             passwordComparatorAdapterStub,
+            tokensGeneratorAdapterStub,
         };
     };
 
@@ -47,5 +59,12 @@ describe('Login User Use Case', () => {
             .mockReturnValue(false);
         const promise = sut.execute('any_email', 'any_password');
         await expect(promise).rejects.toThrow(new InvalidPasswordError());
+    });
+
+    it('should return user with tokens', async () => {
+        const { sut } = makeSut();
+        const result = await sut.execute('any_email', 'any_password');
+        expect(result.tokens.accessToken).toBeDefined();
+        expect(result.tokens.refreshToken).toBeDefined();
     });
 });
