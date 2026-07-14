@@ -19,7 +19,10 @@ jobs:
                   node-version: '24'
 
             - name: Setup .env.test
-              run: echo "DATABASE_URL=postgresql://postgres:password@localhost:5433/finance-app" >> .env.test
+              run: |
+                  echo "DATABASE_URL=postgresql://postgres:password@localhost:5433/finance-app" >> .env.test
+                  echo "JWT_ACCESS_TOKEN_SECRET=test_access_secret" >> .env.test
+                  echo "JWT_REFRESH_TOKEN_SECRET=test_refresh_secret" >> .env.test
 
             - name: Install Dependencies
               run: npm ci --include=dev
