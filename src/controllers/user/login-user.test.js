@@ -1,6 +1,6 @@
 import { LoginUserController } from './login-user.js';
 import { user } from '../../tests/fixtures/user.js';
-describe('Login user controller', () => {
+describe('Login User Controller', () => {
     class LoginUserUseCaseStub {
         execute() {
             return {
@@ -21,7 +21,7 @@ describe('Login user controller', () => {
         };
     };
 
-    test('should return 200 with user and tokens', async () => {
+    it('should return 200 with user and tokens', async () => {
         const { sut } = makeSut();
         const httpRequest = {
             body: {
@@ -37,6 +37,21 @@ describe('Login user controller', () => {
                 access_token: 'any_token',
                 refresh_token: 'any_refresh_token',
             },
+        });
+    });
+
+    it('should return 400 if email is invalid', async () => {
+        const { sut } = makeSut();
+        const httpRequest = {
+            body: {
+                email: 'invalid_email',
+                password: 'any_password',
+            },
+        };
+        const result = await sut.execute(httpRequest);
+        expect(result.statusCode).toBe(400);
+        expect(result.body).toEqual({
+            message: 'Please provide a valid e-mail.',
         });
     });
 });
