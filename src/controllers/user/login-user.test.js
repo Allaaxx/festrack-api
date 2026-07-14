@@ -54,4 +54,19 @@ describe('Login User Controller', () => {
             message: 'Please provide a valid e-mail.',
         });
     });
+
+    it('should return 400 if password is too short', async () => {
+        const { sut } = makeSut();
+        const httpRequest = {
+            body: {
+                email: 'any_email@email.com',
+                password: 'short',
+            },
+        };
+        const result = await sut.execute(httpRequest);
+        expect(result.statusCode).toBe(400);
+        expect(result.body).toEqual({
+            message: 'Password must have at least 6 characters',
+        });
+    });
 });
