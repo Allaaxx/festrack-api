@@ -1,6 +1,6 @@
 import { LoginUserUseCase } from './login-user';
 import { user } from '../../tests/fixtures/user.js';
-import { UserNotFoundError } from '../../errors/user';
+import { InvalidPasswordError, UserNotFoundError } from '../../errors/user';
 
 describe('Login User Use Case', () => {
     class GetUserByEmailRepositoryStub {
@@ -9,11 +9,26 @@ describe('Login User Use Case', () => {
         }
     }
 
+    class PasswordComparatorAdapterStub {
+        async execute() {
+            return true;
+        }
+    }
+
     const makeSut = () => {
         const getUserByEmailRepositoryStub = new GetUserByEmailRepositoryStub();
-        const sut = new LoginUserUseCase(getUserByEmailRepositoryStub);
+        const passwordComparatorAdapterStub =
+            new PasswordComparatorAdapterStub();
+        const sut = new LoginUserUseCase(
+            getUserByEmailRepositoryStub,
+            passwordComparatorAdapterStub,
+        );
 
-        return { sut, getUserByEmailRepositoryStub };
+        return {
+            sut,
+            getUserByEmailRepositoryStub,
+            passwordComparatorAdapterStub,
+        };
     };
 
     it('should throw UserNotFoundError if user is not found', async () => {
@@ -23,5 +38,14 @@ describe('Login User Use Case', () => {
             .mockResolvedValueOnce(null);
         const promise = sut.execute('any_email', 'any_password');
         await expect(promise).rejects.toThrow(new UserNotFoundError());
+    });
+
+    it('should throw InvalidPasswordError if password is not valid', async () => {
+        const { sut, passwordComparatorAdapterStub } = makeSut();
+        import.meta.jest
+            .spyOn(passwordComparatorAdapterStub, 'execute')
+            .mockReturnValue(false);
+        const promise = sut.execute('any_email', 'any_password');
+        await expect(promise).rejects.toThrow(new InvalidPasswordError());
     });
 });
