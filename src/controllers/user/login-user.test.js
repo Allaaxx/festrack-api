@@ -1,6 +1,13 @@
 import { LoginUserController } from './login-user.js';
 import { user } from '../../tests/fixtures/user.js';
+import { InvalidPasswordError } from '../../errors/user.js';
 describe('Login User Controller', () => {
+    const httpRequest = {
+        body: {
+            email: 'any_email@email.com',
+            password: '123454678',
+        },
+    };
     class LoginUserUseCaseStub {
         execute() {
             return {
@@ -68,5 +75,14 @@ describe('Login User Controller', () => {
         expect(result.body).toEqual({
             message: 'Password must have at least 6 characters',
         });
+    });
+
+    it('should return 401 if password is not valid', async () => {
+        const { sut, loginUserUseCase } = makeSut();
+        jest.spyOn(loginUserUseCase, 'execute').mockRejectedValue(
+            new InvalidPasswordError(),
+        );
+        const response = await sut.execute(httpRequest);
+        expect(response.statusCode).toBe(401);
     });
 });
