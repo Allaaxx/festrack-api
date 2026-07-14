@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 
-export class PaswwordComparatorAdapter {
+export class PasswordComparatorAdapter {
     async execute(password, hashedPassword) {
         return await bcrypt.compare(password, hashedPassword);
     }
