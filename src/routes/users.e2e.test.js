@@ -241,4 +241,13 @@ describe('Users Routes E2E Tests', () => {
         expect(response.body.tokens.accessToken).toBeDefined();
         expect(response.body.tokens.refreshToken).toBeDefined();
     });
+
+    it('POST /api/users/login should return 404 when user is not found', async () => {
+        const response = await request(app).post('/api/users/login').send({
+            email: faker.internet.email(),
+            password: faker.internet.password(),
+        });
+
+        expect(response.status).toBe(404);
+    });
 });
