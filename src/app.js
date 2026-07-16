@@ -1,5 +1,5 @@
 import express from 'express';
-import { usersRouter, transactionsRouter } from './routes/index.js';
+import { usersRouter, transactionsRouter, authRouter } from './routes/index.js';
 import swaggerUi from 'swagger-ui-express';
 import fs from 'fs';
 import path from 'path';
@@ -11,6 +11,8 @@ app.use(express.json());
 app.use('/api/users', usersRouter);
 
 app.use('/api/transactions', transactionsRouter);
+
+app.use('/api/auth', authRouter);
 
 const swaggerDocument = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), 'docs/swagger.json'), 'utf-8'),
