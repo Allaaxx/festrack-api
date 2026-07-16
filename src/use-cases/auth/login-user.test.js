@@ -1,6 +1,6 @@
 import { LoginUserUseCase } from './login-user';
 import { user } from '../../tests/fixtures/user.js';
-import { InvalidPasswordError, UserNotFoundError } from '../../errors/user';
+import { InvalidPasswordError, UserNotFoundError } from '../../errors/user.js';
 
 describe('Login User Use Case', () => {
     class GetUserByEmailRepositoryStub {
