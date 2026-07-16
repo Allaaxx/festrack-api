@@ -5,6 +5,9 @@ import { faker } from '@faker-js/faker';
 import { TransactionType } from '@prisma/client';
 
 describe('Users Routes E2E Tests', () => {
+    const from = '2020-01-01';
+    const to = '2027-12-31';
+
     it('POST /users should return 201 when user is created', async () => {
         const response = await request(app)
             .post('/api/users')
@@ -89,7 +92,7 @@ describe('Users Routes E2E Tests', () => {
             .send({
                 user_id: createdUser.id,
                 name: faker.commerce.productName(10),
-                date: faker.date.anytime().toISOString(),
+                date: new Date(from),
                 type: TransactionType.EARNING,
                 amount: 10000,
             });
@@ -100,7 +103,7 @@ describe('Users Routes E2E Tests', () => {
             .send({
                 user_id: createdUser.id,
                 name: faker.commerce.productName(10),
-                date: faker.date.anytime().toISOString(),
+                date: new Date(from),
                 type: TransactionType.EXPENSE,
                 amount: 2000,
             });
@@ -111,13 +114,17 @@ describe('Users Routes E2E Tests', () => {
             .send({
                 user_id: createdUser.id,
                 name: faker.commerce.productName(10),
-                date: faker.date.anytime().toISOString(),
+                date: new Date(to),
                 type: TransactionType.INVESTMENT,
                 amount: 2000,
             });
 
         const response = await request(app)
             .get(`/api/users/balance`)
+            .query({
+                from: from,
+                to: to,
+            })
             .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`);
 
         expect(response.status).toBe(200);

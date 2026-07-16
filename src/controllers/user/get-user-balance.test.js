@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker';
-import { UserNotFoundError } from '../../errors/user';
-import { GetUserBalanceController } from './get-user-balance';
+import { UserNotFoundError } from '../../errors/index.js';
+import { GetUserBalanceController } from './get-user-balance.js';
 
 describe('Get User Balance Controller', () => {
     class getUserBalanceUseCaseStub {
@@ -20,6 +20,10 @@ describe('Get User Balance Controller', () => {
         params: {
             userId: faker.string.uuid(),
         },
+        query: {
+            from: '2025-01-01',
+            to: '2026-01-02',
+        },
     };
 
     it('should return 200 when getting user balance', async () => {
@@ -36,6 +40,10 @@ describe('Get User Balance Controller', () => {
         const result = await sut.execute({
             params: {
                 userId: 'invalid_id',
+            },
+            query: {
+                from: '2025-01-01',
+                to: '2026-01-02',
             },
         });
 
@@ -59,7 +67,11 @@ describe('Get User Balance Controller', () => {
 
         await sut.execute(httpRequest);
 
-        expect(executeSpy).toHaveBeenCalledWith(httpRequest.params.userId);
+        expect(executeSpy).toHaveBeenCalledWith(
+            httpRequest.params.userId,
+            httpRequest.query.from,
+            httpRequest.query.to,
+        );
     });
 
     it('should return 404 if GetUserBalanceUseCase throws with UserNotFoundError', async () => {
