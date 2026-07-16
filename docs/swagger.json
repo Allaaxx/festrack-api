@@ -19,11 +19,11 @@
         }
     ],
     "paths": {
-        "/api/users": {
+        "/api/auth": {
             "post": {
                 "summary": "Create a new user",
                 "tags": [
-                    "User"
+                    "Auth"
                 ],
                 "parameters": [
                     {
