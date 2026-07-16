@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import {
-    makeCreateUserController,
     makeDeleteUserController,
     makeGetUserBalanceController,
     makeGetUserByIdController,
@@ -37,14 +36,6 @@ usersRouter.get('/me/balance', auth, async (request, response) => {
             to: request.query.to,
         },
     });
-
-    response.status(statusCode).send(body);
-});
-
-usersRouter.post('/', async (request, response) => {
-    const createUserController = makeCreateUserController();
-
-    const { statusCode, body } = await createUserController.execute(request);
 
     response.status(statusCode).send(body);
 });

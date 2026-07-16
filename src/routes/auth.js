@@ -1,10 +1,19 @@
 import { Router } from 'express';
 import {
+    makeCreateUserController,
     makeLoginUserController,
     makeRefreshTokenController,
 } from '../factories/controllers/auth.js';
 
 export const authRouter = Router();
+
+authRouter.post('/', async (request, response) => {
+    const createUserController = makeCreateUserController();
+
+    const { statusCode, body } = await createUserController.execute(request);
+
+    response.status(statusCode).send(body);
+});
 
 authRouter.post('/login', async (request, response) => {
     const loginController = makeLoginUserController();
