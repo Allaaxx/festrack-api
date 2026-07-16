@@ -5,6 +5,19 @@
         "description": "API for FSC Finance App that allows users to manage their finances.",
         "version": "1.0.0"
     },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "Enter 'Bearer' followed by your token"
+        }
+    },
+    "security": [
+        {
+            "BearerAuth": []
+        }
+    ],
     "paths": {
         "/api/users": {
             "post": {
@@ -26,7 +39,7 @@
                     "201": {
                         "description": "User created successfully",
                         "schema": {
-                            "$ref": "#/definitions/CreateUserParams"
+                            "$ref": "#/definitions/UserWithToken"
                         }
                     },
                     "400": {
@@ -42,60 +55,11 @@
                         }
                     }
                 }
-            }
-        },
-        "/api/users/{userId}/balance": {
+            },
+
             "get": {
-                "summary": "Get user balance",
-                "tags": [
-                    "User"
-                ],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "userId",
-                        "required": true,
-                        "type": "string",
-                        "description": "User ID"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "User balance",
-                        "schema": {
-                            "$ref": "#/definitions/UserBalance"
-                        }
-                    },
-                    "404": {
-                        "description": "User not found",
-                        "schema": {
-                            "$ref": "#/definitions/UserNotFoundResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/InternalServerErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/users/{userId}": {
-            "get": {
-                "summary": "Get user by ID",
-                "tags": [
-                    "User"
-                ],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "userId",
-                        "required": true,
-                        "type": "string",
-                        "description": "User ID"
-                    }
-                ],
+                "tags": ["User"],
+                "summary": "Get authenticated user",
                 "responses": {
                     "200": {
                         "description": "User found",
@@ -115,22 +79,16 @@
                             "$ref": "#/definitions/InternalServerErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             },
             "delete": {
-                "summary": "Delete user by ID",
-                "tags": [
-                    "User"
-                ],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "userId",
-                        "required": true,
-                        "type": "string",
-                        "description": "User ID"
-                    }
-                ],
+                "summary": "Delete authenticated user",
+                "tags": ["User"],
                 "responses": {
                     "200": {
                         "description": "User deleted successfully",
@@ -150,13 +108,16 @@
                             "$ref": "#/definitions/InternalServerErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             },
             "patch": {
-                "summary": "Update user by ID",
-                "tags": [
-                    "User"
-                ],
+                "summary": "Update authenticated user",
+                "tags": ["User"],
                 "parameters": [
                     {
                         "in": "path",
@@ -199,12 +160,144 @@
                             "$ref": "#/definitions/InternalServerErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/users/login": {
+            "post": {
+                "summary": "Login user",
+                "tags": ["User"],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/LoginUserParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User logged in successfully",
+                        "schema": {
+                            "$ref": "#/definitions/UserWithToken"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials",
+                        "schema": {
+                            "$ref": "#/definitions/UnauthorizedErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/UserNotFoundResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/InternalServerErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+
+        "/api/user/refresh-token": {
+            "post": {
+                "summary": "Refresh user token",
+                "tags": ["User"],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/RefreshTokenParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User token refreshed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/Tokens"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid tokenb",
+                        "schema": {
+                            "$ref": "#/definitions/UnauthorizedErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/UserNotFoundResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/InternalServerErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+
+        "/api/users/balance": {
+            "get": {
+                "summary": "Get authenticated user balance",
+                "tags": ["User"],
+                "responses": {
+                    "200": {
+                        "description": "User balance",
+                        "schema": {
+                            "$ref": "#/definitions/UserBalance"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/UserNotFoundResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/InternalServerErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/api/transactions": {
             "post": {
-                "summary": "Create transaction",
+                "summary": "Create a new transaction for authenticated user",
                 "tags": [
                     "Transaction"
                 ],
@@ -243,21 +336,17 @@
                             "$ref": "#/definitions/InternalServerErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             },
             "get": {
-                "summary": "Get transactions",
+                "summary": "Get authenticated user transactions",
                 "tags": [
                     "Transaction"
-                ],
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "userId",
-                        "required": true,
-                        "type": "string",
-                        "description": "User ID"
-                    }
                 ],
                 "responses": {
                     "200": {
@@ -281,7 +370,12 @@
                             "$ref": "#/definitions/InternalServerErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/api/transactions/{transactionId}": {
@@ -332,7 +426,12 @@
                             "$ref": "#/definitions/InternalServerErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             },
             "delete": {
                 "summary": "Delete transaction",
@@ -367,7 +466,12 @@
                             "$ref": "#/definitions/InternalServerErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         }
     },
@@ -398,6 +502,43 @@
                 "last_name",
                 "email",
                 "password"
+            ]
+        },
+        "UserWithToken": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/User"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "accessToken": {
+                            "type": "string",
+                            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3..."
+                        },
+                        "refreshToken": {
+                            "type": "string",
+                            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3..."
+                        }
+                    }
+                }
+            ]
+        },
+        "Tokens": {
+            "type": "object",
+            "properties": {
+                "accessToken": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3..."
+                },
+                "refreshToken": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3..."
+                }
+            },
+            "required": [
+                "accessToken",
+                "refreshToken"
             ]
         },
         "UserBalance": {
@@ -453,6 +594,37 @@
                 "password"
             ]
         },
+        "LoginUserParams": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john@doe.com"
+                },
+                "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "password"
+                }
+            },
+            "required": [
+                "email",
+                "password"
+            ]
+        },
+        "RefreshTokenParams": {
+            "type": "object",
+            "properties": {
+                "refresh_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzM2JlMGNiNS01NDEtNDZmNC1hYjEyLTg4NjkwZTY2ZGFvZCIsImV4cCI6MTc1MzI4NDM3Mn0.f3gN8Q-s3gM8Q-s3gM8Q-s3gM8Q-s3gM8Q"
+                }
+            },
+            "required": [
+                "refresh_token"
+            ]
+        },
         "UserNotFoundResponse": {
             "type": "object",
             "properties": {
@@ -491,10 +663,6 @@
         "CreateTransactionParams": {
             "type": "object",
             "properties": {
-                "user_id": {
-                    "type": "string",
-                    "example": "33be0cb5-5541-46f4-ab12-88690e66da0d"
-                },
                 "name": {
                     "type": "string"
                 },
@@ -571,6 +739,15 @@
                 "message": {
                     "type": "string",
                     "example": "Internal server error"
+                }
+            }
+        },
+        "UnauthorizedErrorResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Unauthorized"
                 }
             }
         }
