@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker';
 import { EmailAlreadyInUseError } from '../../errors/user.js';
-import { user } from '../../tests';
+import { user } from '../../tests/index.js';
 import { CreateUserController } from './create-user.js';
 describe('Create User Controller', () => {
     class CreateUserUseCaseStub {
