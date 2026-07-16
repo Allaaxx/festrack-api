@@ -348,6 +348,30 @@
                 "tags": [
                     "Transaction"
                 ],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "from",
+                        "description": "From date (YYYY-MM-DD)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2020-01-01"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "to",
+                        "description": "To date (YYYY-MM-DD)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2025-12-31"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Transactions fetched successfully",
