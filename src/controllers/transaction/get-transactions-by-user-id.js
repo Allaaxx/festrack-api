@@ -18,7 +18,6 @@ export class GetTransactionsByUserIdController {
             const from = httpRequest.query.from;
             const to = httpRequest.query.to;
 
-            console.log(user_id);
             await getTransactionByUserIdSchema.parseAsync({
                 user_id,
                 from,
