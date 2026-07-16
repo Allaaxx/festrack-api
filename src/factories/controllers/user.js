@@ -1,17 +1,11 @@
+import { PasswordHasherAdapter } from '../../adapters/index.js';
 import {
-    IdGeneratorAdapter,
-    PasswordHasherAdapter,
-    TokensGeneratorAdapter,
-} from '../../adapters/index.js';
-import {
-    CreateUserController,
     DeleteUserController,
     GetUserBalanceController,
     GetUserByIdController,
     UpdateUserController,
 } from '../../controllers/index.js';
 import {
-    PostgresCreateUserRepository,
     PostgresDeleteUserRepository,
     PostgresGetUserBalanceRepository,
     PostgresGetUserByEmailRepository,
@@ -19,7 +13,6 @@ import {
     PostgresUpdateUserRepository,
 } from '../../repositories/postgres/index.js';
 import {
-    CreateUserUseCase,
     DeleteUserUseCase,
     GetUserBalanceUseCase,
     GetUserByIdUseCase,
@@ -34,30 +27,6 @@ export const makeGetUserByIdController = () => {
     const getUserByIdController = new GetUserByIdController(getUserByIdUseCase);
 
     return getUserByIdController;
-};
-
-export const makeCreateUserController = () => {
-    const getUserByEmailRepository = new PostgresGetUserByEmailRepository();
-
-    const createUserRepository = new PostgresCreateUserRepository();
-
-    const passwordHasherAdapter = new PasswordHasherAdapter();
-
-    const idGeneratorAdapter = new IdGeneratorAdapter();
-
-    const tokensGeneratorAdapter = new TokensGeneratorAdapter();
-
-    const createUserUseCase = new CreateUserUseCase(
-        getUserByEmailRepository,
-        createUserRepository,
-        passwordHasherAdapter,
-        idGeneratorAdapter,
-        tokensGeneratorAdapter,
-    );
-
-    const createUserController = new CreateUserController(createUserUseCase);
-
-    return createUserController;
 };
 
 export const makeUpdateUserController = () => {
