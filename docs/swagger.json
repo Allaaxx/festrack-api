@@ -266,10 +266,10 @@
                 ]
             }
         },
-        "/api/users/login": {
+        "/api/auth/login": {
             "post": {
                 "summary": "Login user",
-                "tags": ["User"],
+                "tags": ["Auth"],
                 "parameters": [
                     {
                         "in": "body",
@@ -314,10 +314,10 @@
             }
         },
 
-        "/api/user/refresh-token": {
+        "/api/auth/refresh-token": {
             "post": {
                 "summary": "Refresh user token",
-                "tags": ["User"],
+                "tags": ["Auth"],
                 "parameters": [
                     {
                         "in": "body",
