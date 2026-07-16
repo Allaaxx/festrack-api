@@ -1,4 +1,5 @@
 import { TransactionNotFoundError } from '../../errors/transaction.js';
+import { ForbiddenError } from '../../errors/user.js';
 import { transaction } from '../../tests/index.js';
 import { UpdateTransactionController } from './update-transaction.js';
 import { faker } from '@faker-js/faker';
@@ -62,6 +63,19 @@ describe('Update Transaction Controller', () => {
             body: { ...baseHttpRequest.body, type: 'INVALID' },
         });
         expect(response.statusCode).toBe(400);
+    });
+
+    it('should return 403 when user_id is not the owner', async () => {
+        const { sut, updateTransactionUseCase } = makeSut();
+        jest.spyOn(updateTransactionUseCase, 'execute').mockRejectedValueOnce(
+            new ForbiddenError('user_id'),
+        );
+
+        const response = await sut.execute({
+            params: baseHttpRequest.params,
+            body: { ...baseHttpRequest.body },
+        });
+        expect(response.statusCode).toBe(403);
     });
 
     it('should return 500 when UpdateTransactionUseCase throws', async () => {
