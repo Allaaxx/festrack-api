@@ -9,7 +9,7 @@ describe('Transaction Routes E2E Tests', () => {
 
     it('POST /api/transactions should return 201 when creating a transaction successfully', async () => {
         const { body: createdUser } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,
@@ -31,7 +31,7 @@ describe('Transaction Routes E2E Tests', () => {
 
     it('GET /api/transaction?userId should return 200 when fetching transactions successfully', async () => {
         const { body: createdUser } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,
@@ -60,7 +60,7 @@ describe('Transaction Routes E2E Tests', () => {
 
     it('PATCH /api/transactions/:transactionId should return 200 when updating a transaction successfully', async () => {
         const { body: createdUser } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,
@@ -89,7 +89,7 @@ describe('Transaction Routes E2E Tests', () => {
 
     it('DELETE /api/transactions/:transactionId should return 200 when deleting a transaction successfully', async () => {
         const { body: createdUser } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,
@@ -113,7 +113,7 @@ describe('Transaction Routes E2E Tests', () => {
 
     it('PATCH /api/transactions/:transactionId should return 404 when transaction is not found', async () => {
         const { body: createdUser } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,
@@ -132,7 +132,7 @@ describe('Transaction Routes E2E Tests', () => {
 
     it('DELETE /api/transactions/:transactionId should return 404 when transaction is not found', async () => {
         const { body: createdUser } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,
@@ -147,7 +147,7 @@ describe('Transaction Routes E2E Tests', () => {
 
     it('GET /api/transactions/:userId should return 404 when fetching for non-existing user', async () => {
         const { body: createdUser } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,

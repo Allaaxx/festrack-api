@@ -7,21 +7,9 @@ import { TransactionType } from '@prisma/client';
 describe('Users Routes E2E Tests', () => {
     const from = '2020-01-01';
     const to = '2027-12-31';
-
-    it('POST /users should return 201 when user is created', async () => {
-        const response = await request(app)
-            .post('/api/users')
-            .send({
-                ...user,
-                id: undefined,
-            });
-
-        expect(response.status).toBe(201);
-    });
-
     it('GET /api/users/me should return 200 if user is authenticated', async () => {
         const { body: createdUser } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,
@@ -37,7 +25,7 @@ describe('Users Routes E2E Tests', () => {
 
     it('PATCH /api/users/me should return 200 when user is updated', async () => {
         const { body: createdUser } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,
@@ -64,7 +52,7 @@ describe('Users Routes E2E Tests', () => {
 
     it('DELETE /api/users/me should return 204 when user is deleted', async () => {
         const { body: createdUser } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,
@@ -80,7 +68,7 @@ describe('Users Routes E2E Tests', () => {
 
     it('GET /api/users/me/balance should return 200 when user balance is calculated', async () => {
         const { body: createdUser } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,
@@ -139,27 +127,9 @@ describe('Users Routes E2E Tests', () => {
         });
     });
 
-    it('POST /api/users should return 400 when email already in use', async () => {
-        await request(app)
-            .post(`/api/users`)
-            .send({
-                ...user,
-                id: undefined,
-            });
-
-        const response = await request(app)
-            .post(`/api/users`)
-            .send({
-                ...user,
-                id: undefined,
-            });
-
-        expect(response.status).toBe(400);
-    });
-
     it('PATCH /api/users/me should return 400 when email already in use', async () => {
         const { body: createdUserOne } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,
@@ -167,7 +137,7 @@ describe('Users Routes E2E Tests', () => {
             });
 
         const { body: createdUserTwo } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,
@@ -185,7 +155,7 @@ describe('Users Routes E2E Tests', () => {
 
     it('PATCH /api/users/me should return 400 when body is invalid', async () => {
         const { body: createdUser } = await request(app)
-            .post(`/api/users`)
+            .post(`/api/auth`)
             .send({
                 ...user,
                 id: undefined,
@@ -203,67 +173,5 @@ describe('Users Routes E2E Tests', () => {
             });
 
         expect(response.status).toBe(400);
-    });
-
-    it('POST /api/auth/login should return 200 when user is logged in', async () => {
-        const { body: createdUser } = await request(app)
-            .post(`/api/users`)
-            .send({
-                ...user,
-                id: undefined,
-            });
-
-        const response = await request(app).post('/api/auth/login').send({
-            email: createdUser.email,
-            password: user.password,
-        });
-
-        expect(response.status).toBe(200);
-        expect(response.body.tokens.accessToken).toBeDefined();
-        expect(response.body.tokens.refreshToken).toBeDefined();
-    });
-
-    it('POST /api/auth/login should return 404 when user is not found', async () => {
-        const response = await request(app).post('/api/auth/login').send({
-            email: faker.internet.email(),
-            password: faker.internet.password(),
-        });
-
-        expect(response.status).toBe(404);
-    });
-
-    it('POST /api/auth/login should return 401 when password is wrong', async () => {
-        const { body: createdUser } = await request(app)
-            .post(`/api/users`)
-            .send({
-                ...user,
-                id: undefined,
-            });
-
-        const response = await request(app).post('/api/auth/login').send({
-            email: createdUser.email,
-            password: faker.internet.password(),
-        });
-
-        expect(response.status).toBe(401);
-    });
-
-    it('POST /api/users/refresh-token should return 200 when refresh token is valid', async () => {
-        const { body: createdUser } = await request(app)
-            .post(`/api/users`)
-            .send({
-                ...user,
-                id: undefined,
-            });
-
-        const response = await request(app)
-            .post('/api/auth/refresh-token')
-            .send({
-                refreshToken: createdUser.tokens.refreshToken,
-            });
-
-        expect(response.status).toBe(200);
-        expect(response.body.tokens.accessToken).toBeDefined();
-        expect(response.body.tokens.refreshToken).toBeDefined();
     });
 });
