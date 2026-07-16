@@ -47,8 +47,10 @@ describe('Refresh Token Controller', () => {
 
         expect(response.statusCode).toBe(200);
         expect(response.body).toEqual({
-            accessToken: 'new_access_token',
-            refreshToken: 'new_refresh_token',
+            tokens: {
+                accessToken: 'new_access_token',
+                refreshToken: 'new_refresh_token',
+            },
         });
     });
 

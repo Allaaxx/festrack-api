@@ -14,11 +14,11 @@ export class RefreshTokenController {
 
             await refreshTokenSchema.parseAsync(params);
 
-            const response = this.refreshTokenUseCase.execute(
+            const tokens = this.refreshTokenUseCase.execute(
                 params.refreshToken,
             );
 
-            return ok(response);
+            return ok({ tokens });
         } catch (error) {
             if (error instanceof ZodError) {
                 return badRequest({ message: error.issues[0].message });
