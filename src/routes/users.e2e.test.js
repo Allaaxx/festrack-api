@@ -205,7 +205,7 @@ describe('Users Routes E2E Tests', () => {
         expect(response.status).toBe(400);
     });
 
-    it('POST /api/users/login should return 200 when user is logged in', async () => {
+    it('POST /api/auth/login should return 200 when user is logged in', async () => {
         const { body: createdUser } = await request(app)
             .post(`/api/users`)
             .send({
@@ -213,7 +213,7 @@ describe('Users Routes E2E Tests', () => {
                 id: undefined,
             });
 
-        const response = await request(app).post('/api/users/login').send({
+        const response = await request(app).post('/api/auth/login').send({
             email: createdUser.email,
             password: user.password,
         });
@@ -223,8 +223,8 @@ describe('Users Routes E2E Tests', () => {
         expect(response.body.tokens.refreshToken).toBeDefined();
     });
 
-    it('POST /api/users/login should return 404 when user is not found', async () => {
-        const response = await request(app).post('/api/users/login').send({
+    it('POST /api/auth/login should return 404 when user is not found', async () => {
+        const response = await request(app).post('/api/auth/login').send({
             email: faker.internet.email(),
             password: faker.internet.password(),
         });
@@ -232,7 +232,7 @@ describe('Users Routes E2E Tests', () => {
         expect(response.status).toBe(404);
     });
 
-    it('POST /api/users/login should return 401 when password is wrong', async () => {
+    it('POST /api/auth/login should return 401 when password is wrong', async () => {
         const { body: createdUser } = await request(app)
             .post(`/api/users`)
             .send({
@@ -240,7 +240,7 @@ describe('Users Routes E2E Tests', () => {
                 id: undefined,
             });
 
-        const response = await request(app).post('/api/users/login').send({
+        const response = await request(app).post('/api/auth/login').send({
             email: createdUser.email,
             password: faker.internet.password(),
         });
@@ -257,7 +257,7 @@ describe('Users Routes E2E Tests', () => {
             });
 
         const response = await request(app)
-            .post('/api/users/refresh-token')
+            .post('/api/auth/refresh-token')
             .send({
                 refreshToken: createdUser.tokens.refreshToken,
             });
