@@ -120,12 +120,81 @@
                 "tags": ["User"],
                 "parameters": [
                     {
-                        "in": "path",
-                        "name": "userId",
+                        "in": "body",
+                        "name": "body",
                         "required": true,
-                        "type": "string",
-                        "description": "User ID"
+                        "schema": {
+                            "$ref": "#/definitions/CreateUserParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/User"
+                        }
                     },
+                    "400": {
+                        "description": "Invalid params",
+                        "schema": {
+                            "$ref": "#/definitions/InvalidParamResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/UserNotFoundResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/InternalServerErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/users/me": {
+            "get": {
+                "summary": "Get authenticated user",
+                "tags": ["User"],
+                "responses": {
+                    "200": {
+                        "description": "User found",
+                        "schema": {
+                            "$ref": "#/definitions/User"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/UserNotFoundResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/InternalServerErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "summary": "Update authenticated user",
+                "tags": ["User"],
+                "parameters": [
                     {
                         "in": "body",
                         "name": "body",
@@ -146,6 +215,35 @@
                         "description": "Invalid params",
                         "schema": {
                             "$ref": "#/definitions/InvalidParamResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/UserNotFoundResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/InternalServerErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "summary": "Delete authenticated user",
+                "tags": ["User"],
+                "responses": {
+                    "200": {
+                        "description": "User deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/User"
                         }
                     },
                     "404": {
@@ -264,7 +362,7 @@
             }
         },
 
-        "/api/users/balance": {
+        "/api/users/me/balance": {
             "get": {
                 "summary": "Get authenticated user balance",
                 "tags": ["User"],
