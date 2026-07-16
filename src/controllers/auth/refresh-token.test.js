@@ -1,4 +1,4 @@
-import { UnauthorizedError } from '../../errors';
+import { UnauthorizedError } from '../../errors/index.js';
 import { RefreshTokenController } from './refresh-token.js';
 
 describe('Refresh Token Controller', () => {
