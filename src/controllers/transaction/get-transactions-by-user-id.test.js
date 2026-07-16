@@ -3,6 +3,8 @@ import { UserNotFoundError } from '../../errors/user.js';
 import { transaction } from '../../tests';
 import { GetTransactionsByUserIdController } from './get-transactions-by-user-id.js';
 describe('Get Transaction By User ID Controller ', () => {
+    const from = '2026-01-01';
+    const to = '2027-01-01';
     class GetUserByIdUseCaseStub {
         execute() {
             return transaction;
@@ -20,7 +22,11 @@ describe('Get Transaction By User ID Controller ', () => {
         const { sut } = makeSut();
 
         const response = await sut.execute({
-            query: { userId: faker.string.uuid() },
+            query: {
+                userId: faker.string.uuid(),
+                from,
+                to,
+            },
         });
 
         expect(response.statusCode).toBe(200);
@@ -30,7 +36,11 @@ describe('Get Transaction By User ID Controller ', () => {
         const { sut } = makeSut();
 
         const response = await sut.execute({
-            query: { userId: undefined },
+            query: {
+                userId: undefined,
+                from,
+                to,
+            },
         });
 
         expect(response.statusCode).toBe(400);
@@ -40,7 +50,11 @@ describe('Get Transaction By User ID Controller ', () => {
         const { sut } = makeSut();
 
         const response = await sut.execute({
-            query: { userId: 'invalid_user_id' },
+            query: {
+                userId: 'invalid_user_id',
+                from,
+                to,
+            },
         });
 
         expect(response.statusCode).toBe(400);
@@ -53,7 +67,11 @@ describe('Get Transaction By User ID Controller ', () => {
         );
 
         const response = await sut.execute({
-            query: { userId: faker.string.uuid() },
+            query: {
+                userId: faker.string.uuid(),
+                from,
+                to,
+            },
         });
 
         expect(response.statusCode).toBe(404);
@@ -66,7 +84,11 @@ describe('Get Transaction By User ID Controller ', () => {
         );
 
         const response = await sut.execute({
-            query: { userId: faker.string.uuid() },
+            query: {
+                userId: faker.string.uuid(),
+                from,
+                to,
+            },
         });
 
         expect(response.statusCode).toBe(500);
@@ -79,9 +101,13 @@ describe('Get Transaction By User ID Controller ', () => {
         const userId = faker.string.uuid();
 
         await sut.execute({
-            query: { userId },
+            query: {
+                userId,
+                from,
+                to,
+            },
         });
 
-        expect(executeSpy).toHaveBeenCalledWith(userId);
+        expect(executeSpy).toHaveBeenCalledWith(userId, from, to);
     });
 });
