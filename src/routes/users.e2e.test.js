@@ -130,8 +130,11 @@ describe('Users Routes E2E Tests', () => {
         expect(response.status).toBe(200);
         expect(response.body).toEqual({
             earnings: '10000',
+            earningsPercentage: '71',
+            expensePercentage: '14',
             expenses: '2000',
             investments: '2000',
+            investmentsPercentage: '14',
             balance: '6000',
         });
     });
