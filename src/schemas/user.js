@@ -61,3 +61,9 @@ export const loginSchema = z.object({
 export const refreshTokenSchema = z.object({
     refreshToken: z.string().trim().min(1, 'Refresh token is required'),
 });
+
+export const getUserBalanceSchema = z.object({
+    user_id: z.uuid(),
+    from: z.iso.date(),
+    to: z.iso.date(),
+});
