@@ -32,10 +32,10 @@ describe('Refresh Token Use Case', () => {
         };
     };
 
-    it('should generate new tokens when a valid refresh token is provided', async () => {
+    it('should generate new tokens when a valid refresh token is provided', () => {
         const { sut } = makeSut();
 
-        const result = await sut.execute('valid_refresh_token');
+        const result = sut.execute('valid_refresh_token');
 
         expect(result).toEqual({
             accessToken: 'new_access_token',
@@ -43,7 +43,7 @@ describe('Refresh Token Use Case', () => {
         });
     });
 
-    it('should throw an error when tokenVerifierAdapter throws', async () => {
+    it('should throw an error when tokenVerifierAdapter throws', () => {
         const { sut, tokenVerifierAdapter } = makeSut();
         jest.spyOn(tokenVerifierAdapter, 'execute').mockImplementationOnce(
             () => {
@@ -51,7 +51,7 @@ describe('Refresh Token Use Case', () => {
             },
         );
 
-        await expect(sut.execute('invalid_refresh_token')).rejects.toThrow(
+        expect(() => sut.execute('invalid_refresh_token')).toThrow(
             new UnauthorizedError(),
         );
     });
