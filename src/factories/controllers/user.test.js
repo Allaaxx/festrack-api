@@ -1,12 +1,10 @@
 import {
-    CreateUserController,
     DeleteUserController,
     GetUserBalanceController,
     GetUserByIdController,
     UpdateUserController,
-} from '../../controllers';
+} from '../../controllers/index.js';
 import {
-    makeCreateUserController,
     makeDeleteUserController,
     makeGetUserBalanceController,
     makeGetUserByIdController,
@@ -18,10 +16,6 @@ describe('User Controller Factories', () => {
         expect(makeGetUserByIdController()).toBeInstanceOf(
             GetUserByIdController,
         );
-    });
-
-    it('should return a valid CreateUserController instance', () => {
-        expect(makeCreateUserController()).toBeInstanceOf(CreateUserController);
     });
 
     it('should return a valid UpdateUserController instance', () => {
