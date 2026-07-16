@@ -72,4 +72,13 @@ describe('Update Transaction Use Case', () => {
 
         await expect(promise).rejects.toThrow();
     });
+
+    it('should throw 403 if user_id is different from transaction owner', async () => {
+        const { sut } = makeSut();
+        const promise = sut.execute(transaction.id, {
+            user_id: faker.string.uuid(),
+        });
+
+        await expect(promise).rejects.toThrow();
+    });
 });
