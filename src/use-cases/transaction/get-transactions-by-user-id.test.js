@@ -71,10 +71,16 @@ describe('Get Transactions By User Id Use Case', () => {
             'execute',
         );
         const id = faker.string.uuid();
+        const from = faker.date.past().toISOString();
+        const to = faker.date.future().toISOString();
 
-        await sut.execute(id);
+        await sut.execute(id, from, to);
 
-        expect(getTransactionsByUserIdRepositorySpy).toHaveBeenCalledWith(id);
+        expect(getTransactionsByUserIdRepositorySpy).toHaveBeenCalledWith(
+            id,
+            from,
+            to,
+        );
     });
 
     it('should throw if GetUserByIdRepository throws', async () => {
