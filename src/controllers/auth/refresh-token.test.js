@@ -72,4 +72,23 @@ describe('Refresh Token Controller', () => {
 
         expect(response.statusCode).toBe(401);
     });
+
+    it('should return 500 when if RefreshTokenUseCase throws', async () => {
+        const { sut, refreshTokenUseCaseStub } = makeSut();
+        jest.spyOn(refreshTokenUseCaseStub, 'execute').mockImplementationOnce(
+            () => {
+                throw new Error();
+            },
+        );
+
+        const httpRequest = {
+            body: {
+                refreshToken: '1',
+            },
+        };
+
+        const response = await sut.execute(httpRequest);
+
+        expect(response.statusCode).toBe(500);
+    });
 });
