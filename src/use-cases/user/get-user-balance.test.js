@@ -4,6 +4,9 @@ import { user, userBalance } from '../../tests';
 import { GetUserBalanceUseCase } from './get-user-balance.js';
 
 describe('Get User Balance Use Case', () => {
+    const from = '2024-01-01';
+    const to = '2027-12-23';
+
     class GetUserBalanceRepositoryStub {
         async execute() {
             return userBalance;
@@ -63,9 +66,9 @@ describe('Get User Balance Use Case', () => {
         const userId = faker.string.uuid();
         const executeSpy = jest.spyOn(getUserBalanceRepository, 'execute');
 
-        await sut.execute(userId);
+        await sut.execute(userId, from, to);
 
-        expect(executeSpy).toHaveBeenCalledWith(userId);
+        expect(executeSpy).toHaveBeenCalledWith(userId, from, to);
     });
 
     it('should throw if GetUserByIdRepository throws', async () => {
