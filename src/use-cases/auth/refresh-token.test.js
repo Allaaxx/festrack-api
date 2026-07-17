@@ -55,4 +55,17 @@ describe('Refresh Token Use Case', () => {
             new UnauthorizedError(),
         );
     });
+
+    it('should throw 401 when refresh token use case throw', () => {
+        const { sut, tokensGeneratorAdapter } = makeSut();
+        jest.spyOn(tokensGeneratorAdapter, 'execute').mockImplementationOnce(
+            () => {
+                throw new Error();
+            },
+        );
+
+        expect(() => sut.execute('invalid_refresh_token')).toThrow(
+            new UnauthorizedError(),
+        );
+    });
 });
