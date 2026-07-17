@@ -1,5 +1,5 @@
 import { TransactionNotFoundError } from '../../errors/transaction.js';
-import { ForbiddenError } from '../../errors/user.js';
+import { ForbiddenError } from '../../errors/index.js';
 import { transaction } from '../../tests/index.js';
 import { UpdateTransactionController } from './update-transaction.js';
 import { faker } from '@faker-js/faker';
