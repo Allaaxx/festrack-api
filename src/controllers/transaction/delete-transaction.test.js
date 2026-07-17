@@ -71,14 +71,16 @@ describe('Delete Transaction Controller', () => {
         const executeSpy = jest.spyOn(deleteTransactionUseCase, 'execute');
 
         const transactionId = faker.string.uuid();
+        const userId = faker.string.uuid();
 
         await sut.execute({
             params: {
                 transactionId,
             },
+            user_id: userId,
         });
 
-        expect(executeSpy).toHaveBeenCalledWith(transactionId);
+        expect(executeSpy).toHaveBeenCalledWith(transactionId, userId);
     });
 
     it('should return 404 when use case returns null', async () => {
