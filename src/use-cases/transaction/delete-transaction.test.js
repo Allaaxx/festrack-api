@@ -1,6 +1,7 @@
 import { faker } from '@faker-js/faker';
 import { transaction } from '../../tests/index.js';
 import { DeleteTransactionUseCase } from './delete-transaction.js';
+import { ForbiddenError } from '../../errors/auth.js';
 
 describe('Delte Transaction Use Case', () => {
     const user_id = faker.string.uuid();
@@ -72,5 +73,14 @@ describe('Delte Transaction Use Case', () => {
         const promise = sut.execute(id, user_id);
 
         await expect(promise).rejects.toThrow();
+    });
+
+    it('should throw ForbiddenError if user_id from transaction is different from user_id from params', async () => {
+        const { sut } = makeSut();
+        const id = faker.string.uuid();
+
+        const promise = sut.execute(id, faker.string.uuid());
+
+        await expect(promise).rejects.toThrow(ForbiddenError);
     });
 });
