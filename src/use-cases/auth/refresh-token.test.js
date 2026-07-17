@@ -68,4 +68,14 @@ describe('Refresh Token Use Case', () => {
             new UnauthorizedError(),
         );
     });
+
+    it('should throw UnauthorizedError when decoded token is null', () => {
+        const { sut, tokenVerifierAdapter } = makeSut();
+
+        jest.spyOn(tokenVerifierAdapter, 'execute').mockReturnValueOnce(null);
+
+        expect(() => sut.execute('invalid_refresh_token')).toThrow(
+            UnauthorizedError,
+        );
+    });
 });
