@@ -24,6 +24,7 @@ export class DeleteTransactionController {
             const deletedTransaction =
                 await this.deleteTransactionUseCase.execute(
                     httpRequest.params.transactionId,
+                    httpRequest.user_id,
                 );
 
             if (!deletedTransaction) {

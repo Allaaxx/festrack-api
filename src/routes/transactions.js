@@ -64,7 +64,7 @@ transactionsRouter.delete(
             ...request,
             params: {
                 ...request.params,
-                userId: request.userId,
+                user_id: request.userId,
             },
         });
 
