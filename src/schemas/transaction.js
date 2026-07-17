@@ -21,17 +21,11 @@ export const createTransactionSchema = z.object({
                 : 'Date must be a valid date.',
     }),
     type: z.enum(['EXPENSE', 'EARNING', 'INVESTMENT'], {
-        error: (issue) =>
-            issue.code === 'invalid_value'
-                ? 'Type must be EXPENSE, EARNING or INVESTMENT.'
-                : undefined,
+        error: () => 'Type must be EXPENSE, EARNING or INVESTMENT.',
     }),
     amount: z
         .number({
-            error: (issue) =>
-                issue.code === 'invalid_type'
-                    ? 'Amount must be a number.'
-                    : undefined,
+            error: () => 'Amount must be a number.',
         })
         .min(1, {
             message: 'Amount must be greater than 0.',
