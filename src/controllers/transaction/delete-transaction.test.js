@@ -76,8 +76,8 @@ describe('Delete Transaction Controller', () => {
         await sut.execute({
             params: {
                 transactionId,
+                user_id: userId,
             },
-            user_id: userId,
         });
 
         expect(executeSpy).toHaveBeenCalledWith(transactionId, userId);
