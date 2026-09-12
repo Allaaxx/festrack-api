@@ -3,9 +3,22 @@ import { usersRouter, transactionsRouter, authRouter } from './routes/index.js';
 import swaggerUi from 'swagger-ui-express';
 import fs from 'fs';
 import path from 'path';
-
+import cors from 'cors';
 export const app = express();
 
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(
+    cors({
+        origin: allowedOrigins,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+    }),
+);
 app.use(express.json());
 
 app.use('/api/users', usersRouter);
