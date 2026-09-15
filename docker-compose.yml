@@ -1,3 +1,5 @@
+name: finance-app-api
+
 services:
     postgres:
         image: postgres
