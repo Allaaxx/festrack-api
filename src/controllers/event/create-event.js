@@ -18,7 +18,8 @@ export class CreateEventController {
             const params = httpRequest.body;
             const validatedParams = await createEventSchema.parseAsync(params);
 
-            const event = await this.createEventUseCase.execute(validatedParams);
+            const event =
+                await this.createEventUseCase.execute(validatedParams);
 
             return created(event);
         } catch (error) {

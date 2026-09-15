@@ -1,5 +1,10 @@
 import express from 'express';
-import { usersRouter, transactionsRouter, authRouter, eventsRouter } from './routes/index.js';
+import {
+    usersRouter,
+    transactionsRouter,
+    authRouter,
+    eventsRouter,
+} from './routes/index.js';
 import swaggerUi from 'swagger-ui-express';
 import fs from 'fs';
 import path from 'path';

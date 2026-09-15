@@ -35,13 +35,10 @@ export const createEventSchema = z
         start_date: dateSchema('Start date'),
         end_date: dateSchema('End date'),
     })
-    .refine(
-        (data) => new Date(data.end_date) >= new Date(data.start_date),
-        {
-            message: 'End date must be greater than or equal to start date.',
-            path: ['end_date'],
-        },
-    );
+    .refine((data) => new Date(data.end_date) >= new Date(data.start_date), {
+        message: 'End date must be greater than or equal to start date.',
+        path: ['end_date'],
+    });
 
 export const updateEventSchema = z
     .object({

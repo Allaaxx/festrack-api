@@ -43,4 +43,3 @@ export const noContent = () => ({
     statusCode: 204,
     body: null,
 });
-

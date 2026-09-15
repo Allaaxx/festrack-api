@@ -46,7 +46,6 @@ export const makeCreateTransactionController = () => {
     return creaTransactionController;
 };
 
-
 export const makeGetTransactionsByUserIdController = () => {
     const getTransactionsByUserIdRepository =
         new PostgresGetTransactionsByUserIdRepository();
