@@ -619,6 +619,179 @@
                     }
                 ]
             }
+        },
+        "/api/events/me": {
+            "post": {
+                "summary": "Create a new event for the authenticated user",
+                "tags": ["Event"],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CreateEventParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Event created successfully",
+                        "schema": { "$ref": "#/definitions/Event" }
+                    },
+                    "400": {
+                        "description": "Invalid params",
+                        "schema": { "$ref": "#/definitions/InvalidParamResponse" }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": { "$ref": "#/definitions/UserNotFoundResponse" }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": { "$ref": "#/definitions/InternalServerErrorResponse" }
+                    }
+                },
+                "security": [{ "BearerAuth": [] }]
+            },
+            "get": {
+                "summary": "Get all events of the authenticated user",
+                "tags": ["Event"],
+                "responses": {
+                    "200": {
+                        "description": "Events fetched successfully",
+                        "schema": {
+                            "type": "array",
+                            "items": { "$ref": "#/definitions/Event" }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": { "$ref": "#/definitions/UserNotFoundResponse" }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": { "$ref": "#/definitions/InternalServerErrorResponse" }
+                    }
+                },
+                "security": [{ "BearerAuth": [] }]
+            }
+        },
+        "/api/events/me/{eventId}": {
+            "get": {
+                "summary": "Get an event by ID of the authenticated user",
+                "tags": ["Event"],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "eventId",
+                        "required": true,
+                        "type": "string",
+                        "description": "Event ID (UUID)"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Event found",
+                        "schema": { "$ref": "#/definitions/Event" }
+                    },
+                    "400": {
+                        "description": "Invalid event ID",
+                        "schema": { "$ref": "#/definitions/InvalidParamResponse" }
+                    },
+                    "403": {
+                        "description": "Forbidden – event does not belong to the authenticated user",
+                        "schema": { "$ref": "#/definitions/ForbiddenResponse" }
+                    },
+                    "404": {
+                        "description": "Event not found",
+                        "schema": { "$ref": "#/definitions/EventNotFoundResponse" }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": { "$ref": "#/definitions/InternalServerErrorResponse" }
+                    }
+                },
+                "security": [{ "BearerAuth": [] }]
+            },
+            "patch": {
+                "summary": "Update an event by ID of the authenticated user",
+                "tags": ["Event"],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "eventId",
+                        "required": true,
+                        "type": "string",
+                        "description": "Event ID (UUID)"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": { "$ref": "#/definitions/UpdateEventParams" }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Event updated successfully",
+                        "schema": { "$ref": "#/definitions/Event" }
+                    },
+                    "400": {
+                        "description": "Invalid params",
+                        "schema": { "$ref": "#/definitions/InvalidParamResponse" }
+                    },
+                    "403": {
+                        "description": "Forbidden – event does not belong to the authenticated user",
+                        "schema": { "$ref": "#/definitions/ForbiddenResponse" }
+                    },
+                    "404": {
+                        "description": "Event not found",
+                        "schema": { "$ref": "#/definitions/EventNotFoundResponse" }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": { "$ref": "#/definitions/InternalServerErrorResponse" }
+                    }
+                },
+                "security": [{ "BearerAuth": [] }]
+            },
+            "delete": {
+                "summary": "Delete an event by ID of the authenticated user",
+                "tags": ["Event"],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "eventId",
+                        "required": true,
+                        "type": "string",
+                        "description": "Event ID (UUID)"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Event deleted successfully",
+                        "schema": { "$ref": "#/definitions/Event" }
+                    },
+                    "400": {
+                        "description": "Invalid event ID",
+                        "schema": { "$ref": "#/definitions/InvalidParamResponse" }
+                    },
+                    "403": {
+                        "description": "Forbidden – event does not belong to the authenticated user",
+                        "schema": { "$ref": "#/definitions/ForbiddenResponse" }
+                    },
+                    "404": {
+                        "description": "Event not found",
+                        "schema": { "$ref": "#/definitions/EventNotFoundResponse" }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": { "$ref": "#/definitions/InternalServerErrorResponse" }
+                    }
+                },
+                "security": [{ "BearerAuth": [] }]
+            }
         }
     },
     "definitions": {
@@ -815,6 +988,12 @@
                 "amount": {
                     "type": "number",
                     "example": "1000"
+                },
+                "event_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                    "description": "Optional ID of the event this transaction belongs to"
                 }
             }
         },
@@ -836,10 +1015,15 @@
                 "date": {
                     "type": "string",
                     "example": "2026-07-06T14:39:52.985Z"
+                },
+                "event_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                    "description": "Optional ID of the event this transaction belongs to"
                 }
             },
             "required": [
-                "user_id",
                 "name",
                 "type",
                 "amount",
@@ -864,6 +1048,12 @@
                 "date": {
                     "type": "string",
                     "example": "2026-07-06T14:39:52.985Z"
+                },
+                "event_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                    "description": "Optional ID of the event this transaction belongs to"
                 }
             },
             "required": [
@@ -906,6 +1096,112 @@
                 "message": {
                     "type": "string",
                     "example": "Unauthorized"
+                }
+            }
+        },
+        "Event": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                },
+                "user_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "33be0cb5-5541-46f4-ab12-88690e66da0d"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Year-end Bonus"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Annual performance bonus",
+                    "nullable": true
+                },
+                "start_date": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-12-01T00:00:00.000Z"
+                },
+                "end_date": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-12-31T23:59:59.000Z"
+                }
+            },
+            "required": ["id", "user_id", "name", "start_date", "end_date"]
+        },
+        "CreateEventParams": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Year-end Bonus",
+                    "maxLength": 50
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Annual performance bonus",
+                    "maxLength": 200,
+                    "nullable": true
+                },
+                "start_date": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-12-01T00:00:00.000Z"
+                },
+                "end_date": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-12-31T23:59:59.000Z"
+                }
+            },
+            "required": ["name", "start_date", "end_date"]
+        },
+        "UpdateEventParams": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Year-end Bonus",
+                    "maxLength": 50
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Annual performance bonus",
+                    "maxLength": 200,
+                    "nullable": true
+                },
+                "start_date": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-12-01T00:00:00.000Z"
+                },
+                "end_date": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-12-31T23:59:59.000Z"
+                }
+            }
+        },
+        "EventNotFoundResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Event not found"
+                }
+            }
+        },
+        "ForbiddenResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Forbidden"
                 }
             }
         }
