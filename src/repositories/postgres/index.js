@@ -12,4 +12,9 @@ export * from './transaction/update-transaction.js';
 export * from './transaction/get-transaction-by-id.js';
 
 export * from './event/create-event.js';
+export * from './event/get-events-by-user-id.js';
+export * from './event/get-event-by-id.js';
+export * from './event/update-event.js';
+export * from './event/delete-event.js';
+
 
