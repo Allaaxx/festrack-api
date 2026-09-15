@@ -3,10 +3,14 @@ import { createTransactionSchema } from '../../schemas/index.js';
 import {
     badRequest,
     created,
+    eventNotFoundResponse,
+    forbidden,
     serverError,
     userNotFoundResponse,
 } from '../helpers/index.js';
 import { UserNotFoundError } from '../../errors/user.js';
+import { EventNotFoundError } from '../../errors/event.js';
+import { ForbiddenError } from '../../errors/auth.js';
 
 export class CreateTransactionController {
     constructor(createTransactionUseCase) {
@@ -29,6 +33,14 @@ export class CreateTransactionController {
 
             if (error instanceof UserNotFoundError) {
                 return userNotFoundResponse();
+            }
+
+            if (error instanceof EventNotFoundError) {
+                return eventNotFoundResponse();
+            }
+
+            if (error instanceof ForbiddenError) {
+                return forbidden();
             }
 
             console.error(error);

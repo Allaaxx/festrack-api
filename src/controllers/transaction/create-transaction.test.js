@@ -1,4 +1,6 @@
 import { UserNotFoundError } from '../../errors/user.js';
+import { EventNotFoundError } from '../../errors/event.js';
+import { ForbiddenError } from '../../errors/auth.js';
 import { transaction } from '../../tests';
 import { CreateTransactionController } from './create-transaction.js';
 describe('Create Transaction Controller', () => {
@@ -184,6 +186,28 @@ describe('Create Transaction Controller', () => {
         expect(response.statusCode).toBe(500);
     });
 
+    it('should return 404 when event is not found', async () => {
+        const { sut, createTransactionUseCase } = makeSut();
+        jest.spyOn(createTransactionUseCase, 'execute').mockRejectedValueOnce(
+            new EventNotFoundError('any_event_id'),
+        );
+
+        const response = await sut.execute(baseHttpRequest);
+
+        expect(response.statusCode).toBe(404);
+    });
+
+    it('should return 403 when event belongs to another user', async () => {
+        const { sut, createTransactionUseCase } = makeSut();
+        jest.spyOn(createTransactionUseCase, 'execute').mockRejectedValueOnce(
+            new ForbiddenError(),
+        );
+
+        const response = await sut.execute(baseHttpRequest);
+
+        expect(response.statusCode).toBe(403);
+    });
+
     it('should call CreateTransactionUseCase with correct values', async () => {
         const { sut, createTransactionUseCase } = makeSut();
         const executeSpy = jest.spyOn(createTransactionUseCase, 'execute');
@@ -193,3 +217,4 @@ describe('Create Transaction Controller', () => {
         expect(executeSpy).toHaveBeenCalledWith(baseHttpRequest.body);
     });
 });
+
