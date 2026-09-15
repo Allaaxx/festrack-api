@@ -1,5 +1,7 @@
 import { faker } from '@faker-js/faker';
 import { transaction } from '../../tests/index.js';
+import { EventNotFoundError } from '../../errors/event.js';
+import { ForbiddenError } from '../../errors/auth.js';
 import { UpdateTransactionUseCase } from './update-transaction.js';
 
 describe('Update Transaction Use Case', () => {
@@ -15,19 +17,28 @@ describe('Update Transaction Use Case', () => {
         }
     }
 
+    class GetEventByIdStub {
+        async execute() {
+            return { id: 'valid_event_id', user_id: transaction.user_id };
+        }
+    }
+
     const makeSut = () => {
         const updateTransactionRepository =
             new UpdateTransactionRepositoryStub();
         const getTransactionByIdRepository = new GetTransactionByIdStub();
+        const getEventByIdRepository = new GetEventByIdStub();
         const sut = new UpdateTransactionUseCase(
             updateTransactionRepository,
             getTransactionByIdRepository,
+            getEventByIdRepository,
         );
 
         return {
             sut,
             updateTransactionRepository,
             getTransactionByIdRepository,
+            getEventByIdRepository,
         };
     };
 
@@ -81,4 +92,34 @@ describe('Update Transaction Use Case', () => {
 
         await expect(promise).rejects.toThrow();
     });
+
+    it('should throw EventNotFoundError if event does not exist', async () => {
+        const { sut, getEventByIdRepository } = makeSut();
+        jest.spyOn(getEventByIdRepository, 'execute').mockResolvedValueOnce(
+            null,
+        );
+
+        const promise = sut.execute(transaction.id, {
+            event_id: 'non-existing-event',
+        });
+
+        await expect(promise).rejects.toThrow(
+            new EventNotFoundError('non-existing-event'),
+        );
+    });
+
+    it('should throw ForbiddenError if event belongs to another user', async () => {
+        const { sut, getEventByIdRepository } = makeSut();
+        jest.spyOn(getEventByIdRepository, 'execute').mockResolvedValueOnce({
+            id: 'event-id',
+            user_id: 'different-user-id',
+        });
+
+        const promise = sut.execute(transaction.id, {
+            event_id: 'event-id',
+        });
+
+        await expect(promise).rejects.toThrow(new ForbiddenError());
+    });
 });
+

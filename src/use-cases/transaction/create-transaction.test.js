@@ -1,4 +1,6 @@
 import { UserNotFoundError } from '../../errors/user';
+import { EventNotFoundError } from '../../errors/event';
+import { ForbiddenError } from '../../errors/auth';
 import { transaction, user } from '../../tests';
 import { CreateTransactionUseCase } from './create-transaction';
 
@@ -21,8 +23,14 @@ describe('Create Transaction Use Case', () => {
     }
 
     class GetUserByIdRepositoryStub {
-        execute() {
+        async execute() {
             return user;
+        }
+    }
+
+    class GetEventByIdRepositoryStub {
+        async execute() {
+            return { id: 'valid_event_id', user_id: user.id };
         }
     }
 
@@ -31,10 +39,12 @@ describe('Create Transaction Use Case', () => {
             new CreateTransactionRepositoryStub();
         const idGeneratorAdapter = new IdGeneratorAdapterStub();
         const getUserByIdRepository = new GetUserByIdRepositoryStub();
+        const getEventByIdRepository = new GetEventByIdRepositoryStub();
         const sut = new CreateTransactionUseCase(
             createTransactionRepository,
             getUserByIdRepository,
             idGeneratorAdapter,
+            getEventByIdRepository,
         );
 
         return {
@@ -42,6 +52,7 @@ describe('Create Transaction Use Case', () => {
             createTransactionRepository,
             idGeneratorAdapter,
             getUserByIdRepository,
+            getEventByIdRepository,
         };
     };
 
@@ -137,4 +148,36 @@ describe('Create Transaction Use Case', () => {
 
         await expect(promise).rejects.toThrow();
     });
+
+    it('should throw EventNotFoundError if event does not exist', async () => {
+        const { sut, getEventByIdRepository } = makeSut();
+        jest.spyOn(getEventByIdRepository, 'execute').mockResolvedValueOnce(
+            null,
+        );
+
+        const promise = sut.execute({
+            ...CreateTransactionParams,
+            event_id: 'non-existing-event',
+        });
+
+        await expect(promise).rejects.toThrow(
+            new EventNotFoundError('non-existing-event'),
+        );
+    });
+
+    it('should throw ForbiddenError if event belongs to another user', async () => {
+        const { sut, getEventByIdRepository } = makeSut();
+        jest.spyOn(getEventByIdRepository, 'execute').mockResolvedValueOnce({
+            id: 'event-id',
+            user_id: 'different-user-id',
+        });
+
+        const promise = sut.execute({
+            ...CreateTransactionParams,
+            event_id: 'event-id',
+        });
+
+        await expect(promise).rejects.toThrow(new ForbiddenError());
+    });
 });
+
