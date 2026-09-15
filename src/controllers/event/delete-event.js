@@ -5,7 +5,7 @@ import {
     eventNotFoundResponse,
     forbidden,
     invalidIdResponse,
-    noContent,
+    ok,
     serverError,
 } from '../helpers/index.js';
 
@@ -24,9 +24,12 @@ export class DeleteEventController {
                 return invalidIdResponse();
             }
 
-            await this.deleteEventUseCase.execute(eventId, userId);
+            const deletedEvent = await this.deleteEventUseCase.execute(
+                eventId,
+                userId,
+            );
 
-            return noContent();
+            return ok(deletedEvent);
         } catch (error) {
             if (error instanceof EventNotFoundError) {
                 return eventNotFoundResponse();
