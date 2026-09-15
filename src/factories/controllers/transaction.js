@@ -12,7 +12,9 @@ import {
     PostgresGetTransactionByIdRepository,
     PostgresGetUserByIdRepository,
     PostgresUpdateTransactionRepository,
+    PostgresGetEventByIdRepository,
 } from '../../repositories/postgres/index.js';
+
 import {
     CreateTransactionUseCase,
     DeleteTransactionUseCase,
@@ -28,10 +30,13 @@ export const makeCreateTransactionController = () => {
 
     const idGeneratorAdapter = new IdGeneratorAdapter();
 
+    const getEventByIdRepository = new PostgresGetEventByIdRepository();
+
     const createTransactionUseCase = new CreateTransactionUseCase(
         createTransactionRepository,
         getUserByIdRepository,
         idGeneratorAdapter,
+        getEventByIdRepository,
     );
 
     const creaTransactionController = new CreateTransactionController(
@@ -40,6 +45,7 @@ export const makeCreateTransactionController = () => {
 
     return creaTransactionController;
 };
+
 
 export const makeGetTransactionsByUserIdController = () => {
     const getTransactionsByUserIdRepository =
@@ -63,10 +69,12 @@ export const makeUpdateTransactionController = () => {
         new PostgresUpdateTransactionRepository();
     const getTransactionByIdRepository =
         new PostgresGetTransactionByIdRepository();
+    const getEventByIdRepository = new PostgresGetEventByIdRepository();
 
     const updateTransactionUseCase = new UpdateTransactionUseCase(
         updateTransactionRepository,
         getTransactionByIdRepository,
+        getEventByIdRepository,
     );
 
     const updateTransactionController = new UpdateTransactionController(

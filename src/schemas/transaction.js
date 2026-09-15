@@ -41,6 +41,12 @@ export const createTransactionSchema = z.object({
                 message: 'Amount must be a valid currency.',
             },
         ),
+    event_id: z
+        .uuid({
+            message: 'Event ID must be a valid UUID.',
+        })
+        .optional()
+        .nullable(),
 });
 
 export const updatedTransactionSchema = createTransactionSchema
