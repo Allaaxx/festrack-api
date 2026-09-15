@@ -38,3 +38,9 @@ export const notFound = (body) => ({
     statusCode: 404,
     body,
 });
+
+export const noContent = () => ({
+    statusCode: 204,
+    body: null,
+});
+
