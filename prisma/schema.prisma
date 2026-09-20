@@ -32,8 +32,8 @@ model Event {
   id           String        @id @default(uuid())
   name         String        @db.VarChar(50)
   description  String?       @db.VarChar(200)
-  start_date   DateTime      @db.Date
-  end_date     DateTime      @db.Date
+  start_date   DateTime
+  end_date     DateTime
   user_id      String
   user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
   transactions Transaction[]
