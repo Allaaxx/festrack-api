@@ -217,4 +217,3 @@ describe('Create Transaction Controller', () => {
         expect(executeSpy).toHaveBeenCalledWith(baseHttpRequest.body);
     });
 });
-

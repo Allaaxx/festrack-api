@@ -59,7 +59,9 @@ describe('Get Events By User Id Use Case', () => {
 
     it('should throw UserNotFoundError if user is not found', async () => {
         const { sut, getUserByIdRepository } = makeSut();
-        jest.spyOn(getUserByIdRepository, 'execute').mockResolvedValueOnce(null);
+        jest.spyOn(getUserByIdRepository, 'execute').mockResolvedValueOnce(
+            null,
+        );
 
         const promise = sut.execute(user.id);
 

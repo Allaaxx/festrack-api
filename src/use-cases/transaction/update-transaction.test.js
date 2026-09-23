@@ -122,4 +122,3 @@ describe('Update Transaction Use Case', () => {
         await expect(promise).rejects.toThrow(new ForbiddenError());
     });
 });
-

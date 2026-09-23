@@ -180,4 +180,3 @@ describe('Create Transaction Use Case', () => {
         await expect(promise).rejects.toThrow(new ForbiddenError());
     });
 });
-
