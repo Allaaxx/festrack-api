@@ -6,7 +6,7 @@ import {
     EventRepository,
 } from '../../../domain/index.js';
 
-export { EventRepository };
+export type { EventRepository };
 
 export class PostgresEventRepository implements EventRepository {
     async create(createEventParams: CreateEventParams): Promise<Event> {

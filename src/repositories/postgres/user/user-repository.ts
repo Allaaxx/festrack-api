@@ -10,7 +10,7 @@ import {
     UserRepository,
 } from '../../../domain/index.js';
 
-export { UserRepository };
+export type { UserRepository };
 
 export class PostgresUserRepository implements UserRepository {
     async create(createUserParams: CreateUserParams): Promise<User> {

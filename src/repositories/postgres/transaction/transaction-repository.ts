@@ -9,7 +9,7 @@ import {
     TransactionRepository,
 } from '../../../domain/index.js';
 
-export { TransactionRepository };
+export type { TransactionRepository };
 
 export class PostgresTransactionRepository implements TransactionRepository {
     async create(
