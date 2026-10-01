@@ -2,7 +2,7 @@
     "name": "finance-app-api",
     "version": "1.0.0",
     "description": "",
-    "main": "index.js",
+    "main": "dist/index.js",
     "type": "module",
     "scripts": {
         "test": "dotenv -e .env.test -- node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests --silent --runInBand --detectOpenHandles --forceExit",
@@ -10,11 +10,11 @@
         "test:watch": "npm run test --  --watch  --detectOpenHandles",
         "postinstall": "husky && prisma generate",
         "migrations": "node ./src/db/postgres/migrations/exec.js",
-        "start:dev": "tsx watch index.js",
-        "start": "node index.js",
+        "start:dev": "tsx watch index.ts",
+        "start": "node dist/index.js",
         "build": "tsc -p tsconfig.build.json",
         "typecheck": "tsc --noEmit",
-        "eslint:check": "eslint src/ --ext .js",
+        "eslint:check": "eslint src/ index.ts",
         "prettier:check": "prettier --check src/"
     },
     "keywords": [],
@@ -46,7 +46,8 @@
         "prisma": "^7.8.0",
         "supertest": "^7.2.2",
         "tsx": "^4.23.15",
-        "typescript": "^7.0.2"
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.71.0"
     },
     "dependencies": {
         "@prisma/adapter-pg": "^7.8.0",

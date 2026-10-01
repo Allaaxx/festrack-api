@@ -1,27 +1,19 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "allowJs": true,
-    "checkJs": false,
-    "outDir": "./dist",
-    "rootDir": "./",
-    "sourceMap": true,
-    "declaration": false,
-    "types": ["node", "jest"]
-  },
-  "include": [
-    "src/**/*",
-    "index.js"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "coverage"
-  ]
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "allowJs": false,
+        "outDir": "./dist",
+        "rootDir": "./",
+        "sourceMap": true,
+        "declaration": false,
+        "types": ["node", "jest"]
+    },
+    "include": ["src/**/*", "index.ts", "prisma/**/*"],
+    "exclude": ["node_modules", "dist", "coverage"]
 }

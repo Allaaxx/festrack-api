@@ -9,13 +9,14 @@ import swaggerUi from 'swagger-ui-express';
 import fs from 'fs';
 import path from 'path';
 import cors from 'cors';
+
 export const app = express();
 
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
     process.env.FRONTEND_URL,
-].filter(Boolean);
+].filter((origin): origin is string => Boolean(origin));
 
 app.use(
     cors({

@@ -16,3 +16,4 @@ export * from './event/get-events-by-user-id.js';
 export * from './event/get-event-by-id.js';
 export * from './event/update-event.js';
 export * from './event/delete-event.js';
+export * from './protocols.js';
