@@ -1,15 +1,14 @@
 import { faker } from '@faker-js/faker';
 import { transaction } from '../../tests/index.js';
-import { DeleteTransactionController } from './delete-transaction.js';
+import {
+    DeleteTransactionController,
+    IDeleteTransactionUseCase,
+} from './delete-transaction.js';
 import { TransactionNotFoundError } from '../../errors/transaction.js';
 import { Transaction } from '../../domain/index.js';
-import { DeleteTransactionUseCase } from '../../use-cases/index.js';
 
 describe('Delete Transaction Controller', () => {
-    class DeleteTransactionUseCaseStub implements Pick<
-        DeleteTransactionUseCase,
-        'execute'
-    > {
+    class DeleteTransactionUseCaseStub implements IDeleteTransactionUseCase {
         async execute(): Promise<Transaction> {
             return transaction;
         }
@@ -45,6 +44,9 @@ describe('Delete Transaction Controller', () => {
         });
 
         expect(response.statusCode).toBe(400);
+        expect(response.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
     });
 
     it('should return 404 when transaction is not found', async () => {

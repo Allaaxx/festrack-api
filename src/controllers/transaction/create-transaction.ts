@@ -16,23 +16,24 @@ import { UserNotFoundError } from '../../errors/user.js';
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import { Controller, HttpRequest } from '../protocols.js';
-import { CreateTransactionUseCase } from '../../use-cases/index.js';
+import { Transaction } from '../../domain/entities/transaction.js';
 
-export class CreateTransactionController implements Controller {
+export interface ICreateTransactionUseCase {
+    execute(params: CreateTransactionSchema): Promise<Transaction>;
+}
+
+export class CreateTransactionController implements Controller<CreateTransactionSchema> {
     constructor(
-        private readonly createTransactionUseCase: Pick<
-            CreateTransactionUseCase,
-            'execute'
-        >,
+        private readonly createTransactionUseCase: ICreateTransactionUseCase,
     ) {}
 
     async execute(
         httpRequest: HttpRequest<CreateTransactionSchema>,
     ): Promise<HttpResponse> {
         try {
-            const params = httpRequest.body;
-            const validatedParams =
-                await createTransactionSchema.parseAsync(params);
+            const validatedParams = await createTransactionSchema.parseAsync(
+                httpRequest.body,
+            );
 
             const transaction =
                 await this.createTransactionUseCase.execute(validatedParams);

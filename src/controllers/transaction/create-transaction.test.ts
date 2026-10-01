@@ -2,15 +2,14 @@ import { UserNotFoundError } from '../../errors/user.js';
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import { transaction } from '../../tests/index.js';
-import { CreateTransactionController } from './create-transaction.js';
+import {
+    CreateTransactionController,
+    ICreateTransactionUseCase,
+} from './create-transaction.js';
 import { Transaction } from '../../domain/index.js';
-import { CreateTransactionUseCase } from '../../use-cases/index.js';
 
 describe('Create Transaction Controller', () => {
-    class CreateTransactionUseCaseStub implements Pick<
-        CreateTransactionUseCase,
-        'execute'
-    > {
+    class CreateTransactionUseCaseStub implements ICreateTransactionUseCase {
         async execute(): Promise<Transaction> {
             return transaction;
         }

@@ -1,48 +1,44 @@
+import { ZodError } from 'zod';
 import { TransactionNotFoundError } from '../../errors/transaction.js';
 import {
-    checkIfIdIsValid,
-    invalidIdResponse,
+    badRequest,
     ok,
     serverError,
     transactionNotFoundResponse,
     HttpResponse,
 } from '../helpers/index.js';
 import { Controller, HttpRequest } from '../protocols.js';
-import { DeleteTransactionUseCase } from '../../use-cases/index.js';
+import { Transaction } from '../../domain/entities/transaction.js';
+import {
+    deleteTransactionParamsSchema,
+    DeleteTransactionParamsSchema,
+} from '../../schemas/index.js';
 
-export class DeleteTransactionController implements Controller {
+export interface IDeleteTransactionUseCase {
+    execute(transactionId: string, userId: string): Promise<Transaction | null>;
+}
+
+export class DeleteTransactionController implements Controller<
+    never,
+    DeleteTransactionParamsSchema
+> {
     constructor(
-        private readonly deleteTransactionUseCase: Pick<
-            DeleteTransactionUseCase,
-            'execute'
-        >,
+        private readonly deleteTransactionUseCase: IDeleteTransactionUseCase,
     ) {}
 
     async execute(
-        httpRequest: HttpRequest<
-            any,
-            { transactionId: string; user_id: string }
-        >,
+        httpRequest: HttpRequest<never, DeleteTransactionParamsSchema>,
     ): Promise<HttpResponse> {
         try {
-            const transactionId = httpRequest.params?.transactionId;
-            const userId = httpRequest.params?.user_id;
-
-            if (!transactionId || !userId) {
-                return invalidIdResponse();
-            }
-
-            const transactionIdIsValid = checkIfIdIsValid(transactionId);
-            const userIdIsValid = checkIfIdIsValid(userId);
-
-            if (!transactionIdIsValid || !userIdIsValid) {
-                return invalidIdResponse();
-            }
+            const { transactionId, user_id } =
+                await deleteTransactionParamsSchema.parseAsync(
+                    httpRequest.params,
+                );
 
             const deletedTransaction =
                 await this.deleteTransactionUseCase.execute(
                     transactionId,
-                    userId,
+                    user_id,
                 );
 
             if (!deletedTransaction) {
@@ -50,6 +46,11 @@ export class DeleteTransactionController implements Controller {
             }
             return ok(deletedTransaction);
         } catch (error) {
+            if (error instanceof ZodError) {
+                return badRequest({
+                    message: error.issues[0].message,
+                });
+            }
             if (error instanceof TransactionNotFoundError) {
                 return transactionNotFoundResponse();
             }

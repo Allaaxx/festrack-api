@@ -29,3 +29,16 @@ export type TransactionIdParamSchema = z.infer<typeof transactionIdParamSchema>;
 
 export const idParamSchema = createIdParamSchema('id');
 export type IdParamSchema = z.infer<typeof idParamSchema>;
+
+export const deleteTransactionParamsSchema = z.object(
+    {
+        transactionId: uuidSchema,
+        user_id: uuidSchema,
+    },
+    {
+        message: 'The provided id is not valid.',
+    },
+);
+export type DeleteTransactionParamsSchema = z.infer<
+    typeof deleteTransactionParamsSchema
+>;

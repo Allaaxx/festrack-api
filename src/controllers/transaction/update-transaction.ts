@@ -6,10 +6,8 @@ import {
 import { TransactionNotFoundError } from '../../errors/transaction.js';
 import {
     badRequest,
-    checkIfIdIsValid,
     eventNotFoundResponse,
     forbidden,
-    invalidIdResponse,
     ok,
     serverError,
     transactionNotFoundResponse,
@@ -18,42 +16,45 @@ import {
 import { ForbiddenError } from '../../errors/index.js';
 import { EventNotFoundError } from '../../errors/event.js';
 import { Controller, HttpRequest } from '../protocols.js';
-import { UpdateTransactionUseCase } from '../../use-cases/index.js';
+import { Transaction } from '../../domain/entities/transaction.js';
+import {
+    transactionIdParamSchema,
+    TransactionIdParamSchema,
+} from '../../schemas/index.js';
 
-export class UpdateTransactionController implements Controller {
+export interface IUpdateTransactionUseCase {
+    execute(
+        transactionId: string,
+        params: UpdateTransactionSchema,
+    ): Promise<Transaction | null>;
+}
+
+export class UpdateTransactionController implements Controller<
+    UpdateTransactionSchema,
+    TransactionIdParamSchema
+> {
     constructor(
-        private readonly updateTransactionUseCase: Pick<
-            UpdateTransactionUseCase,
-            'execute'
-        >,
+        private readonly updateTransactionUseCase: IUpdateTransactionUseCase,
     ) {}
 
     async execute(
         httpRequest: HttpRequest<
             UpdateTransactionSchema,
-            { transactionId: string }
+            TransactionIdParamSchema
         >,
     ): Promise<HttpResponse> {
         try {
-            const transactionId = httpRequest.params?.transactionId;
+            const { transactionId } = await transactionIdParamSchema.parseAsync(
+                httpRequest.params,
+            );
 
-            if (!transactionId) {
-                return invalidIdResponse();
-            }
-
-            const isIdValid = checkIfIdIsValid(transactionId);
-
-            if (!isIdValid) {
-                return invalidIdResponse();
-            }
-
-            const params = httpRequest.body;
-
-            await updatedTransactionSchema.parseAsync(params);
+            const sanitizedBody = await updatedTransactionSchema.parseAsync(
+                httpRequest.body,
+            );
 
             const transaction = await this.updateTransactionUseCase.execute(
                 transactionId,
-                params!,
+                sanitizedBody,
             );
 
             return ok(transaction);

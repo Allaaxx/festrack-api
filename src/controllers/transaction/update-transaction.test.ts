@@ -1,16 +1,15 @@
 import { TransactionNotFoundError } from '../../errors/transaction.js';
 import { ForbiddenError } from '../../errors/index.js';
 import { transaction } from '../../tests/index.js';
-import { UpdateTransactionController } from './update-transaction.js';
+import {
+    UpdateTransactionController,
+    IUpdateTransactionUseCase,
+} from './update-transaction.js';
 import { faker } from '@faker-js/faker';
 import { Transaction } from '../../domain/index.js';
-import { UpdateTransactionUseCase } from '../../use-cases/index.js';
 
 describe('Update Transaction Controller', () => {
-    class UpdateTransactionUseCaseStub implements Pick<
-        UpdateTransactionUseCase,
-        'execute'
-    > {
+    class UpdateTransactionUseCaseStub implements IUpdateTransactionUseCase {
         async execute(): Promise<Transaction> {
             return transaction;
         }
@@ -48,6 +47,9 @@ describe('Update Transaction Controller', () => {
         });
 
         expect(response.statusCode).toBe(400);
+        expect(response.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
     });
 
     it('should return 400 when an invalid amount is provided', async () => {

@@ -208,4 +208,43 @@ describe('Transaction Routes E2E Tests', () => {
 
         expect(response.status).toBe(404);
     });
+
+    it('PATCH /api/transactions/me/:transactionId should return 400 when transactionId is invalid UUID', async () => {
+        const { body: createdUser } = await request(app)
+            .post('/api/auth')
+            .send({
+                ...user,
+                id: undefined,
+            });
+
+        const response = await request(app)
+            .patch('/api/transactions/me/invalid-uuid')
+            .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`)
+            .send({
+                amount: 100,
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
+    });
+
+    it('DELETE /api/transactions/me/:transactionId should return 400 when transactionId is invalid UUID', async () => {
+        const { body: createdUser } = await request(app)
+            .post('/api/auth')
+            .send({
+                ...user,
+                id: undefined,
+            });
+
+        const response = await request(app)
+            .delete('/api/transactions/me/invalid-uuid')
+            .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`);
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
+    });
 });

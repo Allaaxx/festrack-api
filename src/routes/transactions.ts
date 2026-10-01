@@ -18,13 +18,13 @@ transactionsRouter.get(
 
         const { statusCode, body } =
             await getTransactionsByUserIdController.execute({
-                ...request,
                 query: {
-                    ...request.query,
                     from: request.query.from as string,
                     to: request.query.to as string,
                     userId: request.userId!,
                 },
+                headers: request.headers,
+                userId: request.userId,
             });
 
         response.status(statusCode).send(body);
@@ -38,11 +38,12 @@ transactionsRouter.post(
         const createTransactionController = makeCreateTransactionController();
 
         const { statusCode, body } = await createTransactionController.execute({
-            ...request,
             body: {
                 ...request.body,
                 user_id: request.userId!,
             },
+            headers: request.headers,
+            userId: request.userId,
         });
 
         response.status(statusCode).send(body);
@@ -56,10 +57,12 @@ transactionsRouter.patch(
         const updateTransactionController = makeUpdateTransactionController();
 
         const { statusCode, body } = await updateTransactionController.execute({
-            ...request,
-            body: {
-                ...request.body,
+            body: request.body,
+            params: {
+                transactionId: request.params.transactionId,
             },
+            headers: request.headers,
+            userId: request.userId,
         });
 
         response.status(statusCode).send(body);
@@ -73,11 +76,12 @@ transactionsRouter.delete(
         const deleteTransactionController = makeDeleteTransactionController();
 
         const { statusCode, body } = await deleteTransactionController.execute({
-            ...request,
             params: {
-                ...request.params,
+                transactionId: request.params.transactionId,
                 user_id: request.userId!,
             },
+            headers: request.headers,
+            userId: request.userId,
         });
 
         response.status(statusCode).send(body);
