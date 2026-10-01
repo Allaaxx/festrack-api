@@ -7,7 +7,7 @@ import { PostgresTransactionRepository } from './transaction-repository.js';
 import { TransactionNotFoundError } from '../../../errors/transaction.js';
 
 describe('Postgres Transaction Repository', () => {
-    let sut;
+    let sut: PostgresTransactionRepository;
 
     beforeEach(() => {
         sut = new PostgresTransactionRepository();
@@ -42,13 +42,17 @@ describe('Postgres Transaction Repository', () => {
         it('should return transaction by id', async () => {
             await prisma.user.create({ data: user });
             await prisma.transaction.create({
-                data: { ...transaction, user_id: user.id },
+                data: {
+                    ...transaction,
+                    user_id: user.id,
+                    amount: transaction.amount.toString(),
+                },
             });
 
             const result = await sut.findById(transaction.id);
 
-            expect(result.id).toBe(transaction.id);
-            expect(result.name).toBe(transaction.name);
+            expect(result?.id).toBe(transaction.id);
+            expect(result?.name).toBe(transaction.name);
         });
 
         it('should return null if transaction is not found', async () => {
@@ -70,6 +74,7 @@ describe('Postgres Transaction Repository', () => {
                     ...transaction,
                     date: new Date(date),
                     user_id: user.id,
+                    amount: transaction.amount.toString(),
                 },
             });
 
@@ -90,7 +95,11 @@ describe('Postgres Transaction Repository', () => {
         it('should update a transaction on db', async () => {
             await prisma.user.create({ data: user });
             await prisma.transaction.create({
-                data: { ...transaction, user_id: user.id },
+                data: {
+                    ...transaction,
+                    user_id: user.id,
+                    amount: transaction.amount.toString(),
+                },
             });
 
             const params = {
@@ -120,7 +129,11 @@ describe('Postgres Transaction Repository', () => {
         it('should delete a transaction on db', async () => {
             await prisma.user.create({ data: user });
             await prisma.transaction.create({
-                data: { ...transaction, user_id: user.id },
+                data: {
+                    ...transaction,
+                    user_id: user.id,
+                    amount: transaction.amount.toString(),
+                },
             });
 
             const result = await sut.delete(transaction.id);

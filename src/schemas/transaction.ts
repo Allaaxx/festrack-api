@@ -2,13 +2,16 @@ import validator from 'validator';
 import { z } from 'zod';
 
 export const createTransactionSchema = z.object({
-    user_id: z.uuid({
-        message: 'User ID must be a valid UUID.',
-        required_error: 'User ID is required.',
-    }),
+    user_id: z
+        .string({
+            message: 'User ID is required.',
+        })
+        .uuid({
+            message: 'User ID must be a valid UUID.',
+        }),
     name: z
         .string({
-            required_error: 'Name is required.',
+            message: 'Name is required.',
         })
         .trim()
         .min(1, {
@@ -42,6 +45,7 @@ export const createTransactionSchema = z.object({
             },
         ),
     event_id: z
+        .string()
         .uuid({
             message: 'Event ID must be a valid UUID.',
         })
@@ -49,17 +53,28 @@ export const createTransactionSchema = z.object({
         .nullable(),
 });
 
+export type CreateTransactionSchema = z.infer<typeof createTransactionSchema>;
+
 export const updatedTransactionSchema = createTransactionSchema
     .omit({
         user_id: true,
     })
     .partial();
 
+export type UpdateTransactionSchema = z.infer<typeof updatedTransactionSchema>;
+
 export const getTransactionByUserIdSchema = z.object({
-    user_id: z.uuid({
-        message: 'User ID must be a valid UUID.',
-        required_error: 'User ID is required.',
-    }),
+    user_id: z
+        .string({
+            message: 'User ID is required.',
+        })
+        .uuid({
+            message: 'User ID must be a valid UUID.',
+        }),
     from: z.iso.date(),
     to: z.iso.date(),
 });
+
+export type GetTransactionByUserIdSchema = z.infer<
+    typeof getTransactionByUserIdSchema
+>;

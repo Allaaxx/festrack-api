@@ -2,13 +2,17 @@ import {
     TransactionNotFoundError,
     ForbiddenError,
 } from '../../errors/index.js';
+import { Transaction, TransactionRepository } from '../../domain/index.js';
 
 export class DeleteTransactionUseCase {
-    constructor(transactionRepository) {
-        this.transactionRepository = transactionRepository;
-    }
+    constructor(
+        private readonly transactionRepository: Pick<
+            TransactionRepository,
+            'findById' | 'delete'
+        >,
+    ) {}
 
-    async execute(transactionId, userId) {
+    async execute(transactionId: string, userId: string): Promise<Transaction> {
         const transaction =
             await this.transactionRepository.findById(transactionId);
 

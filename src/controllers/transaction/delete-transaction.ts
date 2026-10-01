@@ -5,16 +5,32 @@ import {
     ok,
     serverError,
     transactionNotFoundResponse,
+    HttpResponse,
 } from '../helpers/index.js';
+import { Controller, HttpRequest } from '../protocols.js';
+import { DeleteTransactionUseCase } from '../../use-cases/index.js';
 
-export class DeleteTransactionController {
-    constructor(deleteTransactionUseCase) {
-        this.deleteTransactionUseCase = deleteTransactionUseCase;
-    }
-    async execute(httpRequest) {
+export class DeleteTransactionController implements Controller {
+    constructor(
+        private readonly deleteTransactionUseCase: Pick<
+            DeleteTransactionUseCase,
+            'execute'
+        >,
+    ) {}
+
+    async execute(
+        httpRequest: HttpRequest<
+            any,
+            { transactionId: string; user_id: string }
+        >,
+    ): Promise<HttpResponse> {
         try {
-            const transactionId = httpRequest.params.transactionId;
-            const userId = httpRequest.params.user_id;
+            const transactionId = httpRequest.params?.transactionId;
+            const userId = httpRequest.params?.user_id;
+
+            if (!transactionId || !userId) {
+                return invalidIdResponse();
+            }
 
             const transactionIdIsValid = checkIfIdIsValid(transactionId);
             const userIdIsValid = checkIfIdIsValid(userId);

@@ -1,13 +1,19 @@
 import { faker } from '@faker-js/faker';
 import { UserNotFoundError } from '../../errors/user.js';
-import { transaction } from '../../tests';
+import { transaction } from '../../tests/index.js';
 import { GetTransactionsByUserIdController } from './get-transactions-by-user-id.js';
+import { Transaction } from '../../domain/index.js';
+import { GetTransactionByUserIdUseCase } from '../../use-cases/index.js';
+
 describe('Get Transaction By User ID Controller ', () => {
     const from = '2026-01-01';
     const to = '2027-01-01';
-    class GetUserByIdUseCaseStub {
-        execute() {
-            return transaction;
+    class GetUserByIdUseCaseStub implements Pick<
+        GetTransactionByUserIdUseCase,
+        'execute'
+    > {
+        async execute(): Promise<Transaction[]> {
+            return [transaction];
         }
     }
 

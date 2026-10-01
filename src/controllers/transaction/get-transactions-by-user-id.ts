@@ -6,17 +6,30 @@ import {
     ok,
     serverError,
     userNotFoundResponse,
+    HttpResponse,
 } from '../helpers/index.js';
+import { Controller, HttpRequest } from '../protocols.js';
+import { GetTransactionByUserIdUseCase } from '../../use-cases/index.js';
 
-export class GetTransactionsByUserIdController {
-    constructor(getTransactionsByUserIdUseCase) {
-        this.getTransactionsByUserIdUseCase = getTransactionsByUserIdUseCase;
-    }
-    async execute(httpRequest) {
+export class GetTransactionsByUserIdController implements Controller {
+    constructor(
+        private readonly getTransactionsByUserIdUseCase: Pick<
+            GetTransactionByUserIdUseCase,
+            'execute'
+        >,
+    ) {}
+
+    async execute(
+        httpRequest: HttpRequest<
+            any,
+            any,
+            { userId?: string; from?: string; to?: string }
+        >,
+    ): Promise<HttpResponse> {
         try {
-            const user_id = httpRequest.query.userId;
-            const from = httpRequest.query.from;
-            const to = httpRequest.query.to;
+            const user_id = httpRequest.query?.userId;
+            const from = httpRequest.query?.from;
+            const to = httpRequest.query?.to;
 
             await getTransactionByUserIdSchema.parseAsync({
                 user_id,
@@ -26,9 +39,9 @@ export class GetTransactionsByUserIdController {
 
             const transactions =
                 await this.getTransactionsByUserIdUseCase.execute(
-                    user_id,
-                    from,
-                    to,
+                    user_id!,
+                    from!,
+                    to!,
                 );
             return ok(transactions);
         } catch (error) {

@@ -1,5 +1,8 @@
 import { ZodError } from 'zod';
-import { updatedTransactionSchema } from '../../schemas/transaction.js';
+import {
+    updatedTransactionSchema,
+    UpdateTransactionSchema,
+} from '../../schemas/transaction.js';
 import { TransactionNotFoundError } from '../../errors/transaction.js';
 import {
     badRequest,
@@ -10,18 +13,35 @@ import {
     ok,
     serverError,
     transactionNotFoundResponse,
+    HttpResponse,
 } from '../helpers/index.js';
 import { ForbiddenError } from '../../errors/index.js';
 import { EventNotFoundError } from '../../errors/event.js';
-export class UpdateTransactionController {
-    constructor(updateTransactionUseCase) {
-        this.updateTransactionUseCase = updateTransactionUseCase;
-    }
-    async execute(httpRequest) {
+import { Controller, HttpRequest } from '../protocols.js';
+import { UpdateTransactionUseCase } from '../../use-cases/index.js';
+
+export class UpdateTransactionController implements Controller {
+    constructor(
+        private readonly updateTransactionUseCase: Pick<
+            UpdateTransactionUseCase,
+            'execute'
+        >,
+    ) {}
+
+    async execute(
+        httpRequest: HttpRequest<
+            UpdateTransactionSchema,
+            { transactionId: string }
+        >,
+    ): Promise<HttpResponse> {
         try {
-            const isIdValid = checkIfIdIsValid(
-                httpRequest.params.transactionId,
-            );
+            const transactionId = httpRequest.params?.transactionId;
+
+            if (!transactionId) {
+                return invalidIdResponse();
+            }
+
+            const isIdValid = checkIfIdIsValid(transactionId);
 
             if (!isIdValid) {
                 return invalidIdResponse();
@@ -32,8 +52,8 @@ export class UpdateTransactionController {
             await updatedTransactionSchema.parseAsync(params);
 
             const transaction = await this.updateTransactionUseCase.execute(
-                httpRequest.params.transactionId,
-                params,
+                transactionId,
+                params!,
             );
 
             return ok(transaction);

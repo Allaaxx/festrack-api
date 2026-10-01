@@ -1,11 +1,16 @@
 import { faker } from '@faker-js/faker';
-import { transaction } from '../../tests';
+import { transaction } from '../../tests/index.js';
 import { DeleteTransactionController } from './delete-transaction.js';
 import { TransactionNotFoundError } from '../../errors/transaction.js';
+import { Transaction } from '../../domain/index.js';
+import { DeleteTransactionUseCase } from '../../use-cases/index.js';
 
 describe('Delete Transaction Controller', () => {
-    class DeleteTransactionUseCaseStub {
-        async execute() {
+    class DeleteTransactionUseCaseStub implements Pick<
+        DeleteTransactionUseCase,
+        'execute'
+    > {
+        async execute(): Promise<Transaction> {
             return transaction;
         }
     }
@@ -45,7 +50,7 @@ describe('Delete Transaction Controller', () => {
     it('should return 404 when transaction is not found', async () => {
         const { sut, deleteTransactionUseCase } = makeSut();
         jest.spyOn(deleteTransactionUseCase, 'execute').mockRejectedValueOnce(
-            new TransactionNotFoundError(),
+            new TransactionNotFoundError(faker.string.uuid()),
         );
         const response = await sut.execute({
             params: {
@@ -57,7 +62,7 @@ describe('Delete Transaction Controller', () => {
         expect(response.statusCode).toBe(404);
     });
 
-    it('should return 000 when DeleteTransactionUseCase throws', async () => {
+    it('should return 500 when DeleteTransactionUseCase throws', async () => {
         const { sut, deleteTransactionUseCase } = makeSut();
         jest.spyOn(deleteTransactionUseCase, 'execute').mockRejectedValueOnce(
             new Error(),
@@ -92,7 +97,7 @@ describe('Delete Transaction Controller', () => {
     it('should return 404 when use case returns null', async () => {
         const { sut, deleteTransactionUseCase } = makeSut();
         jest.spyOn(deleteTransactionUseCase, 'execute').mockResolvedValueOnce(
-            null,
+            null as any,
         );
 
         const response = await sut.execute({

@@ -1,17 +1,23 @@
 import { UserNotFoundError } from '../../errors/user.js';
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/auth.js';
-import { transaction } from '../../tests';
+import { transaction } from '../../tests/index.js';
 import { CreateTransactionController } from './create-transaction.js';
+import { Transaction } from '../../domain/index.js';
+import { CreateTransactionUseCase } from '../../use-cases/index.js';
+
 describe('Create Transaction Controller', () => {
-    class createTransactionUseCaseStub {
-        async execute() {
+    class CreateTransactionUseCaseStub implements Pick<
+        CreateTransactionUseCase,
+        'execute'
+    > {
+        async execute(): Promise<Transaction> {
             return transaction;
         }
     }
 
     const makeSut = () => {
-        const createTransactionUseCase = new createTransactionUseCaseStub();
+        const createTransactionUseCase = new CreateTransactionUseCaseStub();
         const sut = new CreateTransactionController(createTransactionUseCase);
 
         return {
@@ -29,7 +35,7 @@ describe('Create Transaction Controller', () => {
     it('should return 201 when creating transaction successfully (expense)', async () => {
         const { sut } = makeSut();
 
-        const response = await sut.execute(baseHttpRequest);
+        const response = await sut.execute(baseHttpRequest as any);
 
         expect(response.statusCode).toBe(201);
     });
@@ -42,7 +48,7 @@ describe('Create Transaction Controller', () => {
                 ...baseHttpRequest.body,
                 type: 'EARNING',
             },
-        });
+        } as any);
 
         expect(response.statusCode).toBe(201);
     });
@@ -55,7 +61,7 @@ describe('Create Transaction Controller', () => {
                 ...baseHttpRequest.body,
                 type: 'INVESTMENT',
             },
-        });
+        } as any);
 
         expect(response.statusCode).toBe(201);
     });
@@ -68,7 +74,7 @@ describe('Create Transaction Controller', () => {
                 ...baseHttpRequest,
                 user_id: undefined,
             },
-        });
+        } as any);
 
         expect(response.statusCode).toBe(400);
     });
@@ -81,7 +87,7 @@ describe('Create Transaction Controller', () => {
                 ...baseHttpRequest,
                 name: undefined,
             },
-        });
+        } as any);
 
         expect(response.statusCode).toBe(400);
     });
@@ -94,7 +100,7 @@ describe('Create Transaction Controller', () => {
                 ...baseHttpRequest,
                 type: undefined,
             },
-        });
+        } as any);
 
         expect(response.statusCode).toBe(400);
     });
@@ -107,7 +113,7 @@ describe('Create Transaction Controller', () => {
                 ...baseHttpRequest,
                 amount: undefined,
             },
-        });
+        } as any);
 
         expect(response.statusCode).toBe(400);
     });
@@ -120,7 +126,7 @@ describe('Create Transaction Controller', () => {
                 ...baseHttpRequest,
                 date: 'invalid_date',
             },
-        });
+        } as any);
 
         expect(response.statusCode).toBe(400);
     });
@@ -133,7 +139,7 @@ describe('Create Transaction Controller', () => {
                 ...baseHttpRequest,
                 type: undefined,
             },
-        });
+        } as any);
 
         expect(response.statusCode).toBe(400);
     });
@@ -146,7 +152,7 @@ describe('Create Transaction Controller', () => {
                 ...baseHttpRequest,
                 type: 'invalid_type',
             },
-        });
+        } as any);
 
         expect(response.statusCode).toBe(400);
     });
@@ -159,7 +165,7 @@ describe('Create Transaction Controller', () => {
                 ...baseHttpRequest,
                 amount: 'invalid_amount',
             },
-        });
+        } as any);
 
         expect(response.statusCode).toBe(400);
     });
@@ -170,7 +176,7 @@ describe('Create Transaction Controller', () => {
             new UserNotFoundError('any_user_id'),
         );
 
-        const response = await sut.execute(baseHttpRequest);
+        const response = await sut.execute(baseHttpRequest as any);
 
         expect(response.statusCode).toBe(404);
     });
@@ -181,7 +187,7 @@ describe('Create Transaction Controller', () => {
             new Error(),
         );
 
-        const response = await sut.execute(baseHttpRequest);
+        const response = await sut.execute(baseHttpRequest as any);
 
         expect(response.statusCode).toBe(500);
     });
@@ -192,7 +198,7 @@ describe('Create Transaction Controller', () => {
             new EventNotFoundError('any_event_id'),
         );
 
-        const response = await sut.execute(baseHttpRequest);
+        const response = await sut.execute(baseHttpRequest as any);
 
         expect(response.statusCode).toBe(404);
     });
@@ -203,7 +209,7 @@ describe('Create Transaction Controller', () => {
             new ForbiddenError(),
         );
 
-        const response = await sut.execute(baseHttpRequest);
+        const response = await sut.execute(baseHttpRequest as any);
 
         expect(response.statusCode).toBe(403);
     });
@@ -212,7 +218,7 @@ describe('Create Transaction Controller', () => {
         const { sut, createTransactionUseCase } = makeSut();
         const executeSpy = jest.spyOn(createTransactionUseCase, 'execute');
 
-        await sut.execute(baseHttpRequest);
+        await sut.execute(baseHttpRequest as any);
 
         expect(executeSpy).toHaveBeenCalledWith(baseHttpRequest.body);
     });

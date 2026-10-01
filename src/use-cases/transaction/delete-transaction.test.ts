@@ -2,18 +2,22 @@ import { faker } from '@faker-js/faker';
 import { transaction } from '../../tests/index.js';
 import { DeleteTransactionUseCase } from './delete-transaction.js';
 import { ForbiddenError } from '../../errors/auth.js';
+import { Transaction, TransactionRepository } from '../../domain/index.js';
 
 describe('Delete Transaction Use Case', () => {
     const user_id = faker.string.uuid();
-    class TransactionRepositoryStub {
-        async findById() {
+    class TransactionRepositoryStub implements Pick<
+        TransactionRepository,
+        'findById' | 'delete'
+    > {
+        async findById(): Promise<Transaction | null> {
             return {
                 ...transaction,
                 user_id,
             };
         }
 
-        async delete() {
+        async delete(): Promise<Transaction> {
             return {
                 ...transaction,
                 user_id,

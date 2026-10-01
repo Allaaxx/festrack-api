@@ -1,30 +1,48 @@
-import { UserNotFoundError } from '../../errors/user';
-import { EventNotFoundError } from '../../errors/event';
-import { ForbiddenError } from '../../errors/auth';
-import { transaction, user } from '../../tests';
-import { CreateTransactionUseCase } from './create-transaction';
+import { UserNotFoundError } from '../../errors/user.js';
+import { EventNotFoundError } from '../../errors/event.js';
+import { ForbiddenError } from '../../errors/auth.js';
+import { transaction, user } from '../../tests/index.js';
+import { CreateTransactionUseCase } from './create-transaction.js';
+import {
+    CreateTransactionParams,
+    Event,
+    EventRepository,
+    Transaction,
+    TransactionRepository,
+    User,
+    UserRepository,
+} from '../../domain/index.js';
 
 describe('Create Transaction Use Case', () => {
-    const CreateTransactionParams = {
+    const createTransactionParams: CreateTransactionParams = {
         ...transaction,
-        id: undefined,
     };
 
-    class TransactionRepositoryStub {
-        async create() {
+    class TransactionRepositoryStub implements Pick<
+        TransactionRepository,
+        'create'
+    > {
+        async create(): Promise<Transaction> {
             return transaction;
         }
     }
 
-    class UserRepositoryStub {
-        async findById() {
+    class UserRepositoryStub implements Pick<UserRepository, 'findById'> {
+        async findById(): Promise<User | null> {
             return user;
         }
     }
 
-    class EventRepositoryStub {
-        async findById() {
-            return { id: 'valid_event_id', user_id: user.id };
+    class EventRepositoryStub implements Pick<EventRepository, 'findById'> {
+        async findById(): Promise<Event | null> {
+            return {
+                id: 'valid_event_id',
+                name: 'valid_name',
+                description: null,
+                start_date: '2026-09-15',
+                end_date: '2026-09-16',
+                user_id: user.id,
+            };
         }
     }
 
@@ -49,7 +67,7 @@ describe('Create Transaction Use Case', () => {
     it('should create transaction successfully', async () => {
         const { sut } = makeSut();
 
-        const result = await sut.execute(CreateTransactionParams);
+        const result = await sut.execute(createTransactionParams);
 
         expect(result).toEqual(transaction);
     });
@@ -58,10 +76,10 @@ describe('Create Transaction Use Case', () => {
         const { sut, userRepository } = makeSut();
         const findByIdSpy = jest.spyOn(userRepository, 'findById');
 
-        await sut.execute(CreateTransactionParams);
+        await sut.execute(createTransactionParams);
 
         expect(findByIdSpy).toHaveBeenCalledWith(
-            CreateTransactionParams.user_id,
+            createTransactionParams.user_id,
         );
     });
 
@@ -69,19 +87,19 @@ describe('Create Transaction Use Case', () => {
         const { sut, transactionRepository } = makeSut();
         const createSpy = jest.spyOn(transactionRepository, 'create');
 
-        await sut.execute(CreateTransactionParams);
+        await sut.execute(createTransactionParams);
 
-        expect(createSpy).toHaveBeenCalledWith(CreateTransactionParams);
+        expect(createSpy).toHaveBeenCalledWith(createTransactionParams);
     });
 
     it('should throw UserNotFoundError if user does not exist', async () => {
         const { sut, userRepository } = makeSut();
         jest.spyOn(userRepository, 'findById').mockResolvedValueOnce(null);
 
-        const promise = sut.execute(CreateTransactionParams);
+        const promise = sut.execute(createTransactionParams);
 
         await expect(promise).rejects.toThrow(
-            new UserNotFoundError(CreateTransactionParams.user_id),
+            new UserNotFoundError(createTransactionParams.user_id),
         );
     });
 
@@ -91,7 +109,7 @@ describe('Create Transaction Use Case', () => {
             new Error(),
         );
 
-        const promise = sut.execute(CreateTransactionParams);
+        const promise = sut.execute(createTransactionParams);
 
         await expect(promise).rejects.toThrow();
     });
@@ -102,7 +120,7 @@ describe('Create Transaction Use Case', () => {
             new Error(),
         );
 
-        const promise = sut.execute(CreateTransactionParams);
+        const promise = sut.execute(createTransactionParams);
 
         await expect(promise).rejects.toThrow();
     });
@@ -112,7 +130,7 @@ describe('Create Transaction Use Case', () => {
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce(null);
 
         const promise = sut.execute({
-            ...CreateTransactionParams,
+            ...createTransactionParams,
             event_id: 'non-existing-event',
         });
 
@@ -125,11 +143,15 @@ describe('Create Transaction Use Case', () => {
         const { sut, eventRepository } = makeSut();
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             id: 'event-id',
+            name: 'event_name',
+            description: null,
+            start_date: '2026-09-15',
+            end_date: '2026-09-16',
             user_id: 'different-user-id',
         });
 
         const promise = sut.execute({
-            ...CreateTransactionParams,
+            ...createTransactionParams,
             event_id: 'event-id',
         });
 

@@ -3,13 +3,13 @@ import {
     DeleteTransactionController,
     GetTransactionsByUserIdController,
     UpdateTransactionController,
-} from '../../controllers';
+} from '../../controllers/index.js';
 import {
     makeCreateTransactionController,
     makeDeleteTransactionController,
     makeGetTransactionsByUserIdController,
     makeUpdateTransactionController,
-} from './transaction';
+} from './transaction.js';
 
 describe('Transaction Controller Factory', () => {
     it('should return a valid CreateTransactionController instance', () => {

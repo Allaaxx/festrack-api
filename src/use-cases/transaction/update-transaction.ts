@@ -1,14 +1,26 @@
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/index.js';
 import { TransactionNotFoundError } from '../../errors/transaction.js';
+import {
+    EventRepository,
+    Transaction,
+    TransactionRepository,
+    UpdateTransactionParams,
+} from '../../domain/index.js';
 
 export class UpdateTransactionUseCase {
-    constructor(transactionRepository, eventRepository) {
-        this.transactionRepository = transactionRepository;
-        this.eventRepository = eventRepository;
-    }
+    constructor(
+        private readonly transactionRepository: Pick<
+            TransactionRepository,
+            'findById' | 'update'
+        >,
+        private readonly eventRepository: Pick<EventRepository, 'findById'>,
+    ) {}
 
-    async execute(transactionId, params) {
+    async execute(
+        transactionId: string,
+        params: UpdateTransactionParams,
+    ): Promise<Transaction> {
         const transaction =
             await this.transactionRepository.findById(transactionId);
 

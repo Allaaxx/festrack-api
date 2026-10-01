@@ -1,5 +1,8 @@
 import { ZodError } from 'zod';
-import { createTransactionSchema } from '../../schemas/index.js';
+import {
+    createTransactionSchema,
+    CreateTransactionSchema,
+} from '../../schemas/index.js';
 import {
     badRequest,
     created,
@@ -7,16 +10,25 @@ import {
     forbidden,
     serverError,
     userNotFoundResponse,
+    HttpResponse,
 } from '../helpers/index.js';
 import { UserNotFoundError } from '../../errors/user.js';
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/auth.js';
+import { Controller, HttpRequest } from '../protocols.js';
+import { CreateTransactionUseCase } from '../../use-cases/index.js';
 
-export class CreateTransactionController {
-    constructor(createTransactionUseCase) {
-        this.createTransactionUseCase = createTransactionUseCase;
-    }
-    async execute(httpRequest) {
+export class CreateTransactionController implements Controller {
+    constructor(
+        private readonly createTransactionUseCase: Pick<
+            CreateTransactionUseCase,
+            'execute'
+        >,
+    ) {}
+
+    async execute(
+        httpRequest: HttpRequest<CreateTransactionSchema>,
+    ): Promise<HttpResponse> {
         try {
             const params = httpRequest.body;
             const validatedParams =

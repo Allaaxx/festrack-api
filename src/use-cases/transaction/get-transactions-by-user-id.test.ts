@@ -1,17 +1,26 @@
 import { faker } from '@faker-js/faker';
-import { UserNotFoundError } from '../../errors/user';
+import { UserNotFoundError } from '../../errors/user.js';
 import { user } from '../../tests/index.js';
 import { GetTransactionByUserIdUseCase } from './get-transactions-by-user-id.js';
+import {
+    Transaction,
+    TransactionRepository,
+    User,
+    UserRepository,
+} from '../../domain/index.js';
 
 describe('Get Transactions By User Id Use Case', () => {
-    class TransactionRepositoryStub {
-        async findByUserId() {
+    class TransactionRepositoryStub implements Pick<
+        TransactionRepository,
+        'findByUserId'
+    > {
+        async findByUserId(): Promise<Transaction[]> {
             return [];
         }
     }
 
-    class UserRepositoryStub {
-        async findById() {
+    class UserRepositoryStub implements Pick<UserRepository, 'findById'> {
+        async findById(): Promise<User | null> {
             return user;
         }
     }

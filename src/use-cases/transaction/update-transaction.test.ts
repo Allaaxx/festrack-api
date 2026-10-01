@@ -3,21 +3,37 @@ import { transaction } from '../../tests/index.js';
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import { UpdateTransactionUseCase } from './update-transaction.js';
+import {
+    Event,
+    EventRepository,
+    Transaction,
+    TransactionRepository,
+} from '../../domain/index.js';
 
 describe('Update Transaction Use Case', () => {
-    class TransactionRepositoryStub {
-        async findById() {
+    class TransactionRepositoryStub implements Pick<
+        TransactionRepository,
+        'findById' | 'update'
+    > {
+        async findById(): Promise<Transaction | null> {
             return transaction;
         }
 
-        async update() {
+        async update(): Promise<Transaction> {
             return transaction;
         }
     }
 
-    class EventRepositoryStub {
-        async findById() {
-            return { id: 'valid_event_id', user_id: transaction.user_id };
+    class EventRepositoryStub implements Pick<EventRepository, 'findById'> {
+        async findById(): Promise<Event | null> {
+            return {
+                id: 'valid_event_id',
+                name: 'valid_event_name',
+                description: null,
+                start_date: '2026-09-15',
+                end_date: '2026-09-16',
+                user_id: transaction.user_id,
+            };
         }
     }
 
@@ -36,7 +52,7 @@ describe('Update Transaction Use Case', () => {
         };
     };
 
-    it('should create a transaction successfully', async () => {
+    it('should update a transaction successfully', async () => {
         const { sut } = makeSut();
         const result = await sut.execute(transaction.id, {
             amount: Number(faker.finance.amount()),
@@ -97,6 +113,10 @@ describe('Update Transaction Use Case', () => {
         const { sut, eventRepository } = makeSut();
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             id: 'event-id',
+            name: 'event_name',
+            description: null,
+            start_date: '2026-09-15',
+            end_date: '2026-09-16',
             user_id: 'different-user-id',
         });
 

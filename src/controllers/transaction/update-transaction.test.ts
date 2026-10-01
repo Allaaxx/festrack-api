@@ -3,10 +3,15 @@ import { ForbiddenError } from '../../errors/index.js';
 import { transaction } from '../../tests/index.js';
 import { UpdateTransactionController } from './update-transaction.js';
 import { faker } from '@faker-js/faker';
+import { Transaction } from '../../domain/index.js';
+import { UpdateTransactionUseCase } from '../../use-cases/index.js';
 
 describe('Update Transaction Controller', () => {
-    class UpdateTransactionUseCaseStub {
-        async execute() {
+    class UpdateTransactionUseCaseStub implements Pick<
+        UpdateTransactionUseCase,
+        'execute'
+    > {
+        async execute(): Promise<Transaction> {
             return transaction;
         }
     }
@@ -23,7 +28,7 @@ describe('Update Transaction Controller', () => {
         body: {
             name: faker.commerce.productName(),
             date: faker.date.anytime().toISOString(),
-            type: 'EXPENSE',
+            type: 'EXPENSE' as const,
             amount: Number(faker.finance.amount()),
         },
     };
@@ -50,7 +55,7 @@ describe('Update Transaction Controller', () => {
 
         const response = await sut.execute({
             params: baseHttpRequest.params,
-            body: { ...baseHttpRequest.body, amount: 'invalid_amount' },
+            body: { ...baseHttpRequest.body, amount: 'invalid_amount' as any },
         });
         expect(response.statusCode).toBe(400);
     });
@@ -60,7 +65,7 @@ describe('Update Transaction Controller', () => {
 
         const response = await sut.execute({
             params: baseHttpRequest.params,
-            body: { ...baseHttpRequest.body, type: 'INVALID' },
+            body: { ...baseHttpRequest.body, type: 'INVALID' as any },
         });
         expect(response.statusCode).toBe(400);
     });
@@ -68,7 +73,7 @@ describe('Update Transaction Controller', () => {
     it('should return 403 when user_id is not the owner', async () => {
         const { sut, updateTransactionUseCase } = makeSut();
         jest.spyOn(updateTransactionUseCase, 'execute').mockRejectedValueOnce(
-            new ForbiddenError('user_id'),
+            new ForbiddenError(),
         );
 
         const response = await sut.execute({
