@@ -1,0 +1,98 @@
+import { UnauthorizedError } from '../../errors/index.js';
+import { RefreshTokenController } from './refresh-token.js';
+import { RefreshTokenUseCase } from '../../use-cases/index.js';
+import { GeneratedTokens } from '../../adapters/tokens-generator.js';
+
+describe('Refresh Token Controller', () => {
+    class RefreshTokenUseCaseStub
+        implements Pick<RefreshTokenUseCase, 'execute'>
+    {
+        execute(_refreshToken: string): GeneratedTokens {
+            return {
+                accessToken: 'new_access_token',
+                refreshToken: 'new_refresh_token',
+            };
+        }
+    }
+
+    const makeSut = () => {
+        const refreshTokenUseCaseStub = new RefreshTokenUseCaseStub();
+        const sut = new RefreshTokenController(refreshTokenUseCaseStub);
+        return {
+            refreshTokenUseCaseStub,
+            sut,
+        };
+    };
+
+    it('should return 400 when an invalid refresh token is provided', async () => {
+        const { sut } = makeSut();
+
+        const httpRequest = {
+            body: {
+                refreshToken: 0 as any,
+            },
+        };
+
+        const response = await sut.execute(httpRequest);
+
+        expect(response.statusCode).toBe(400);
+    });
+
+    it('should return 200 and new tokens when a valid refresh token is provided', async () => {
+        const { sut } = makeSut();
+
+        const httpRequest = {
+            body: {
+                refreshToken: 'valid_refresh_token',
+            },
+        };
+
+        const response = await sut.execute(httpRequest);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body).toEqual({
+            tokens: {
+                accessToken: 'new_access_token',
+                refreshToken: 'new_refresh_token',
+            },
+        });
+    });
+
+    it('should return 401 when the refresh token is invalid', async () => {
+        const { sut, refreshTokenUseCaseStub } = makeSut();
+        jest.spyOn(refreshTokenUseCaseStub, 'execute').mockImplementationOnce(
+            () => {
+                throw new UnauthorizedError();
+            },
+        );
+
+        const httpRequest = {
+            body: {
+                refreshToken: '1',
+            },
+        };
+
+        const response = await sut.execute(httpRequest);
+
+        expect(response.statusCode).toBe(401);
+    });
+
+    it('should return 500 when RefreshTokenUseCase throws', async () => {
+        const { sut, refreshTokenUseCaseStub } = makeSut();
+        jest.spyOn(refreshTokenUseCaseStub, 'execute').mockImplementationOnce(
+            () => {
+                throw new Error();
+            },
+        );
+
+        const httpRequest = {
+            body: {
+                refreshToken: '1',
+            },
+        };
+
+        const response = await sut.execute(httpRequest);
+
+        expect(response.statusCode).toBe(500);
+    });
+});

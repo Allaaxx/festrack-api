@@ -1,0 +1,178 @@
+import request from 'supertest';
+import { app } from '../app.js';
+import { user } from '../tests/fixtures/user.js';
+import { faker } from '@faker-js/faker';
+import { TransactionType } from '@prisma/client';
+
+describe('Users Routes E2E Tests', () => {
+    const from = '2020-01-01';
+    const to = '2027-12-31';
+
+    it('GET /api/users/me should return 200 if user is authenticated', async () => {
+        const { body: createdUser } = await request(app)
+            .post(`/api/auth`)
+            .send({
+                ...user,
+                id: undefined,
+            });
+
+        const response = await request(app)
+            .get(`/api/users/me`)
+            .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.id).toBe(createdUser.id);
+    });
+
+    it('PATCH /api/users/me should return 200 when user is updated', async () => {
+        const { body: createdUser } = await request(app)
+            .post(`/api/auth`)
+            .send({
+                ...user,
+                id: undefined,
+            });
+
+        const updateUserParams = {
+            first_name: faker.person.firstName(),
+            last_name: faker.person.lastName(),
+            email: faker.internet.email(),
+            password: faker.internet.password(),
+        };
+
+        const response = await request(app)
+            .patch(`/api/users/me`)
+            .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`)
+            .send(updateUserParams);
+
+        expect(response.status).toBe(200);
+        expect(response.body.first_name).toBe(updateUserParams.first_name);
+        expect(response.body.last_name).toBe(updateUserParams.last_name);
+        expect(response.body.email).toBe(updateUserParams.email);
+        expect(response.body.password).not.toBe(updateUserParams.password);
+    });
+
+    it('DELETE /api/users/me should return 200 when user is deleted', async () => {
+        const { body: createdUser } = await request(app)
+            .post(`/api/auth`)
+            .send({
+                ...user,
+                id: undefined,
+            });
+
+        const response = await request(app)
+            .delete(`/api/users/me`)
+            .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body.id).toBe(createdUser.id);
+    });
+
+    it('GET /api/users/me/balance should return 200 when user balance is calculated', async () => {
+        const { body: createdUser } = await request(app)
+            .post(`/api/auth`)
+            .send({
+                ...user,
+                id: undefined,
+            });
+
+        await request(app)
+            .post('/api/transactions/me')
+            .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`)
+            .send({
+                user_id: createdUser.id,
+                name: faker.commerce.productName(),
+                date: new Date(from),
+                type: TransactionType.EARNING,
+                amount: 10000,
+            });
+
+        await request(app)
+            .post('/api/transactions/me')
+            .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`)
+            .send({
+                user_id: createdUser.id,
+                name: faker.commerce.productName(),
+                date: new Date(from),
+                type: TransactionType.EXPENSE,
+                amount: 2000,
+            });
+
+        await request(app)
+            .post('/api/transactions/me')
+            .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`)
+            .send({
+                user_id: createdUser.id,
+                name: faker.commerce.productName(),
+                date: new Date(to),
+                type: TransactionType.INVESTMENT,
+                amount: 2000,
+            });
+
+        const response = await request(app)
+            .get(`/api/users/me/balance`)
+            .query({
+                from: from,
+                to: to,
+            })
+            .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({
+            earnings: '10000',
+            earningsPercentage: 71,
+            expensePercentage: 14,
+            expenses: '2000',
+            investments: '2000',
+            investmentsPercentage: 14,
+            balance: '6000',
+        });
+    });
+
+    it('PATCH /api/users/me should return 400 when email already in use', async () => {
+        const { body: createdUserOne } = await request(app)
+            .post(`/api/auth`)
+            .send({
+                ...user,
+                id: undefined,
+                email: faker.internet.email(),
+            });
+
+        const { body: createdUserTwo } = await request(app)
+            .post(`/api/auth`)
+            .send({
+                ...user,
+                id: undefined,
+                email: faker.internet.email(),
+            });
+
+        const response = await request(app)
+            .patch(`/api/users/me`)
+            .set('Authorization', `Bearer ${createdUserOne.tokens.accessToken}`)
+            .send({
+                email: createdUserTwo.email,
+            });
+        expect(response.status).toBe(400);
+    });
+
+    it('PATCH /api/users/me should return 400 when body is invalid', async () => {
+        const { body: createdUser } = await request(app)
+            .post(`/api/auth`)
+            .send({
+                ...user,
+                id: undefined,
+            });
+
+        const response = await request(app)
+            .patch(`/api/users/me`)
+            .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`)
+            .send({
+                first_name: faker.person.firstName(),
+                last_name: faker.person.lastName(),
+                email: faker.internet.email(),
+                password: faker.internet.password(),
+                phone: faker.phone.number(),
+            });
+
+        expect(response.status).toBe(400);
+    });
+});
