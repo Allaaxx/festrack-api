@@ -5,14 +5,12 @@ import { ForbiddenError } from '../../errors/auth.js';
 import { UpdateTransactionUseCase } from './update-transaction.js';
 
 describe('Update Transaction Use Case', () => {
-    class UpdateTransactionRepositoryStub {
-        async execute() {
+    class TransactionRepositoryStub {
+        async findById() {
             return transaction;
         }
-    }
 
-    class GetTransactionByIdStub {
-        async execute() {
+        async update() {
             return transaction;
         }
     }
@@ -24,20 +22,16 @@ describe('Update Transaction Use Case', () => {
     }
 
     const makeSut = () => {
-        const updateTransactionRepository =
-            new UpdateTransactionRepositoryStub();
-        const getTransactionByIdRepository = new GetTransactionByIdStub();
+        const transactionRepository = new TransactionRepositoryStub();
         const eventRepository = new EventRepositoryStub();
         const sut = new UpdateTransactionUseCase(
-            updateTransactionRepository,
-            getTransactionByIdRepository,
+            transactionRepository,
             eventRepository,
         );
 
         return {
             sut,
-            updateTransactionRepository,
-            getTransactionByIdRepository,
+            transactionRepository,
             eventRepository,
         };
     };
@@ -51,31 +45,24 @@ describe('Update Transaction Use Case', () => {
         expect(result).toEqual(transaction);
     });
 
-    it('should call UpdateTransactionRepository with correct params', async () => {
-        const { sut, updateTransactionRepository } = makeSut();
-        const updateTransactionRepositorySpy = jest.spyOn(
-            updateTransactionRepository,
-            'execute',
-        );
+    it('should call transactionRepository.update with correct params', async () => {
+        const { sut, transactionRepository } = makeSut();
+        const updateSpy = jest.spyOn(transactionRepository, 'update');
 
         await sut.execute(transaction.id, {
             amount: transaction.amount,
         });
 
-        expect(updateTransactionRepositorySpy).toHaveBeenCalledWith(
-            transaction.id,
-            {
-                amount: transaction.amount,
-            },
-        );
+        expect(updateSpy).toHaveBeenCalledWith(transaction.id, {
+            amount: transaction.amount,
+        });
     });
 
-    it('should throw if UpdateTransactionRepository throws', async () => {
-        const { sut, updateTransactionRepository } = makeSut();
-        jest.spyOn(
-            updateTransactionRepository,
-            'execute',
-        ).mockRejectedValueOnce(new Error());
+    it('should throw if transactionRepository.update throws', async () => {
+        const { sut, transactionRepository } = makeSut();
+        jest.spyOn(transactionRepository, 'update').mockRejectedValueOnce(
+            new Error(),
+        );
 
         const promise = sut.execute(transaction.id, {
             amount: transaction.amount,

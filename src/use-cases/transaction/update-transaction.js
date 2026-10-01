@@ -3,19 +3,14 @@ import { ForbiddenError } from '../../errors/index.js';
 import { TransactionNotFoundError } from '../../errors/transaction.js';
 
 export class UpdateTransactionUseCase {
-    constructor(
-        updateTransactionRepository,
-        getTransactionByIdRepository,
-        eventRepository,
-    ) {
-        this.updateTransactionRepository = updateTransactionRepository;
-        this.getTransactionByIdRepository = getTransactionByIdRepository;
+    constructor(transactionRepository, eventRepository) {
+        this.transactionRepository = transactionRepository;
         this.eventRepository = eventRepository;
     }
 
     async execute(transactionId, params) {
         const transaction =
-            await this.getTransactionByIdRepository.execute(transactionId);
+            await this.transactionRepository.findById(transactionId);
 
         if (!transaction) {
             throw new TransactionNotFoundError(transactionId);
@@ -37,9 +32,6 @@ export class UpdateTransactionUseCase {
             }
         }
 
-        return await this.updateTransactionRepository.execute(
-            transactionId,
-            params,
-        );
+        return await this.transactionRepository.update(transactionId, params);
     }
 }

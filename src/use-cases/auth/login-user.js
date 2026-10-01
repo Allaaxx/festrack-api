@@ -2,17 +2,17 @@ import { InvalidPasswordError, UserNotFoundError } from '../../errors/user.js';
 
 export class LoginUserUseCase {
     constructor(
-        getUserByEmailRepository,
+        userRepository,
         passwordComparatorAdapter,
         tokensGeneratorAdapter,
     ) {
-        this.getUserByEmailRepository = getUserByEmailRepository;
+        this.userRepository = userRepository;
         this.passwordComparatorAdapter = passwordComparatorAdapter;
         this.tokensGeneratorAdapter = tokensGeneratorAdapter;
     }
 
     async execute(email, password) {
-        const user = await this.getUserByEmailRepository.execute(email);
+        const user = await this.userRepository.findByEmail(email);
 
         if (!user) {
             throw new UserNotFoundError();

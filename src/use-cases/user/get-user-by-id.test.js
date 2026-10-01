@@ -3,19 +3,19 @@ import { user } from '../../tests/index.js';
 import { GetUserByIdUseCase } from './get-user-by-id.js';
 
 describe('Get User By Id Use Case', () => {
-    class GetUserByIdRepositoryStub {
-        async execute() {
+    class UserRepositoryStub {
+        async findById() {
             return user;
         }
     }
 
     const makeSut = () => {
-        const getUserByIdRepository = new GetUserByIdRepositoryStub();
-        const sut = new GetUserByIdUseCase(getUserByIdRepository);
+        const userRepository = new UserRepositoryStub();
+        const sut = new GetUserByIdUseCase(userRepository);
 
         return {
             sut,
-            getUserByIdRepository,
+            userRepository,
         };
     };
 
@@ -27,9 +27,9 @@ describe('Get User By Id Use Case', () => {
         expect(result).toEqual(user);
     });
 
-    it('should call GetUserByIdRepository with correct params', async () => {
-        const { sut, getUserByIdRepository } = makeSut();
-        const executeSpy = jest.spyOn(getUserByIdRepository, 'execute');
+    it('should call userRepository.findById with correct params', async () => {
+        const { sut, userRepository } = makeSut();
+        const executeSpy = jest.spyOn(userRepository, 'findById');
         const userId = faker.string.uuid();
 
         await sut.execute(userId);
@@ -37,11 +37,9 @@ describe('Get User By Id Use Case', () => {
         expect(executeSpy).toHaveBeenCalledWith(userId);
     });
 
-    it('should throw if GetUserByIdRepository throws', async () => {
-        const { sut, getUserByIdRepository } = makeSut();
-        jest.spyOn(getUserByIdRepository, 'execute').mockRejectedValue(
-            new Error(),
-        );
+    it('should throw if userRepository.findById throws', async () => {
+        const { sut, userRepository } = makeSut();
+        jest.spyOn(userRepository, 'findById').mockRejectedValue(new Error());
 
         const promise = sut.execute(faker.string.uuid());
 

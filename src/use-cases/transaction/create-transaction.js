@@ -3,22 +3,16 @@ import { ForbiddenError } from '../../errors/index.js';
 import { UserNotFoundError } from '../../errors/user.js';
 
 export class CreateTransactionUseCase {
-    constructor(
-        createTransactionRepository,
-        getUserByIdRepository,
-        idGeneratorAdapter,
-        eventRepository,
-    ) {
-        this.createTransactionRepository = createTransactionRepository;
-        this.getUserByIdRepository = getUserByIdRepository;
-        this.idGeneratorAdapter = idGeneratorAdapter;
+    constructor(transactionRepository, userRepository, eventRepository) {
+        this.transactionRepository = transactionRepository;
+        this.userRepository = userRepository;
         this.eventRepository = eventRepository;
     }
 
     async execute(params) {
         const userId = params.user_id;
 
-        const user = await this.getUserByIdRepository.execute(userId);
+        const user = await this.userRepository.findById(userId);
 
         if (!user) {
             throw new UserNotFoundError(userId);
@@ -36,12 +30,7 @@ export class CreateTransactionUseCase {
             }
         }
 
-        const transactionId = this.idGeneratorAdapter.execute();
-
-        const transaction = await this.createTransactionRepository.execute({
-            ...params,
-            id: transactionId,
-        });
+        const transaction = await this.transactionRepository.create(params);
 
         return transaction;
     }

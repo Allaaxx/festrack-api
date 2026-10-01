@@ -3,19 +3,17 @@ import { transaction } from '../../tests/index.js';
 import { DeleteTransactionUseCase } from './delete-transaction.js';
 import { ForbiddenError } from '../../errors/auth.js';
 
-describe('Delte Transaction Use Case', () => {
+describe('Delete Transaction Use Case', () => {
     const user_id = faker.string.uuid();
-    class DeleteTransactionRepositoryStub {
-        async execute() {
+    class TransactionRepositoryStub {
+        async findById() {
             return {
                 ...transaction,
                 user_id,
             };
         }
-    }
 
-    class GetTransactionByIdRepositoryStub {
-        async execute() {
+        async delete() {
             return {
                 ...transaction,
                 user_id,
@@ -24,19 +22,12 @@ describe('Delte Transaction Use Case', () => {
     }
 
     const makeSut = () => {
-        const deleteTransactionRepository =
-            new DeleteTransactionRepositoryStub();
-        const getTransactionByIdRepository =
-            new GetTransactionByIdRepositoryStub();
-        const sut = new DeleteTransactionUseCase(
-            deleteTransactionRepository,
-            getTransactionByIdRepository,
-        );
+        const transactionRepository = new TransactionRepositoryStub();
+        const sut = new DeleteTransactionUseCase(transactionRepository);
 
         return {
             sut,
-            getTransactionByIdRepository,
-            deleteTransactionRepository,
+            transactionRepository,
         };
     };
 
@@ -49,25 +40,21 @@ describe('Delte Transaction Use Case', () => {
         expect(result).toEqual({ ...transaction, user_id });
     });
 
-    it('should call DeleteTransactionRepository with correct params', async () => {
-        const { sut, deleteTransactionRepository } = makeSut();
-        const deleteTransactionRepositorySpy = jest.spyOn(
-            deleteTransactionRepository,
-            'execute',
-        );
+    it('should call transactionRepository.delete with correct params', async () => {
+        const { sut, transactionRepository } = makeSut();
+        const deleteSpy = jest.spyOn(transactionRepository, 'delete');
         const id = faker.string.uuid();
 
         await sut.execute(id, user_id);
 
-        expect(deleteTransactionRepositorySpy).toHaveBeenCalledWith(id);
+        expect(deleteSpy).toHaveBeenCalledWith(id);
     });
 
-    it('should throw if DeleteTransactionRepository throws', async () => {
-        const { sut, deleteTransactionRepository } = makeSut();
-        jest.spyOn(
-            deleteTransactionRepository,
-            'execute',
-        ).mockRejectedValueOnce(new Error());
+    it('should throw if transactionRepository.delete throws', async () => {
+        const { sut, transactionRepository } = makeSut();
+        jest.spyOn(transactionRepository, 'delete').mockRejectedValueOnce(
+            new Error(),
+        );
         const id = faker.string.uuid();
 
         const promise = sut.execute(id, user_id);

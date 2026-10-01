@@ -7,7 +7,7 @@ import {
 } from '../../controllers/index.js';
 import {
     PostgresEventRepository,
-    PostgresGetUserByIdRepository,
+    PostgresUserRepository,
 } from '../../repositories/postgres/index.js';
 import {
     CreateEventUseCase,
@@ -19,11 +19,11 @@ import {
 
 export const makeCreateEventController = () => {
     const eventRepository = new PostgresEventRepository();
-    const getUserByIdRepository = new PostgresGetUserByIdRepository();
+    const userRepository = new PostgresUserRepository();
 
     const createEventUseCase = new CreateEventUseCase(
         eventRepository,
-        getUserByIdRepository,
+        userRepository,
     );
 
     return new CreateEventController(createEventUseCase);
@@ -31,11 +31,11 @@ export const makeCreateEventController = () => {
 
 export const makeGetEventsByUserIdController = () => {
     const eventRepository = new PostgresEventRepository();
-    const getUserByIdRepository = new PostgresGetUserByIdRepository();
+    const userRepository = new PostgresUserRepository();
 
     const getEventsByUserIdUseCase = new GetEventsByUserIdUseCase(
         eventRepository,
-        getUserByIdRepository,
+        userRepository,
     );
 
     return new GetEventsByUserIdController(getEventsByUserIdUseCase);

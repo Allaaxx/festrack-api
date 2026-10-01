@@ -9,24 +9,24 @@ describe('Get Events By User Id Use Case', () => {
         }
     }
 
-    class GetUserByIdRepositoryStub {
-        async execute() {
+    class UserRepositoryStub {
+        async findById() {
             return user;
         }
     }
 
     const makeSut = () => {
         const eventRepository = new EventRepositoryStub();
-        const getUserByIdRepository = new GetUserByIdRepositoryStub();
+        const userRepository = new UserRepositoryStub();
         const sut = new GetEventsByUserIdUseCase(
             eventRepository,
-            getUserByIdRepository,
+            userRepository,
         );
 
         return {
             sut,
             eventRepository,
-            getUserByIdRepository,
+            userRepository,
         };
     };
 
@@ -38,9 +38,9 @@ describe('Get Events By User Id Use Case', () => {
         expect(result).toEqual([event]);
     });
 
-    it('should call GetUserByIdRepository with correct params', async () => {
-        const { sut, getUserByIdRepository } = makeSut();
-        const spy = jest.spyOn(getUserByIdRepository, 'execute');
+    it('should call userRepository.findById with correct params', async () => {
+        const { sut, userRepository } = makeSut();
+        const spy = jest.spyOn(userRepository, 'findById');
 
         await sut.execute(user.id);
 
@@ -57,19 +57,17 @@ describe('Get Events By User Id Use Case', () => {
     });
 
     it('should throw UserNotFoundError if user is not found', async () => {
-        const { sut, getUserByIdRepository } = makeSut();
-        jest.spyOn(getUserByIdRepository, 'execute').mockResolvedValueOnce(
-            null,
-        );
+        const { sut, userRepository } = makeSut();
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce(null);
 
         const promise = sut.execute(user.id);
 
         await expect(promise).rejects.toThrow(new UserNotFoundError(user.id));
     });
 
-    it('should throw if GetUserByIdRepository throws', async () => {
-        const { sut, getUserByIdRepository } = makeSut();
-        jest.spyOn(getUserByIdRepository, 'execute').mockRejectedValueOnce(
+    it('should throw if userRepository.findById throws', async () => {
+        const { sut, userRepository } = makeSut();
+        jest.spyOn(userRepository, 'findById').mockRejectedValueOnce(
             new Error(),
         );
 

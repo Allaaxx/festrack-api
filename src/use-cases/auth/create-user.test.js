@@ -1,32 +1,29 @@
 import { EmailAlreadyInUseError } from '../../errors/user.js';
 import { user as fixtureUser } from '../../tests/index.js';
 import { CreateUserUseCase } from './create-user.js';
+
 describe('Create User Use Case', () => {
     const user = {
         ...fixtureUser,
         id: undefined,
     };
-    class GetUserByEmailRepositoryStub {
-        async execute() {
+
+    class UserRepositoryStub {
+        async findByEmail() {
             return null;
         }
-    }
 
-    class CreateUserRepositoryStub {
-        async execute() {
-            return user;
+        async create() {
+            return {
+                ...user,
+                id: 'generated_id',
+            };
         }
     }
 
-    class PasswordHaserAdapterStub {
+    class PasswordHasherAdapterStub {
         async execute() {
             return 'hashed_password';
-        }
-    }
-
-    class IdGeneratorAdapterStub {
-        execute() {
-            return 'generated_id';
         }
     }
 
@@ -40,26 +37,20 @@ describe('Create User Use Case', () => {
     }
 
     const makeSut = () => {
-        const getUserByEmailRepository = new GetUserByEmailRepositoryStub();
-        const createUserRepository = new CreateUserRepositoryStub();
-        const passwordHasherAdapter = new PasswordHaserAdapterStub();
-        const idGeneratorAdapter = new IdGeneratorAdapterStub();
+        const userRepository = new UserRepositoryStub();
+        const passwordHasherAdapter = new PasswordHasherAdapterStub();
         const tokensGeneratorAdapter = new TokensGeneratorAdapterStub();
 
         const sut = new CreateUserUseCase(
-            getUserByEmailRepository,
-            createUserRepository,
+            userRepository,
             passwordHasherAdapter,
-            idGeneratorAdapter,
             tokensGeneratorAdapter,
         );
 
         return {
             sut,
-            getUserByEmailRepository,
-            createUserRepository,
+            userRepository,
             passwordHasherAdapter,
-            idGeneratorAdapter,
         };
     };
 
@@ -73,11 +64,9 @@ describe('Create User Use Case', () => {
         expect(createdUser.tokens.refreshToken).toBe('any_refresh_token');
     });
 
-    it('should throw an EmailAlreadyInUseError if GetUserByEmailRepository returns a user', async () => {
-        const { sut, getUserByEmailRepository } = makeSut();
-        jest.spyOn(getUserByEmailRepository, 'execute').mockReturnValueOnce(
-            user,
-        );
+    it('should throw an EmailAlreadyInUseError if findByEmail returns a user', async () => {
+        const { sut, userRepository } = makeSut();
+        jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(user);
 
         const promise = sut.execute(user);
 
@@ -86,56 +75,23 @@ describe('Create User Use Case', () => {
         );
     });
 
-    it('should call IdGeneratorAdapter to generate a random id', async () => {
-        const { sut, idGeneratorAdapter, createUserRepository } = makeSut();
-        const idGeneratorSpy = jest.spyOn(idGeneratorAdapter, 'execute');
-        const createUserRepositorySpy = jest.spyOn(
-            createUserRepository,
-            'execute',
-        );
-
-        await sut.execute(user);
-
-        expect(idGeneratorSpy).toHaveBeenCalled();
-        expect(createUserRepositorySpy).toHaveBeenCalledWith({
-            ...user,
-            password: 'hashed_password',
-            id: 'generated_id',
-        });
-    });
-
     it('should call PasswordHasherAdapter to cryptograph password', async () => {
-        const { sut, passwordHasherAdapter, createUserRepository } = makeSut();
+        const { sut, passwordHasherAdapter, userRepository } = makeSut();
         const passwordHasherSpy = jest.spyOn(passwordHasherAdapter, 'execute');
-        const createUserRepositorySpy = jest.spyOn(
-            createUserRepository,
-            'execute',
-        );
+        const createUserSpy = jest.spyOn(userRepository, 'create');
 
         await sut.execute(user);
 
         expect(passwordHasherSpy).toHaveBeenCalledWith(user.password);
-        expect(createUserRepositorySpy).toHaveBeenCalledWith({
+        expect(createUserSpy).toHaveBeenCalledWith({
             ...user,
             password: 'hashed_password',
-            id: 'generated_id',
         });
     });
 
-    it('should throw if GetUserByEmailRepository throws', async () => {
-        const { sut, getUserByEmailRepository } = makeSut();
-        jest.spyOn(getUserByEmailRepository, 'execute').mockRejectedValueOnce(
-            new Error(),
-        );
-
-        const promise = sut.execute(user);
-
-        await expect(promise).rejects.toThrow();
-    });
-
-    it('should throw if IdGeneratorAdapter throws', async () => {
-        const { sut, idGeneratorAdapter } = makeSut();
-        jest.spyOn(idGeneratorAdapter, 'execute').mockImplementationOnce(
+    it('should throw if findByEmail throws', async () => {
+        const { sut, userRepository } = makeSut();
+        jest.spyOn(userRepository, 'findByEmail').mockRejectedValueOnce(
             new Error(),
         );
 
@@ -155,11 +111,9 @@ describe('Create User Use Case', () => {
         await expect(promise).rejects.toThrow();
     });
 
-    it('should throw if CreateUserRepository throws', async () => {
-        const { sut, createUserRepository } = makeSut();
-        jest.spyOn(createUserRepository, 'execute').mockRejectedValueOnce(
-            new Error(),
-        );
+    it('should throw if userRepository.create throws', async () => {
+        const { sut, userRepository } = makeSut();
+        jest.spyOn(userRepository, 'create').mockRejectedValueOnce(new Error());
 
         const promise = sut.execute(user);
 

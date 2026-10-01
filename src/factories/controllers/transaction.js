@@ -1,4 +1,3 @@
-import { IdGeneratorAdapter } from '../../adapters/index.js';
 import {
     CreateTransactionController,
     DeleteTransactionController,
@@ -6,12 +5,8 @@ import {
     UpdateTransactionController,
 } from '../../controllers/index.js';
 import {
-    PostgresCreateTransactionRepository,
-    PostgresDeleteTransactionRepository,
-    PostgresGetTransactionsByUserIdRepository,
-    PostgresGetTransactionByIdRepository,
-    PostgresGetUserByIdRepository,
-    PostgresUpdateTransactionRepository,
+    PostgresTransactionRepository,
+    PostgresUserRepository,
     PostgresEventRepository,
 } from '../../repositories/postgres/index.js';
 
@@ -23,81 +18,51 @@ import {
 } from '../../use-cases/index.js';
 
 export const makeCreateTransactionController = () => {
-    const createTransactionRepository =
-        new PostgresCreateTransactionRepository();
-
-    const getUserByIdRepository = new PostgresGetUserByIdRepository();
-
-    const idGeneratorAdapter = new IdGeneratorAdapter();
-
+    const transactionRepository = new PostgresTransactionRepository();
+    const userRepository = new PostgresUserRepository();
     const eventRepository = new PostgresEventRepository();
 
     const createTransactionUseCase = new CreateTransactionUseCase(
-        createTransactionRepository,
-        getUserByIdRepository,
-        idGeneratorAdapter,
+        transactionRepository,
+        userRepository,
         eventRepository,
     );
 
-    const creaTransactionController = new CreateTransactionController(
-        createTransactionUseCase,
-    );
-
-    return creaTransactionController;
+    return new CreateTransactionController(createTransactionUseCase);
 };
 
 export const makeGetTransactionsByUserIdController = () => {
-    const getTransactionsByUserIdRepository =
-        new PostgresGetTransactionsByUserIdRepository();
-
-    const getUserByIdRepository = new PostgresGetUserByIdRepository();
+    const transactionRepository = new PostgresTransactionRepository();
+    const userRepository = new PostgresUserRepository();
 
     const getTransactionsByUserIdUseCase = new GetTransactionByUserIdUseCase(
-        getTransactionsByUserIdRepository,
-        getUserByIdRepository,
+        transactionRepository,
+        userRepository,
     );
 
-    const getTransactionsByUserIdController =
-        new GetTransactionsByUserIdController(getTransactionsByUserIdUseCase);
-
-    return getTransactionsByUserIdController;
+    return new GetTransactionsByUserIdController(
+        getTransactionsByUserIdUseCase,
+    );
 };
 
 export const makeUpdateTransactionController = () => {
-    const updateTransactionRepository =
-        new PostgresUpdateTransactionRepository();
-    const getTransactionByIdRepository =
-        new PostgresGetTransactionByIdRepository();
+    const transactionRepository = new PostgresTransactionRepository();
     const eventRepository = new PostgresEventRepository();
 
     const updateTransactionUseCase = new UpdateTransactionUseCase(
-        updateTransactionRepository,
-        getTransactionByIdRepository,
+        transactionRepository,
         eventRepository,
     );
 
-    const updateTransactionController = new UpdateTransactionController(
-        updateTransactionUseCase,
-    );
-
-    return updateTransactionController;
+    return new UpdateTransactionController(updateTransactionUseCase);
 };
 
 export const makeDeleteTransactionController = () => {
-    const deleteTransactionRepository =
-        new PostgresDeleteTransactionRepository();
-
-    const getTransactionByIdRepository =
-        new PostgresGetTransactionByIdRepository();
+    const transactionRepository = new PostgresTransactionRepository();
 
     const deleteTransactionUseCase = new DeleteTransactionUseCase(
-        getTransactionByIdRepository,
-        deleteTransactionRepository,
+        transactionRepository,
     );
 
-    const deleteTransactionController = new DeleteTransactionController(
-        deleteTransactionUseCase,
-    );
-
-    return deleteTransactionController;
+    return new DeleteTransactionController(deleteTransactionUseCase);
 };

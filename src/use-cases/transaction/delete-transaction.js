@@ -4,14 +4,13 @@ import {
 } from '../../errors/index.js';
 
 export class DeleteTransactionUseCase {
-    constructor(getTransactionByIdRepository, deleteTransactionRepository) {
-        this.getTransactionByIdRepository = getTransactionByIdRepository;
-        this.deleteTransactionRepository = deleteTransactionRepository;
+    constructor(transactionRepository) {
+        this.transactionRepository = transactionRepository;
     }
 
     async execute(transactionId, userId) {
         const transaction =
-            await this.getTransactionByIdRepository.execute(transactionId);
+            await this.transactionRepository.findById(transactionId);
 
         if (!transaction) {
             throw new TransactionNotFoundError(transactionId);
@@ -22,7 +21,7 @@ export class DeleteTransactionUseCase {
         }
 
         const deletedTransaction =
-            await this.deleteTransactionRepository.execute(transactionId);
+            await this.transactionRepository.delete(transactionId);
 
         return deletedTransaction;
     }

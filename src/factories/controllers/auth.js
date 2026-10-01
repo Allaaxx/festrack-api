@@ -1,5 +1,4 @@
 import {
-    IdGeneratorAdapter,
     PasswordComparatorAdapter,
     PasswordHasherAdapter,
     TokensGeneratorAdapter,
@@ -10,10 +9,7 @@ import {
     LoginUserController,
     RefreshTokenController,
 } from '../../controllers/index.js';
-import {
-    PostgresCreateUserRepository,
-    PostgresGetUserByEmailRepository,
-} from '../../repositories/postgres/index.js';
+import { PostgresUserRepository } from '../../repositories/postgres/index.js';
 import {
     CreateUserUseCase,
     LoginUserUseCase,
@@ -21,43 +17,31 @@ import {
 } from '../../use-cases/index.js';
 
 export const makeCreateUserController = () => {
-    const getUserByEmailRepository = new PostgresGetUserByEmailRepository();
-
-    const createUserRepository = new PostgresCreateUserRepository();
-
+    const userRepository = new PostgresUserRepository();
     const passwordHasherAdapter = new PasswordHasherAdapter();
-
-    const idGeneratorAdapter = new IdGeneratorAdapter();
-
     const tokensGeneratorAdapter = new TokensGeneratorAdapter();
 
     const createUserUseCase = new CreateUserUseCase(
-        getUserByEmailRepository,
-        createUserRepository,
+        userRepository,
         passwordHasherAdapter,
-        idGeneratorAdapter,
         tokensGeneratorAdapter,
     );
 
-    const createUserController = new CreateUserController(createUserUseCase);
-
-    return createUserController;
+    return new CreateUserController(createUserUseCase);
 };
 
 export const makeLoginUserController = () => {
-    const getUserByEmailRepository = new PostgresGetUserByEmailRepository();
+    const userRepository = new PostgresUserRepository();
     const passwordComparatorAdapter = new PasswordComparatorAdapter();
     const tokensGeneratorAdapter = new TokensGeneratorAdapter();
 
     const loginUserUseCase = new LoginUserUseCase(
-        getUserByEmailRepository,
+        userRepository,
         passwordComparatorAdapter,
         tokensGeneratorAdapter,
     );
 
-    const loginUserController = new LoginUserController(loginUserUseCase);
-
-    return loginUserController;
+    return new LoginUserController(loginUserUseCase);
 };
 
 export const makeRefreshTokenController = () => {
@@ -68,9 +52,5 @@ export const makeRefreshTokenController = () => {
         tokenVerifierAdapter,
     );
 
-    const refreshTokenController = new RefreshTokenController(
-        refreshTokenUseCase,
-    );
-
-    return refreshTokenController;
+    return new RefreshTokenController(refreshTokenUseCase);
 };

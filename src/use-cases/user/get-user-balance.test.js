@@ -7,29 +7,23 @@ describe('Get User Balance Use Case', () => {
     const from = '2024-01-01';
     const to = '2027-12-23';
 
-    class GetUserBalanceRepositoryStub {
-        async execute() {
+    class UserRepositoryStub {
+        async getBalance() {
             return userBalance;
         }
-    }
-    class GetUserByIdRepositoryStub {
-        async execute() {
+
+        async findById() {
             return user;
         }
     }
 
     const makeSut = () => {
-        const getUserBalanceRepository = new GetUserBalanceRepositoryStub();
-        const getUserByIdRepository = new GetUserByIdRepositoryStub();
-        const sut = new GetUserBalanceUseCase(
-            getUserBalanceRepository,
-            getUserByIdRepository,
-        );
+        const userRepository = new UserRepositoryStub();
+        const sut = new GetUserBalanceUseCase(userRepository);
 
         return {
             sut,
-            getUserBalanceRepository,
-            getUserByIdRepository,
+            userRepository,
         };
     };
 
@@ -41,9 +35,9 @@ describe('Get User Balance Use Case', () => {
         expect(result).toEqual(userBalance);
     });
 
-    it('should throw UserNotFoundError if GetUserByIdRepository returns null', async () => {
-        const { sut, getUserByIdRepository } = makeSut();
-        jest.spyOn(getUserByIdRepository, 'execute').mockResolvedValue(null);
+    it('should throw UserNotFoundError if findById returns null', async () => {
+        const { sut, userRepository } = makeSut();
+        jest.spyOn(userRepository, 'findById').mockResolvedValue(null);
         const userId = faker.string.uuid();
 
         const promise = sut.execute(userId);
@@ -51,42 +45,38 @@ describe('Get User Balance Use Case', () => {
         await expect(promise).rejects.toThrow(new UserNotFoundError(userId));
     });
 
-    it('should call GetUserByIdRepository with correct params', async () => {
-        const { sut, getUserByIdRepository } = makeSut();
+    it('should call userRepository.findById with correct params', async () => {
+        const { sut, userRepository } = makeSut();
         const userId = faker.string.uuid();
-        const executeSpy = jest.spyOn(getUserByIdRepository, 'execute');
+        const executeSpy = jest.spyOn(userRepository, 'findById');
 
         await sut.execute(userId);
 
         expect(executeSpy).toHaveBeenCalledWith(userId);
     });
 
-    it('should call GetUserBalanceRepository with correct params', async () => {
-        const { sut, getUserBalanceRepository } = makeSut();
+    it('should call userRepository.getBalance with correct params', async () => {
+        const { sut, userRepository } = makeSut();
         const userId = faker.string.uuid();
-        const executeSpy = jest.spyOn(getUserBalanceRepository, 'execute');
+        const executeSpy = jest.spyOn(userRepository, 'getBalance');
 
         await sut.execute(userId, from, to);
 
         expect(executeSpy).toHaveBeenCalledWith(userId, from, to);
     });
 
-    it('should throw if GetUserByIdRepository throws', async () => {
-        const { sut, getUserByIdRepository } = makeSut();
-        jest.spyOn(getUserByIdRepository, 'execute').mockRejectedValue(
-            new Error(),
-        );
+    it('should throw if userRepository.findById throws', async () => {
+        const { sut, userRepository } = makeSut();
+        jest.spyOn(userRepository, 'findById').mockRejectedValue(new Error());
 
         const promise = sut.execute(faker.string.uuid());
 
         await expect(promise).rejects.toThrow();
     });
 
-    it('should throw if GetUserBalanceRepository throws', async () => {
-        const { sut, getUserBalanceRepository } = makeSut();
-        jest.spyOn(getUserBalanceRepository, 'execute').mockRejectedValue(
-            new Error(),
-        );
+    it('should throw if userRepository.getBalance throws', async () => {
+        const { sut, userRepository } = makeSut();
+        jest.spyOn(userRepository, 'getBalance').mockRejectedValue(new Error());
 
         const promise = sut.execute(faker.string.uuid());
 
