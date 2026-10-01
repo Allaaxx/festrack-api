@@ -15,17 +15,19 @@ describe('Login User Use Case', () => {
         }
     }
 
-    class PasswordComparatorAdapterStub
-        implements Pick<PasswordComparator, 'execute'>
-    {
+    class PasswordComparatorAdapterStub implements Pick<
+        PasswordComparator,
+        'execute'
+    > {
         async execute(_password: string, _hash: string): Promise<boolean> {
             return true;
         }
     }
 
-    class TokensGeneratorAdapterStub
-        implements Pick<TokensGenerator, 'execute'>
-    {
+    class TokensGeneratorAdapterStub implements Pick<
+        TokensGenerator,
+        'execute'
+    > {
         execute(_userId: string): GeneratedTokens {
             return {
                 accessToken: 'any_access_token',

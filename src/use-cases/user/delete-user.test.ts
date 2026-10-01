@@ -23,7 +23,9 @@ describe('Delete User Use Case', () => {
     it('should successfully delete a user', async () => {
         const { deleteUserUseCase } = makeSut();
 
-        const deletedUser = await deleteUserUseCase.execute(faker.string.uuid());
+        const deletedUser = await deleteUserUseCase.execute(
+            faker.string.uuid(),
+        );
 
         expect(deletedUser).toEqual(user);
     });

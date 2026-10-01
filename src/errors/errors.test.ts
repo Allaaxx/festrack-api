@@ -12,7 +12,9 @@ describe('Domain Errors', () => {
     it('EmailAlreadyInUseError should have correct message and name', () => {
         const error = new EmailAlreadyInUseError('test@example.com');
         expect(error.name).toBe('EmailAlreadyInUseError');
-        expect(error.message).toBe('The e-mail test@example.com is already in use');
+        expect(error.message).toBe(
+            'The e-mail test@example.com is already in use',
+        );
         expect(error).toBeInstanceOf(Error);
     });
 

@@ -44,9 +44,7 @@ describe('Auth Middleware', () => {
     it('should return 401 when jwt.verify throws', () => {
         request.headers = { authorization: 'Bearer invalid_token' };
 
-        const logSpy = jest
-            .spyOn(console, 'log')
-            .mockImplementation(() => {});
+        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
         jest.spyOn(jwt, 'verify').mockImplementationOnce(() => {
             throw new Error('Invalid token');

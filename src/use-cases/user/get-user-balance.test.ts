@@ -31,7 +31,11 @@ describe('Get User Balance Use Case', () => {
     it('should get user balance successfully', async () => {
         const { getUserBalanceUseCase } = makeSut();
 
-        const result = await getUserBalanceUseCase.execute(faker.string.uuid(), from, to);
+        const result = await getUserBalanceUseCase.execute(
+            faker.string.uuid(),
+            from,
+            to,
+        );
 
         expect(result).toEqual(userBalance);
     });
@@ -70,7 +74,11 @@ describe('Get User Balance Use Case', () => {
         const { getUserBalanceUseCase, userRepository } = makeSut();
         jest.spyOn(userRepository, 'findById').mockRejectedValue(new Error());
 
-        const promise = getUserBalanceUseCase.execute(faker.string.uuid(), from, to);
+        const promise = getUserBalanceUseCase.execute(
+            faker.string.uuid(),
+            from,
+            to,
+        );
 
         await expect(promise).rejects.toThrow();
     });
@@ -79,7 +87,11 @@ describe('Get User Balance Use Case', () => {
         const { getUserBalanceUseCase, userRepository } = makeSut();
         jest.spyOn(userRepository, 'getBalance').mockRejectedValue(new Error());
 
-        const promise = getUserBalanceUseCase.execute(faker.string.uuid(), from, to);
+        const promise = getUserBalanceUseCase.execute(
+            faker.string.uuid(),
+            from,
+            to,
+        );
 
         await expect(promise).rejects.toThrow();
     });

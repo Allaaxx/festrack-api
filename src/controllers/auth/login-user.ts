@@ -17,7 +17,9 @@ export class LoginUserController implements Controller {
         private readonly loginUserUseCase: Pick<LoginUserUseCase, 'execute'>,
     ) {}
 
-    async execute(httpRequest: HttpRequest<LoginSchema>): Promise<HttpResponse> {
+    async execute(
+        httpRequest: HttpRequest<LoginSchema>,
+    ): Promise<HttpResponse> {
         try {
             const params = await loginSchema.parseAsync(httpRequest.body);
             const user = await this.loginUserUseCase.execute(

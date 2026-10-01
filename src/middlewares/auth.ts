@@ -18,10 +18,8 @@ export const auth = (
             return response.status(401).send({ message: 'Unauthorized' });
         }
 
-        const decodedToken = jwt.verify(
-            accessToken,
-            secret,
-        ) as jwt.JwtPayload | string | null;
+        const decodedToken = jwt.verify(accessToken, secret) as
+            jwt.JwtPayload | string | null;
 
         if (!decodedToken) {
             return response.status(401).send({ message: 'Unauthorized' });
