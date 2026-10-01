@@ -2,18 +2,28 @@ import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/index.js';
 import { event, user } from '../../tests/index.js';
 import { UpdateEventUseCase } from './update-event.js';
+import {
+    Event,
+    UpdateEventParams,
+    EventRepository,
+} from '../../domain/index.js';
 
 describe('Update Event Use Case', () => {
-    const updateParams = {
+    const updateParams: UpdateEventParams = {
         name: 'Updated Event Name',
     };
 
-    class EventRepositoryStub {
-        async findById() {
+    class EventRepositoryStub
+        implements Pick<EventRepository, 'findById' | 'update'>
+    {
+        async findById(_id: string): Promise<Event | null> {
             return { ...event, user_id: user.id };
         }
 
-        async update() {
+        async update(
+            _eventId: string,
+            _updateEventParams: UpdateEventParams,
+        ): Promise<Event> {
             return { ...event, user_id: user.id, ...updateParams };
         }
     }

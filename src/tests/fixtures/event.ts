@@ -1,6 +1,7 @@
 import { faker } from '@faker-js/faker';
+import { Event } from '../../domain/index.js';
 
-export const event = {
+export const event: Event = {
     id: faker.string.uuid(),
     user_id: faker.string.uuid(),
     name: faker.word.words(2),

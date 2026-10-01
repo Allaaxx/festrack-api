@@ -1,19 +1,27 @@
 import { ZodError } from 'zod';
-import { createEventSchema } from '../../schemas/index.js';
+import { createEventSchema, CreateEventSchema } from '../../schemas/index.js';
 import {
     badRequest,
     created,
     serverError,
     userNotFoundResponse,
+    HttpResponse,
 } from '../helpers/index.js';
 import { UserNotFoundError } from '../../errors/user.js';
+import { Controller, HttpRequest } from '../protocols.js';
+import { CreateEventUseCase } from '../../use-cases/index.js';
 
-export class CreateEventController {
-    constructor(createEventUseCase) {
-        this.createEventUseCase = createEventUseCase;
-    }
+export class CreateEventController implements Controller {
+    constructor(
+        private readonly createEventUseCase: Pick<
+            CreateEventUseCase,
+            'execute'
+        >,
+    ) {}
 
-    async execute(httpRequest) {
+    async execute(
+        httpRequest: HttpRequest<CreateEventSchema>,
+    ): Promise<HttpResponse> {
         try {
             const params = httpRequest.body;
             const validatedParams = await createEventSchema.parseAsync(params);

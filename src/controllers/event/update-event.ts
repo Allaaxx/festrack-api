@@ -1,5 +1,5 @@
 import { ZodError } from 'zod';
-import { updateEventSchema } from '../../schemas/index.js';
+import { updateEventSchema, UpdateEventSchema } from '../../schemas/index.js';
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/index.js';
 import {
@@ -10,17 +10,29 @@ import {
     invalidIdResponse,
     ok,
     serverError,
+    HttpResponse,
 } from '../helpers/index.js';
+import { Controller, HttpRequest } from '../protocols.js';
+import { UpdateEventUseCase } from '../../use-cases/index.js';
 
-export class UpdateEventController {
-    constructor(updateEventUseCase) {
-        this.updateEventUseCase = updateEventUseCase;
-    }
+export class UpdateEventController implements Controller {
+    constructor(
+        private readonly updateEventUseCase: Pick<
+            UpdateEventUseCase,
+            'execute'
+        >,
+    ) {}
 
-    async execute(httpRequest) {
+    async execute(
+        httpRequest: HttpRequest<UpdateEventSchema, { eventId: string }>,
+    ): Promise<HttpResponse> {
         try {
-            const eventId = httpRequest.params.eventId;
+            const eventId = httpRequest.params?.eventId;
             const userId = httpRequest.userId;
+
+            if (!eventId) {
+                return invalidIdResponse();
+            }
 
             const isIdValid = checkIfIdIsValid(eventId);
             if (!isIdValid) {
@@ -32,8 +44,8 @@ export class UpdateEventController {
 
             const event = await this.updateEventUseCase.execute(
                 eventId,
-                userId,
-                params,
+                userId!,
+                params!,
             );
 
             return ok(event);

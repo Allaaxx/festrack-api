@@ -2,10 +2,14 @@ import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import { event, user } from '../../tests/index.js';
 import { DeleteEventController } from './delete-event.js';
+import { DeleteEventUseCase } from '../../use-cases/index.js';
+import { Event } from '../../domain/index.js';
 
 describe('Delete Event Controller', () => {
-    class DeleteEventUseCaseStub {
-        async execute() {
+    class DeleteEventUseCaseStub
+        implements Pick<DeleteEventUseCase, 'execute'>
+    {
+        async execute(): Promise<Event> {
             return event;
         }
     }

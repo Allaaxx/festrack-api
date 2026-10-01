@@ -1,18 +1,25 @@
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/index.js';
 import { event, user } from '../../tests/index.js';
-import { GetEventByIdUseCase } from './get-event-by-id.js';
+import { DeleteEventUseCase } from './delete-event.js';
+import { Event, EventRepository } from '../../domain/index.js';
 
-describe('Get Event By Id Use Case', () => {
-    class EventRepositoryStub {
-        async findById() {
+describe('Delete Event Use Case', () => {
+    class EventRepositoryStub
+        implements Pick<EventRepository, 'findById' | 'delete'>
+    {
+        async findById(_id: string): Promise<Event | null> {
+            return { ...event, user_id: user.id };
+        }
+
+        async delete(_id: string): Promise<Event> {
             return { ...event, user_id: user.id };
         }
     }
 
     const makeSut = () => {
         const eventRepository = new EventRepositoryStub();
-        const sut = new GetEventByIdUseCase(eventRepository);
+        const sut = new DeleteEventUseCase(eventRepository);
 
         return {
             sut,
@@ -20,7 +27,7 @@ describe('Get Event By Id Use Case', () => {
         };
     };
 
-    it('should get event by id successfully', async () => {
+    it('should delete event successfully', async () => {
         const { sut } = makeSut();
 
         const result = await sut.execute(event.id, user.id);
@@ -37,6 +44,15 @@ describe('Get Event By Id Use Case', () => {
         expect(spy).toHaveBeenCalledWith(event.id);
     });
 
+    it('should call EventRepository.delete with correct params', async () => {
+        const { sut, eventRepository } = makeSut();
+        const spy = jest.spyOn(eventRepository, 'delete');
+
+        await sut.execute(event.id, user.id);
+
+        expect(spy).toHaveBeenCalledWith(event.id);
+    });
+
     it('should throw EventNotFoundError if event is not found', async () => {
         const { sut, eventRepository } = makeSut();
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce(null);
@@ -46,11 +62,11 @@ describe('Get Event By Id Use Case', () => {
         await expect(promise).rejects.toThrow(new EventNotFoundError(event.id));
     });
 
-    it('should throw ForbiddenError if event does not belong to user', async () => {
+    it('should throw ForbiddenError if event belongs to another user', async () => {
         const { sut, eventRepository } = makeSut();
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             ...event,
-            user_id: 'another-user-id',
+            user_id: 'other_user_id',
         });
 
         const promise = sut.execute(event.id, user.id);
@@ -61,6 +77,17 @@ describe('Get Event By Id Use Case', () => {
     it('should throw if EventRepository.findById throws', async () => {
         const { sut, eventRepository } = makeSut();
         jest.spyOn(eventRepository, 'findById').mockRejectedValueOnce(
+            new Error(),
+        );
+
+        const promise = sut.execute(event.id, user.id);
+
+        await expect(promise).rejects.toThrow();
+    });
+
+    it('should throw if EventRepository.delete throws', async () => {
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'delete').mockRejectedValueOnce(
             new Error(),
         );
 

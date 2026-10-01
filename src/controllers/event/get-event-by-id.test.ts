@@ -2,10 +2,14 @@ import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import { event, user } from '../../tests/index.js';
 import { GetEventByIdController } from './get-event-by-id.js';
+import { GetEventByIdUseCase } from '../../use-cases/index.js';
+import { Event } from '../../domain/index.js';
 
 describe('Get Event By Id Controller', () => {
-    class GetEventByIdUseCaseStub {
-        async execute() {
+    class GetEventByIdUseCaseStub
+        implements Pick<GetEventByIdUseCase, 'execute'>
+    {
+        async execute(): Promise<Event> {
             return event;
         }
     }

@@ -1,16 +1,24 @@
 import { UserNotFoundError } from '../../errors/user.js';
 import { event, user } from '../../tests/index.js';
 import { GetEventsByUserIdUseCase } from './get-events-by-user-id.js';
+import {
+    Event,
+    EventRepository,
+    User,
+    UserRepository,
+} from '../../domain/index.js';
 
 describe('Get Events By User Id Use Case', () => {
-    class EventRepositoryStub {
-        async findByUserId() {
+    class EventRepositoryStub
+        implements Pick<EventRepository, 'findByUserId'>
+    {
+        async findByUserId(_userId: string): Promise<Event[]> {
             return [event];
         }
     }
 
-    class UserRepositoryStub {
-        async findById() {
+    class UserRepositoryStub implements Pick<UserRepository, 'findById'> {
+        async findById(_id: string): Promise<User | null> {
             return user;
         }
     }

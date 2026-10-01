@@ -2,10 +2,14 @@ import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import { event, user } from '../../tests/index.js';
 import { UpdateEventController } from './update-event.js';
+import { UpdateEventUseCase } from '../../use-cases/index.js';
+import { Event } from '../../domain/index.js';
 
 describe('Update Event Controller', () => {
-    class UpdateEventUseCaseStub {
-        async execute() {
+    class UpdateEventUseCaseStub
+        implements Pick<UpdateEventUseCase, 'execute'>
+    {
+        async execute(): Promise<Event> {
             return event;
         }
     }

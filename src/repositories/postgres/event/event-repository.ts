@@ -1,7 +1,15 @@
 import { prisma } from '../../../../prisma/prisma.js';
+import {
+    Event,
+    CreateEventParams,
+    UpdateEventParams,
+    EventRepository,
+} from '../../../domain/index.js';
 
-export class PostgresEventRepository {
-    async create(createEventParams) {
+export { EventRepository };
+
+export class PostgresEventRepository implements EventRepository {
+    async create(createEventParams: CreateEventParams): Promise<Event> {
         return await prisma.event.create({
             data: {
                 ...createEventParams,
@@ -11,19 +19,22 @@ export class PostgresEventRepository {
         });
     }
 
-    async findById(eventId) {
+    async findById(eventId: string): Promise<Event | null> {
         return await prisma.event.findUnique({
             where: { id: eventId },
         });
     }
 
-    async findByUserId(userId) {
+    async findByUserId(userId: string): Promise<Event[]> {
         return await prisma.event.findMany({
             where: { user_id: userId },
         });
     }
 
-    async update(eventId, updateEventParams) {
+    async update(
+        eventId: string,
+        updateEventParams: UpdateEventParams,
+    ): Promise<Event> {
         return await prisma.event.update({
             where: { id: eventId },
             data: {
@@ -38,7 +49,7 @@ export class PostgresEventRepository {
         });
     }
 
-    async delete(eventId) {
+    async delete(eventId: string): Promise<Event> {
         return await prisma.event.delete({
             where: { id: eventId },
         });

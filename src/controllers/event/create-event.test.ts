@@ -1,10 +1,14 @@
 import { UserNotFoundError } from '../../errors/user.js';
 import { event } from '../../tests/index.js';
 import { CreateEventController } from './create-event.js';
+import { CreateEventUseCase } from '../../use-cases/index.js';
+import { Event } from '../../domain/index.js';
 
 describe('Create Event Controller', () => {
-    class CreateEventUseCaseStub {
-        async execute() {
+    class CreateEventUseCaseStub
+        implements Pick<CreateEventUseCase, 'execute'>
+    {
+        async execute(): Promise<Event> {
             return event;
         }
     }
@@ -21,8 +25,11 @@ describe('Create Event Controller', () => {
 
     const baseHttpRequest = {
         body: {
-            ...event,
-            id: undefined,
+            user_id: event.user_id,
+            name: event.name,
+            description: event.description,
+            start_date: '2026-09-15T00:00:00.000Z',
+            end_date: '2026-09-16T00:00:00.000Z',
         },
     };
 
@@ -41,7 +48,7 @@ describe('Create Event Controller', () => {
         const response = await sut.execute({
             body: {
                 ...baseHttpRequest.body,
-                user_id: undefined,
+                user_id: undefined as any,
             },
         });
 
@@ -54,7 +61,7 @@ describe('Create Event Controller', () => {
         const response = await sut.execute({
             body: {
                 ...baseHttpRequest.body,
-                name: undefined,
+                name: undefined as any,
             },
         });
 
@@ -67,7 +74,7 @@ describe('Create Event Controller', () => {
         const response = await sut.execute({
             body: {
                 ...baseHttpRequest.body,
-                start_date: undefined,
+                start_date: undefined as any,
             },
         });
 
@@ -80,7 +87,7 @@ describe('Create Event Controller', () => {
         const response = await sut.execute({
             body: {
                 ...baseHttpRequest.body,
-                end_date: undefined,
+                end_date: undefined as any,
             },
         });
 

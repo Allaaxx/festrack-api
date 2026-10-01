@@ -17,7 +17,7 @@ import {
     UpdateEventUseCase,
 } from '../../use-cases/index.js';
 
-export const makeCreateEventController = () => {
+export const makeCreateEventController = (): CreateEventController => {
     const eventRepository = new PostgresEventRepository();
     const userRepository = new PostgresUserRepository();
 
@@ -29,19 +29,20 @@ export const makeCreateEventController = () => {
     return new CreateEventController(createEventUseCase);
 };
 
-export const makeGetEventsByUserIdController = () => {
-    const eventRepository = new PostgresEventRepository();
-    const userRepository = new PostgresUserRepository();
+export const makeGetEventsByUserIdController =
+    (): GetEventsByUserIdController => {
+        const eventRepository = new PostgresEventRepository();
+        const userRepository = new PostgresUserRepository();
 
-    const getEventsByUserIdUseCase = new GetEventsByUserIdUseCase(
-        eventRepository,
-        userRepository,
-    );
+        const getEventsByUserIdUseCase = new GetEventsByUserIdUseCase(
+            eventRepository,
+            userRepository,
+        );
 
-    return new GetEventsByUserIdController(getEventsByUserIdUseCase);
-};
+        return new GetEventsByUserIdController(getEventsByUserIdUseCase);
+    };
 
-export const makeGetEventByIdController = () => {
+export const makeGetEventByIdController = (): GetEventByIdController => {
     const eventRepository = new PostgresEventRepository();
 
     const getEventByIdUseCase = new GetEventByIdUseCase(eventRepository);
@@ -49,7 +50,7 @@ export const makeGetEventByIdController = () => {
     return new GetEventByIdController(getEventByIdUseCase);
 };
 
-export const makeUpdateEventController = () => {
+export const makeUpdateEventController = (): UpdateEventController => {
     const eventRepository = new PostgresEventRepository();
 
     const updateEventUseCase = new UpdateEventUseCase(eventRepository);
@@ -57,7 +58,7 @@ export const makeUpdateEventController = () => {
     return new UpdateEventController(updateEventUseCase);
 };
 
-export const makeDeleteEventController = () => {
+export const makeDeleteEventController = (): DeleteEventController => {
     const eventRepository = new PostgresEventRepository();
 
     const deleteEventUseCase = new DeleteEventUseCase(eventRepository);

@@ -1,21 +1,31 @@
 import { UserNotFoundError } from '../../errors/user.js';
 import { event, user } from '../../tests/index.js';
 import { CreateEventUseCase } from './create-event.js';
+import {
+    Event,
+    CreateEventParams,
+    EventRepository,
+    User,
+    UserRepository,
+} from '../../domain/index.js';
 
 describe('Create Event Use Case', () => {
-    const createEventParams = {
-        ...event,
-        id: undefined,
+    const createEventParams: CreateEventParams = {
+        name: event.name,
+        description: event.description,
+        user_id: event.user_id,
+        start_date: event.start_date,
+        end_date: event.end_date,
     };
 
-    class EventRepositoryStub {
-        async create() {
+    class EventRepositoryStub implements Pick<EventRepository, 'create'> {
+        async create(_params: CreateEventParams): Promise<Event> {
             return event;
         }
     }
 
-    class UserRepositoryStub {
-        async findById() {
+    class UserRepositoryStub implements Pick<UserRepository, 'findById'> {
+        async findById(_id: string): Promise<User | null> {
             return user;
         }
     }

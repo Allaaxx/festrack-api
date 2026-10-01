@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const dateSchema = (fieldName) =>
+const dateSchema = (fieldName: string) =>
     z.union([z.iso.datetime(), z.iso.date()], {
         error: (issue) =>
             issue.input === undefined
@@ -10,21 +10,14 @@ const dateSchema = (fieldName) =>
 
 export const createEventSchema = z
     .object({
-        user_id: z.uuid({
-            message: 'User ID must be a valid UUID.',
-            required_error: 'User ID is required.',
-        }),
+        user_id: z
+            .string({ message: 'User ID is required.' })
+            .uuid({ message: 'User ID must be a valid UUID.' }),
         name: z
-            .string({
-                required_error: 'Name is required.',
-            })
+            .string({ message: 'Name is required.' })
             .trim()
-            .min(1, {
-                message: 'Name is required.',
-            })
-            .max(50, {
-                message: 'Name must be at most 50 characters.',
-            }),
+            .min(1, { message: 'Name is required.' })
+            .max(50, { message: 'Name must be at most 50 characters.' }),
         description: z
             .string()
             .max(200, {
@@ -40,17 +33,15 @@ export const createEventSchema = z
         path: ['end_date'],
     });
 
+export type CreateEventSchema = z.infer<typeof createEventSchema>;
+
 export const updateEventSchema = z
     .object({
         name: z
             .string()
             .trim()
-            .min(1, {
-                message: 'Name is required.',
-            })
-            .max(50, {
-                message: 'Name must be at most 50 characters.',
-            })
+            .min(1, { message: 'Name is required.' })
+            .max(50, { message: 'Name must be at most 50 characters.' })
             .optional(),
         description: z
             .string()
@@ -74,3 +65,5 @@ export const updateEventSchema = z
             path: ['end_date'],
         },
     );
+
+export type UpdateEventSchema = z.infer<typeof updateEventSchema>;

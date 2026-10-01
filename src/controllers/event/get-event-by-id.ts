@@ -5,19 +5,31 @@ import {
     invalidIdResponse,
     ok,
     serverError,
+    HttpResponse,
 } from '../helpers/index.js';
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/index.js';
+import { Controller, HttpRequest } from '../protocols.js';
+import { GetEventByIdUseCase } from '../../use-cases/index.js';
 
-export class GetEventByIdController {
-    constructor(getEventByIdUseCase) {
-        this.getEventByIdUseCase = getEventByIdUseCase;
-    }
+export class GetEventByIdController implements Controller {
+    constructor(
+        private readonly getEventByIdUseCase: Pick<
+            GetEventByIdUseCase,
+            'execute'
+        >,
+    ) {}
 
-    async execute(httpRequest) {
+    async execute(
+        httpRequest: HttpRequest<any, { eventId: string }>,
+    ): Promise<HttpResponse> {
         try {
-            const eventId = httpRequest.params.eventId;
+            const eventId = httpRequest.params?.eventId;
             const userId = httpRequest.userId;
+
+            if (!eventId) {
+                return invalidIdResponse();
+            }
 
             const isIdValid = checkIfIdIsValid(eventId);
             if (!isIdValid) {
@@ -26,7 +38,7 @@ export class GetEventByIdController {
 
             const event = await this.getEventByIdUseCase.execute(
                 eventId,
-                userId,
+                userId!,
             );
 
             return ok(event);

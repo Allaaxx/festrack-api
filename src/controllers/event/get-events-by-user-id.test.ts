@@ -1,10 +1,14 @@
 import { UserNotFoundError } from '../../errors/user.js';
 import { event, user } from '../../tests/index.js';
 import { GetEventsByUserIdController } from './get-events-by-user-id.js';
+import { GetEventsByUserIdUseCase } from '../../use-cases/index.js';
+import { Event } from '../../domain/index.js';
 
 describe('Get Events By User Id Controller', () => {
-    class GetEventsByUserIdUseCaseStub {
-        async execute() {
+    class GetEventsByUserIdUseCaseStub
+        implements Pick<GetEventsByUserIdUseCase, 'execute'>
+    {
+        async execute(): Promise<Event[]> {
             return [event];
         }
     }

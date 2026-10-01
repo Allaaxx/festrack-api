@@ -1,12 +1,24 @@
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/index.js';
+import {
+    Event,
+    UpdateEventParams,
+    EventRepository,
+} from '../../domain/index.js';
 
 export class UpdateEventUseCase {
-    constructor(eventRepository) {
-        this.eventRepository = eventRepository;
-    }
+    constructor(
+        private readonly eventRepository: Pick<
+            EventRepository,
+            'findById' | 'update'
+        >,
+    ) {}
 
-    async execute(eventId, userId, updateParams) {
+    async execute(
+        eventId: string,
+        userId: string,
+        updateParams: UpdateEventParams,
+    ): Promise<Event> {
         const event = await this.eventRepository.findById(eventId);
 
         if (!event) {

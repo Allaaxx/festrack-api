@@ -4,7 +4,7 @@ import { event, user } from '../../../tests/index.js';
 import { PostgresEventRepository } from './event-repository.js';
 
 describe('Postgres Event Repository', () => {
-    let sut;
+    let sut: PostgresEventRepository;
 
     beforeEach(() => {
         sut = new PostgresEventRepository();
@@ -51,9 +51,10 @@ describe('Postgres Event Repository', () => {
 
             const result = await sut.findById(event.id);
 
-            expect(result.id).toBe(event.id);
-            expect(result.name).toBe(event.name);
-            expect(result.user_id).toBe(user.id);
+            expect(result).not.toBeNull();
+            expect(result?.id).toBe(event.id);
+            expect(result?.name).toBe(event.name);
+            expect(result?.user_id).toBe(user.id);
         });
 
         it('should return null if event is not found', async () => {

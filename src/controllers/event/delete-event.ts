@@ -7,17 +7,29 @@ import {
     invalidIdResponse,
     ok,
     serverError,
+    HttpResponse,
 } from '../helpers/index.js';
+import { Controller, HttpRequest } from '../protocols.js';
+import { DeleteEventUseCase } from '../../use-cases/index.js';
 
-export class DeleteEventController {
-    constructor(deleteEventUseCase) {
-        this.deleteEventUseCase = deleteEventUseCase;
-    }
+export class DeleteEventController implements Controller {
+    constructor(
+        private readonly deleteEventUseCase: Pick<
+            DeleteEventUseCase,
+            'execute'
+        >,
+    ) {}
 
-    async execute(httpRequest) {
+    async execute(
+        httpRequest: HttpRequest<any, { eventId: string }>,
+    ): Promise<HttpResponse> {
         try {
-            const eventId = httpRequest.params.eventId;
+            const eventId = httpRequest.params?.eventId;
             const userId = httpRequest.userId;
+
+            if (!eventId) {
+                return invalidIdResponse();
+            }
 
             const isIdValid = checkIfIdIsValid(eventId);
             if (!isIdValid) {
@@ -26,7 +38,7 @@ export class DeleteEventController {
 
             const deletedEvent = await this.deleteEventUseCase.execute(
                 eventId,
-                userId,
+                userId!,
             );
 
             return ok(deletedEvent);

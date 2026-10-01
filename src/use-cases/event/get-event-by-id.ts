@@ -1,12 +1,13 @@
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/index.js';
+import { Event, EventRepository } from '../../domain/index.js';
 
-export class DeleteEventUseCase {
-    constructor(eventRepository) {
-        this.eventRepository = eventRepository;
-    }
+export class GetEventByIdUseCase {
+    constructor(
+        private readonly eventRepository: Pick<EventRepository, 'findById'>,
+    ) {}
 
-    async execute(eventId, userId) {
+    async execute(eventId: string, userId: string): Promise<Event> {
         const event = await this.eventRepository.findById(eventId);
 
         if (!event) {
@@ -17,6 +18,6 @@ export class DeleteEventUseCase {
             throw new ForbiddenError();
         }
 
-        return await this.eventRepository.delete(eventId);
+        return event;
     }
 }
