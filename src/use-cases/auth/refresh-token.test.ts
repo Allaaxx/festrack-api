@@ -1,15 +1,24 @@
-import { UnauthorizedError } from '../../errors';
-import { RefreshTokenUseCase } from './refresh-token';
+import { jest } from '@jest/globals';
+import { UnauthorizedError } from '../../errors/index.js';
+import { RefreshTokenUseCase } from './refresh-token.js';
+import {
+    TokensGenerator,
+    GeneratedTokens,
+} from '../../adapters/tokens-generator.js';
+import { TokenVerifier } from '../../adapters/token-verifier.js';
+import jwt from 'jsonwebtoken';
 
 describe('Refresh Token Use Case', () => {
-    class TokenVerifierAdapterStub {
-        execute() {
-            return true;
+    class TokenVerifierAdapterStub implements Pick<TokenVerifier, 'execute'> {
+        execute(_token: string, _secret: string): string | jwt.JwtPayload {
+            return { userId: 'any_user_id' };
         }
     }
 
-    class TokensGeneratorAdapterStub {
-        execute() {
+    class TokensGeneratorAdapterStub
+        implements Pick<TokensGenerator, 'execute'>
+    {
+        execute(_userId: string): GeneratedTokens {
             return {
                 accessToken: 'new_access_token',
                 refreshToken: 'new_refresh_token',
@@ -72,7 +81,9 @@ describe('Refresh Token Use Case', () => {
     it('should throw UnauthorizedError when decoded token is null', () => {
         const { sut, tokenVerifierAdapter } = makeSut();
 
-        jest.spyOn(tokenVerifierAdapter, 'execute').mockReturnValueOnce(null);
+        jest.spyOn(tokenVerifierAdapter, 'execute').mockReturnValueOnce(
+            null as unknown as jwt.JwtPayload,
+        );
 
         expect(() => sut.execute('invalid_refresh_token')).toThrow(
             UnauthorizedError,

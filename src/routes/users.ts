@@ -7,14 +7,6 @@ import {
 } from '../factories/controllers/user.js';
 import { auth } from '../middlewares/auth.js';
 
-declare global {
-    namespace Express {
-        interface Request {
-            userId?: string;
-        }
-    }
-}
-
 export const usersRouter = Router();
 
 usersRouter.get('/me', auth, async (request: Request, response: Response) => {

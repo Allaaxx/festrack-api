@@ -1,30 +1,24 @@
 import { jest } from '@jest/globals';
-
-jest.unstable_mockModule('jsonwebtoken', () => ({
-    default: {
-        verify: jest.fn(),
-    },
-}));
-
-const jwt = (await import('jsonwebtoken')).default;
-const { auth } = await import('./auth.js');
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import { auth } from './auth.js';
 
 describe('Auth Middleware', () => {
-    let request;
-    let response;
-    let next;
+    let request: Partial<Request>;
+    let response: Partial<Response>;
+    let next: NextFunction;
 
     beforeEach(() => {
         request = { headers: {} };
         response = {
-            status: jest.fn().mockReturnThis(),
-            send: jest.fn(),
+            status: jest.fn().mockReturnThis() as any,
+            send: jest.fn() as any,
         };
         next = jest.fn();
     });
 
     it('should return 401 when access token is missing', () => {
-        auth(request, response, next);
+        auth(request as Request, response as Response, next);
 
         expect(response.status).toHaveBeenCalledWith(401);
         expect(response.send).toHaveBeenCalledWith({
@@ -34,11 +28,11 @@ describe('Auth Middleware', () => {
     });
 
     it('should return 401 when jwt.verify returns null', () => {
-        request.headers.authorization = 'Bearer valid_token';
+        request.headers = { authorization: 'Bearer valid_token' };
 
-        jwt.verify.mockReturnValueOnce(null);
+        jest.spyOn(jwt, 'verify').mockReturnValueOnce(null as any);
 
-        auth(request, response, next);
+        auth(request as Request, response as Response, next);
 
         expect(response.status).toHaveBeenCalledWith(401);
         expect(response.send).toHaveBeenCalledWith({
@@ -48,34 +42,36 @@ describe('Auth Middleware', () => {
     });
 
     it('should return 401 when jwt.verify throws', () => {
-        request.headers.authorization = 'Bearer invalid_token';
+        request.headers = { authorization: 'Bearer invalid_token' };
 
-        jest.spyOn(console, 'log').mockImplementation(() => {});
+        const logSpy = jest
+            .spyOn(console, 'log')
+            .mockImplementation(() => {});
 
-        jwt.verify.mockImplementationOnce(() => {
+        jest.spyOn(jwt, 'verify').mockImplementationOnce(() => {
             throw new Error('Invalid token');
         });
 
-        auth(request, response, next);
+        auth(request as Request, response as Response, next);
 
-        expect(console.log).toHaveBeenCalled();
+        expect(logSpy).toHaveBeenCalled();
         expect(response.status).toHaveBeenCalledWith(401);
         expect(response.send).toHaveBeenCalledWith({
             message: 'Unauthorized',
         });
         expect(next).not.toHaveBeenCalled();
 
-        console.log.mockRestore();
+        logSpy.mockRestore();
     });
 
     it('should call next when token is valid', () => {
-        request.headers.authorization = 'Bearer valid_token';
+        request.headers = { authorization: 'Bearer valid_token' };
 
-        jwt.verify.mockReturnValueOnce({
+        jest.spyOn(jwt, 'verify').mockReturnValueOnce({
             userId: '123',
-        });
+        } as any);
 
-        auth(request, response, next);
+        auth(request as Request, response as Response, next);
 
         expect(request.userId).toBe('123');
         expect(next).toHaveBeenCalled();

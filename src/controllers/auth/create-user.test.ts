@@ -2,10 +2,19 @@ import { faker } from '@faker-js/faker';
 import { EmailAlreadyInUseError } from '../../errors/user.js';
 import { user } from '../../tests/index.js';
 import { CreateUserController } from './create-user.js';
+import { CreateUserUseCase } from '../../use-cases/index.js';
+import { UserWithTokens } from '../../domain/index.js';
+
 describe('Create User Controller', () => {
-    class CreateUserUseCaseStub {
-        async execute() {
-            return user;
+    class CreateUserUseCaseStub implements Pick<CreateUserUseCase, 'execute'> {
+        async execute(): Promise<UserWithTokens> {
+            return {
+                ...user,
+                tokens: {
+                    accessToken: 'any_token',
+                    refreshToken: 'any_refresh_token',
+                },
+            };
         }
     }
 
@@ -29,7 +38,13 @@ describe('Create User Controller', () => {
         const result = await sut.execute(httpRequest);
 
         expect(result.statusCode).toBe(201);
-        expect(result.body).toBe(user);
+        expect(result.body).toEqual({
+            ...user,
+            tokens: {
+                accessToken: 'any_token',
+                refreshToken: 'any_refresh_token',
+            },
+        });
     });
 
     it('should return 400 if first_name is not provided', async () => {
@@ -38,7 +53,7 @@ describe('Create User Controller', () => {
         const result = await sut.execute({
             body: {
                 ...httpRequest.body,
-                first_name: undefined,
+                first_name: undefined as any,
             },
         });
 
@@ -51,7 +66,7 @@ describe('Create User Controller', () => {
         const result = await sut.execute({
             body: {
                 ...httpRequest.body,
-                last_name: undefined,
+                last_name: undefined as any,
             },
         });
 
@@ -64,7 +79,7 @@ describe('Create User Controller', () => {
         const result = await sut.execute({
             body: {
                 ...httpRequest.body,
-                first_name: undefined,
+                email: undefined as any,
             },
         });
 
@@ -77,7 +92,7 @@ describe('Create User Controller', () => {
         const result = await sut.execute({
             body: {
                 ...httpRequest.body,
-                email: undefined,
+                email: 'invalid_email',
             },
         });
 
@@ -90,7 +105,7 @@ describe('Create User Controller', () => {
         const result = await sut.execute({
             body: {
                 ...httpRequest.body,
-                password: undefined,
+                password: undefined as any,
             },
         });
 
@@ -130,7 +145,7 @@ describe('Create User Controller', () => {
         expect(result.statusCode).toBe(500);
     });
 
-    it('should return 500 if CreateUserUseCase throws EmailAlreadyInUseError', async () => {
+    it('should return 400 if CreateUserUseCase throws EmailAlreadyInUseError', async () => {
         const { createUserUseCase, sut } = makeSut();
 
         jest.spyOn(createUserUseCase, 'execute').mockRejectedValueOnce(

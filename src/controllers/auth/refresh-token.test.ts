@@ -1,9 +1,13 @@
 import { UnauthorizedError } from '../../errors/index.js';
 import { RefreshTokenController } from './refresh-token.js';
+import { RefreshTokenUseCase } from '../../use-cases/index.js';
+import { GeneratedTokens } from '../../adapters/tokens-generator.js';
 
 describe('Refresh Token Controller', () => {
-    class RefreshTokenUseCaseStub {
-        execute() {
+    class RefreshTokenUseCaseStub
+        implements Pick<RefreshTokenUseCase, 'execute'>
+    {
+        execute(_refreshToken: string): GeneratedTokens {
             return {
                 accessToken: 'new_access_token',
                 refreshToken: 'new_refresh_token',
@@ -25,7 +29,7 @@ describe('Refresh Token Controller', () => {
 
         const httpRequest = {
             body: {
-                refreshToken: 0,
+                refreshToken: 0 as any,
             },
         };
 
@@ -73,7 +77,7 @@ describe('Refresh Token Controller', () => {
         expect(response.statusCode).toBe(401);
     });
 
-    it('should return 500 when if RefreshTokenUseCase throws', async () => {
+    it('should return 500 when RefreshTokenUseCase throws', async () => {
         const { sut, refreshTokenUseCaseStub } = makeSut();
         jest.spyOn(refreshTokenUseCaseStub, 'execute').mockImplementationOnce(
             () => {

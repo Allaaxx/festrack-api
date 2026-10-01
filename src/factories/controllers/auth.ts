@@ -16,7 +16,7 @@ import {
     RefreshTokenUseCase,
 } from '../../use-cases/index.js';
 
-export const makeCreateUserController = () => {
+export const makeCreateUserController = (): CreateUserController => {
     const userRepository = new PostgresUserRepository();
     const passwordHasherAdapter = new PasswordHasherAdapter();
     const tokensGeneratorAdapter = new TokensGeneratorAdapter();
@@ -30,7 +30,7 @@ export const makeCreateUserController = () => {
     return new CreateUserController(createUserUseCase);
 };
 
-export const makeLoginUserController = () => {
+export const makeLoginUserController = (): LoginUserController => {
     const userRepository = new PostgresUserRepository();
     const passwordComparatorAdapter = new PasswordComparatorAdapter();
     const tokensGeneratorAdapter = new TokensGeneratorAdapter();
@@ -44,7 +44,7 @@ export const makeLoginUserController = () => {
     return new LoginUserController(loginUserUseCase);
 };
 
-export const makeRefreshTokenController = () => {
+export const makeRefreshTokenController = (): RefreshTokenController => {
     const tokensGeneratorAdapter = new TokensGeneratorAdapter();
     const tokenVerifierAdapter = new TokenVerifierAdapter();
     const refreshTokenUseCase = new RefreshTokenUseCase(

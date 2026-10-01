@@ -21,3 +21,12 @@ export interface UserBalance {
     investmentsPercentage: number;
     balance: DecimalLike;
 }
+
+export interface Tokens {
+    accessToken: string;
+    refreshToken: string;
+}
+
+export interface UserWithTokens extends User {
+    tokens: Tokens;
+}

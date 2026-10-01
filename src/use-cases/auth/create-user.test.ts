@@ -1,19 +1,29 @@
 import { EmailAlreadyInUseError } from '../../errors/user.js';
 import { user as fixtureUser } from '../../tests/index.js';
 import { CreateUserUseCase } from './create-user.js';
+import { User, CreateUserParams, UserRepository } from '../../domain/index.js';
+import { PasswordHasher } from '../../adapters/password-hasher.js';
+import {
+    TokensGenerator,
+    GeneratedTokens,
+} from '../../adapters/tokens-generator.js';
 
 describe('Create User Use Case', () => {
-    const user = {
-        ...fixtureUser,
-        id: undefined,
+    const user: CreateUserParams = {
+        first_name: fixtureUser.first_name,
+        last_name: fixtureUser.last_name,
+        email: fixtureUser.email,
+        password: fixtureUser.password,
     };
 
-    class UserRepositoryStub {
-        async findByEmail() {
+    class UserRepositoryStub
+        implements Pick<UserRepository, 'findByEmail' | 'create'>
+    {
+        async findByEmail(_email: string): Promise<User | null> {
             return null;
         }
 
-        async create() {
+        async create(_params: CreateUserParams): Promise<User> {
             return {
                 ...user,
                 id: 'generated_id',
@@ -21,14 +31,16 @@ describe('Create User Use Case', () => {
         }
     }
 
-    class PasswordHasherAdapterStub {
-        async execute() {
+    class PasswordHasherAdapterStub implements Pick<PasswordHasher, 'execute'> {
+        async execute(_password: string): Promise<string> {
             return 'hashed_password';
         }
     }
 
-    class TokensGeneratorAdapterStub {
-        execute() {
+    class TokensGeneratorAdapterStub
+        implements Pick<TokensGenerator, 'execute'>
+    {
+        execute(_userId: string): GeneratedTokens {
             return {
                 accessToken: 'any_access_token',
                 refreshToken: 'any_refresh_token',
@@ -66,7 +78,10 @@ describe('Create User Use Case', () => {
 
     it('should throw an EmailAlreadyInUseError if findByEmail returns a user', async () => {
         const { sut, userRepository } = makeSut();
-        jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(user);
+        jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce({
+            ...user,
+            id: 'existing_id',
+        });
 
         const promise = sut.execute(user);
 

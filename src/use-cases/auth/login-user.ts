@@ -1,17 +1,22 @@
 import { InvalidPasswordError, UserNotFoundError } from '../../errors/user.js';
+import { UserWithTokens, UserRepository } from '../../domain/index.js';
+import { PasswordComparator } from '../../adapters/password-comparator.js';
+import { TokensGenerator } from '../../adapters/tokens-generator.js';
 
 export class LoginUserUseCase {
     constructor(
-        userRepository,
-        passwordComparatorAdapter,
-        tokensGeneratorAdapter,
-    ) {
-        this.userRepository = userRepository;
-        this.passwordComparatorAdapter = passwordComparatorAdapter;
-        this.tokensGeneratorAdapter = tokensGeneratorAdapter;
-    }
+        private readonly userRepository: Pick<UserRepository, 'findByEmail'>,
+        private readonly passwordComparatorAdapter: Pick<
+            PasswordComparator,
+            'execute'
+        >,
+        private readonly tokensGeneratorAdapter: Pick<
+            TokensGenerator,
+            'execute'
+        >,
+    ) {}
 
-    async execute(email, password) {
+    async execute(email: string, password: string): Promise<UserWithTokens> {
         const user = await this.userRepository.findByEmail(email);
 
         if (!user) {
@@ -33,5 +38,3 @@ export class LoginUserUseCase {
         };
     }
 }
-
-export default LoginUserUseCase;

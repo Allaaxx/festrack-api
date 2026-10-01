@@ -1,22 +1,32 @@
-import { LoginUserUseCase } from './login-user';
+import { LoginUserUseCase } from './login-user.js';
 import { user } from '../../tests/fixtures/user.js';
 import { InvalidPasswordError, UserNotFoundError } from '../../errors/user.js';
+import { User, UserRepository } from '../../domain/index.js';
+import { PasswordComparator } from '../../adapters/password-comparator.js';
+import {
+    TokensGenerator,
+    GeneratedTokens,
+} from '../../adapters/tokens-generator.js';
 
 describe('Login User Use Case', () => {
-    class UserRepositoryStub {
-        async findByEmail() {
+    class UserRepositoryStub implements Pick<UserRepository, 'findByEmail'> {
+        async findByEmail(_email: string): Promise<User | null> {
             return user;
         }
     }
 
-    class PasswordComparatorAdapterStub {
-        async execute() {
+    class PasswordComparatorAdapterStub
+        implements Pick<PasswordComparator, 'execute'>
+    {
+        async execute(_password: string, _hash: string): Promise<boolean> {
             return true;
         }
     }
 
-    class TokensGeneratorAdapterStub {
-        execute() {
+    class TokensGeneratorAdapterStub
+        implements Pick<TokensGenerator, 'execute'>
+    {
+        execute(_userId: string): GeneratedTokens {
             return {
                 accessToken: 'any_access_token',
                 refreshToken: 'any_refresh_token',
@@ -44,18 +54,16 @@ describe('Login User Use Case', () => {
 
     it('should throw UserNotFoundError if user is not found', async () => {
         const { sut, userRepository } = makeSut();
-        import.meta.jest
-            .spyOn(userRepository, 'findByEmail')
-            .mockResolvedValueOnce(null);
+        jest.spyOn(userRepository, 'findByEmail').mockResolvedValueOnce(null);
         const promise = sut.execute('any_email', 'any_password');
         await expect(promise).rejects.toThrow(new UserNotFoundError());
     });
 
     it('should throw InvalidPasswordError if password is not valid', async () => {
         const { sut, passwordComparatorAdapter } = makeSut();
-        import.meta.jest
-            .spyOn(passwordComparatorAdapter, 'execute')
-            .mockReturnValue(false);
+        jest.spyOn(passwordComparatorAdapter, 'execute').mockResolvedValueOnce(
+            false,
+        );
         const promise = sut.execute('any_email', 'any_password');
         await expect(promise).rejects.toThrow(new InvalidPasswordError());
     });

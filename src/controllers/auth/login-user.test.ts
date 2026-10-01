@@ -1,6 +1,9 @@
 import { LoginUserController } from './login-user.js';
 import { user } from '../../tests/fixtures/user.js';
 import { InvalidPasswordError, UserNotFoundError } from '../../errors/user.js';
+import { LoginUserUseCase } from '../../use-cases/index.js';
+import { UserWithTokens } from '../../domain/index.js';
+
 describe('Login User Controller', () => {
     const httpRequest = {
         body: {
@@ -8,13 +11,13 @@ describe('Login User Controller', () => {
             password: '123454678',
         },
     };
-    class LoginUserUseCaseStub {
-        execute() {
+    class LoginUserUseCaseStub implements Pick<LoginUserUseCase, 'execute'> {
+        async execute(): Promise<UserWithTokens> {
             return {
                 ...user,
                 tokens: {
-                    access_token: 'any_token',
-                    refresh_token: 'any_refresh_token',
+                    accessToken: 'any_token',
+                    refreshToken: 'any_refresh_token',
                 },
             };
         }
@@ -41,8 +44,8 @@ describe('Login User Controller', () => {
         expect(result.body).toEqual({
             ...user,
             tokens: {
-                access_token: 'any_token',
-                refresh_token: 'any_refresh_token',
+                accessToken: 'any_token',
+                refreshToken: 'any_refresh_token',
             },
         });
     });

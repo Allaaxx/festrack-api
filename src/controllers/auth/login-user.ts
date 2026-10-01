@@ -1,23 +1,25 @@
 import { ZodError } from 'zod';
-import { loginSchema } from '../../schemas/index.js';
+import { loginSchema, LoginSchema } from '../../schemas/index.js';
 import {
     serverError,
     badRequest,
     ok,
     unauthorized,
     notFound,
+    HttpResponse,
 } from '../helpers/index.js';
 import { InvalidPasswordError, UserNotFoundError } from '../../errors/user.js';
+import { Controller, HttpRequest } from '../protocols.js';
+import { LoginUserUseCase } from '../../use-cases/index.js';
 
-export class LoginUserController {
-    constructor(loginUserUseCase) {
-        this.loginUserUseCase = loginUserUseCase;
-    }
+export class LoginUserController implements Controller {
+    constructor(
+        private readonly loginUserUseCase: Pick<LoginUserUseCase, 'execute'>,
+    ) {}
 
-    async execute(httpRequest) {
+    async execute(httpRequest: HttpRequest<LoginSchema>): Promise<HttpResponse> {
         try {
-            const params = httpRequest.body;
-            await loginSchema.parseAsync(params);
+            const params = await loginSchema.parseAsync(httpRequest.body);
             const user = await this.loginUserUseCase.execute(
                 params.email,
                 params.password,
@@ -32,9 +34,7 @@ export class LoginUserController {
             }
 
             if (error instanceof InvalidPasswordError) {
-                return unauthorized({
-                    message: error.message,
-                });
+                return unauthorized();
             }
 
             if (error instanceof UserNotFoundError) {
