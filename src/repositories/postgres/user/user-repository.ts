@@ -37,7 +37,10 @@ export class PostgresUserRepository implements UserRepository {
         });
     }
 
-    async update(userId: string, updateUserParams: UpdateUserParams): Promise<User> {
+    async update(
+        userId: string,
+        updateUserParams: UpdateUserParams,
+    ): Promise<User> {
         try {
             return await prisma.user.update({
                 where: {
@@ -74,7 +77,11 @@ export class PostgresUserRepository implements UserRepository {
         }
     }
 
-    async getBalance(userId: string, from: string, to: string): Promise<UserBalance> {
+    async getBalance(
+        userId: string,
+        from: string,
+        to: string,
+    ): Promise<UserBalance> {
         const dateFilter = {
             gte: new Date(from),
             lte: new Date(to),

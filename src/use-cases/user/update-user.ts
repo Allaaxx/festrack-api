@@ -4,11 +4,17 @@ import { PasswordHasher } from '../../adapters/password-hasher.js';
 
 export class UpdateUserUseCase {
     constructor(
-        private readonly userRepository: Pick<UserRepository, 'findByEmail' | 'update'>,
+        private readonly userRepository: Pick<
+            UserRepository,
+            'findByEmail' | 'update'
+        >,
         private readonly passwordHasherAdapter: PasswordHasher,
     ) {}
 
-    async execute(userId: string, updateUserParams: UpdateUserParams): Promise<User> {
+    async execute(
+        userId: string,
+        updateUserParams: UpdateUserParams,
+    ): Promise<User> {
         if (updateUserParams.email) {
             const userWithProvidedEmail = await this.userRepository.findByEmail(
                 updateUserParams.email,

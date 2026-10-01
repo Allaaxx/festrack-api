@@ -13,9 +13,10 @@ describe('Update Event Use Case', () => {
         name: 'Updated Event Name',
     };
 
-    class EventRepositoryStub
-        implements Pick<EventRepository, 'findById' | 'update'>
-    {
+    class EventRepositoryStub implements Pick<
+        EventRepository,
+        'findById' | 'update'
+    > {
         async findById(_id: string): Promise<Event | null> {
             return { ...event, user_id: user.id };
         }

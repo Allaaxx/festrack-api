@@ -15,9 +15,10 @@ describe('Refresh Token Use Case', () => {
         }
     }
 
-    class TokensGeneratorAdapterStub
-        implements Pick<TokensGenerator, 'execute'>
-    {
+    class TokensGeneratorAdapterStub implements Pick<
+        TokensGenerator,
+        'execute'
+    > {
         execute(_userId: string): GeneratedTokens {
             return {
                 accessToken: 'new_access_token',

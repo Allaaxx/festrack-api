@@ -23,16 +23,12 @@ export class TokensGeneratorAdapter implements TokensGenerator {
         }
 
         return {
-            accessToken: jwt.sign(
-                { userId },
-                accessTokenSecret,
-                { expiresIn: '15m' },
-            ),
-            refreshToken: jwt.sign(
-                { userId },
-                refreshTokenSecret,
-                { expiresIn: '30d' },
-            ),
+            accessToken: jwt.sign({ userId }, accessTokenSecret, {
+                expiresIn: '15m',
+            }),
+            refreshToken: jwt.sign({ userId }, refreshTokenSecret, {
+                expiresIn: '30d',
+            }),
         };
     }
 }

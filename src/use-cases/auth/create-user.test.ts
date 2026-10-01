@@ -16,9 +16,10 @@ describe('Create User Use Case', () => {
         password: fixtureUser.password,
     };
 
-    class UserRepositoryStub
-        implements Pick<UserRepository, 'findByEmail' | 'create'>
-    {
+    class UserRepositoryStub implements Pick<
+        UserRepository,
+        'findByEmail' | 'create'
+    > {
         async findByEmail(_email: string): Promise<User | null> {
             return null;
         }
@@ -37,9 +38,10 @@ describe('Create User Use Case', () => {
         }
     }
 
-    class TokensGeneratorAdapterStub
-        implements Pick<TokensGenerator, 'execute'>
-    {
+    class TokensGeneratorAdapterStub implements Pick<
+        TokensGenerator,
+        'execute'
+    > {
         execute(_userId: string): GeneratedTokens {
             return {
                 accessToken: 'any_access_token',

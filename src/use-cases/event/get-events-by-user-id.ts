@@ -1,9 +1,5 @@
 import { UserNotFoundError } from '../../errors/user.js';
-import {
-    Event,
-    EventRepository,
-    UserRepository,
-} from '../../domain/index.js';
+import { Event, EventRepository, UserRepository } from '../../domain/index.js';
 
 export class GetEventsByUserIdUseCase {
     constructor(

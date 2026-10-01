@@ -1,8 +1,5 @@
 import { ZodError } from 'zod';
-import {
-    refreshTokenSchema,
-    RefreshTokenSchema,
-} from '../../schemas/user.js';
+import { refreshTokenSchema, RefreshTokenSchema } from '../../schemas/user.js';
 import {
     ok,
     serverError,

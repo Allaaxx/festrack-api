@@ -5,9 +5,10 @@ import { DeleteEventUseCase } from './delete-event.js';
 import { Event, EventRepository } from '../../domain/index.js';
 
 describe('Delete Event Use Case', () => {
-    class EventRepositoryStub
-        implements Pick<EventRepository, 'findById' | 'delete'>
-    {
+    class EventRepositoryStub implements Pick<
+        EventRepository,
+        'findById' | 'delete'
+    > {
         async findById(_id: string): Promise<Event | null> {
             return { ...event, user_id: user.id };
         }

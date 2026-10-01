@@ -9,9 +9,7 @@ import {
 } from '../../domain/index.js';
 
 describe('Get Events By User Id Use Case', () => {
-    class EventRepositoryStub
-        implements Pick<EventRepository, 'findByUserId'>
-    {
+    class EventRepositoryStub implements Pick<EventRepository, 'findByUserId'> {
         async findByUserId(_userId: string): Promise<Event[]> {
             return [event];
         }

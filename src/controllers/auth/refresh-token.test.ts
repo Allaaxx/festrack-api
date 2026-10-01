@@ -4,9 +4,10 @@ import { RefreshTokenUseCase } from '../../use-cases/index.js';
 import { GeneratedTokens } from '../../adapters/tokens-generator.js';
 
 describe('Refresh Token Controller', () => {
-    class RefreshTokenUseCaseStub
-        implements Pick<RefreshTokenUseCase, 'execute'>
-    {
+    class RefreshTokenUseCaseStub implements Pick<
+        RefreshTokenUseCase,
+        'execute'
+    > {
         execute(_refreshToken: string): GeneratedTokens {
             return {
                 accessToken: 'new_access_token',
