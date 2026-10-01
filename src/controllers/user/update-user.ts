@@ -3,36 +3,50 @@ import {
     EmailAlreadyInUseError,
     UserNotFoundError,
 } from '../../errors/user.js';
-import { updatedUserSchema } from '../../schemas/user.js';
-import { badRequest, ok, serverError, HttpResponse } from '../helpers/http.js';
 import {
-    checkIfIdIsValid,
-    invalidIdResponse,
+    updatedUserSchema,
+    UpdateUserSchema,
+    userIdParamSchema,
+    UserIdParamSchema,
+} from '../../schemas/index.js';
+import {
+    badRequest,
+    ok,
+    serverError,
     userNotFoundResponse,
+    HttpResponse,
 } from '../helpers/index.js';
 import { Controller, HttpRequest } from '../protocols.js';
-import { UpdateUserUseCase } from '../../use-cases/user/update-user.js';
+import { User } from '../../domain/entities/user.js';
 
-export class UpdateUserController implements Controller {
-    constructor(private readonly updateUserUseCase: Pick<UpdateUserUseCase, 'execute'>) {}
+export interface IUpdateUserUseCase {
+    execute(
+        userId: string,
+        updateUserParams: UpdateUserSchema,
+    ): Promise<User | null>;
+}
 
-    async execute(httpRequest: HttpRequest): Promise<HttpResponse> {
+export class UpdateUserController implements Controller<
+    UpdateUserSchema,
+    UserIdParamSchema
+> {
+    constructor(private readonly updateUserUseCase: IUpdateUserUseCase) {}
+
+    async execute(
+        httpRequest: HttpRequest<UpdateUserSchema, UserIdParamSchema>,
+    ): Promise<HttpResponse> {
         try {
-            const userId = httpRequest.params?.userId;
+            const { userId } = await userIdParamSchema.parseAsync(
+                httpRequest.params,
+            );
 
-            const isIdValid = checkIfIdIsValid(userId);
-
-            if (!isIdValid) {
-                return invalidIdResponse();
-            }
-
-            const params = httpRequest.body;
-
-            await updatedUserSchema.parseAsync(params);
+            const sanitizedBody = await updatedUserSchema.parseAsync(
+                httpRequest.body,
+            );
 
             const updatedUser = await this.updateUserUseCase.execute(
                 userId,
-                params,
+                sanitizedBody,
             );
 
             return ok(updatedUser);

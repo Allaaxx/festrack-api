@@ -8,12 +8,14 @@ import {
     HttpResponse,
 } from '../helpers/index.js';
 import { Controller, HttpRequest } from '../protocols.js';
-import { CreateUserUseCase } from '../../use-cases/index.js';
+import { UserWithTokens } from '../../domain/index.js';
 
-export class CreateUserController implements Controller {
-    constructor(
-        private readonly createUserUseCase: Pick<CreateUserUseCase, 'execute'>,
-    ) {}
+export interface ICreateUserUseCase {
+    execute(params: CreateUserSchema): Promise<UserWithTokens>;
+}
+
+export class CreateUserController implements Controller<CreateUserSchema> {
+    constructor(private readonly createUserUseCase: ICreateUserUseCase) {}
 
     async execute(
         httpRequest: HttpRequest<CreateUserSchema>,
@@ -33,7 +35,7 @@ export class CreateUserController implements Controller {
             if (error instanceof EmailAlreadyInUseError) {
                 return badRequest({ message: error.message });
             }
-            console.log(error);
+            console.error(error);
             return serverError();
         }
     }

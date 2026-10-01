@@ -1,6 +1,8 @@
+import { ZodError } from 'zod';
+import { User } from '../../domain/entities/user.js';
+import { userIdParamSchema, UserIdParamSchema } from '../../schemas/index.js';
 import {
-    checkIfIdIsValid,
-    invalidIdResponse,
+    badRequest,
     ok,
     serverError,
     userNotFoundResponse,
@@ -8,25 +10,34 @@ import {
 } from '../helpers/index.js';
 import { UserNotFoundError } from '../../errors/user.js';
 import { Controller, HttpRequest } from '../protocols.js';
-import { DeleteUserUseCase } from '../../use-cases/user/delete-user.js';
 
-export class DeleteUserController implements Controller {
-    constructor(private readonly deleteUserUseCase: Pick<DeleteUserUseCase, 'execute'>) {}
+export interface IDeleteUserUseCase {
+    execute(userId: string): Promise<User | null>;
+}
 
-    async execute(httpRequest: HttpRequest): Promise<HttpResponse> {
+export class DeleteUserController implements Controller<
+    never,
+    UserIdParamSchema
+> {
+    constructor(private readonly deleteUserUseCase: IDeleteUserUseCase) {}
+
+    async execute(
+        httpRequest: HttpRequest<never, UserIdParamSchema>,
+    ): Promise<HttpResponse> {
         try {
-            const userId = httpRequest.params?.userId;
-
-            const idIsValid = checkIfIdIsValid(userId);
-
-            if (!idIsValid) {
-                return invalidIdResponse();
-            }
+            const { userId } = await userIdParamSchema.parseAsync(
+                httpRequest.params,
+            );
 
             const deletedUser = await this.deleteUserUseCase.execute(userId);
 
             return ok(deletedUser);
         } catch (error) {
+            if (error instanceof ZodError) {
+                return badRequest({
+                    message: error.issues[0].message,
+                });
+            }
             if (error instanceof UserNotFoundError) {
                 return userNotFoundResponse();
             }

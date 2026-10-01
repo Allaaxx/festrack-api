@@ -13,53 +13,67 @@ usersRouter.get('/me', auth, async (request: Request, response: Response) => {
     const getUserByIdController = makeGetUserByIdController();
 
     const { statusCode, body } = await getUserByIdController.execute({
-        ...request,
         params: {
-            userId: request.userId,
+            userId: request.userId!,
         },
+        headers: request.headers,
+        userId: request.userId,
     });
 
     response.status(statusCode).send(body);
 });
 
-usersRouter.get('/me/balance', auth, async (request: Request, response: Response) => {
-    const getUserBalanceController = makeGetUserBalanceController();
+usersRouter.get(
+    '/me/balance',
+    auth,
+    async (request: Request, response: Response) => {
+        const getUserBalanceController = makeGetUserBalanceController();
 
-    const { statusCode, body } = await getUserBalanceController.execute({
-        ...request,
-        params: {
+        const { statusCode, body } = await getUserBalanceController.execute({
+            params: {
+                userId: request.userId!,
+            },
+            query: {
+                from: request.query.from as string,
+                to: request.query.to as string,
+            },
+            headers: request.headers,
             userId: request.userId,
-        },
-        query: {
-            from: request.query.from,
-            to: request.query.to,
-        },
-    });
+        });
 
-    response.status(statusCode).send(body);
-});
+        response.status(statusCode).send(body);
+    },
+);
 
 usersRouter.patch('/me', auth, async (request: Request, response: Response) => {
     const updateUserController = makeUpdateUserController();
 
     const { statusCode, body } = await updateUserController.execute({
-        ...request,
+        body: request.body,
         params: {
-            userId: request.userId,
+            userId: request.userId!,
         },
+        headers: request.headers,
+        userId: request.userId,
     });
 
     response.status(statusCode).send(body);
 });
 
-usersRouter.delete('/me', auth, async (request: Request, response: Response) => {
-    const deleteUserController = makeDeleteUserController();
+usersRouter.delete(
+    '/me',
+    auth,
+    async (request: Request, response: Response) => {
+        const deleteUserController = makeDeleteUserController();
 
-    const { statusCode, body } = await deleteUserController.execute({
-        ...request,
-        params: {
+        const { statusCode, body } = await deleteUserController.execute({
+            params: {
+                userId: request.userId!,
+            },
+            headers: request.headers,
             userId: request.userId,
-        },
-    });
-    response.status(statusCode).send(body);
-});
+        });
+
+        response.status(statusCode).send(body);
+    },
+);

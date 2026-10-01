@@ -1,11 +1,14 @@
 import { faker } from '@faker-js/faker';
 import { UserNotFoundError } from '../../errors/index.js';
-import { GetUserBalanceController } from './get-user-balance.js';
+import {
+    GetUserBalanceController,
+    IGetUserBalanceUseCase,
+} from './get-user-balance.js';
 import { userBalance } from '../../tests/index.js';
 import { UserBalance } from '../../domain/entities/user.js';
 
 describe('Get User Balance Controller', () => {
-    class GetUserBalanceUseCaseStub {
+    class GetUserBalanceUseCaseStub implements IGetUserBalanceUseCase {
         async execute(): Promise<UserBalance> {
             return userBalance;
         }
@@ -13,7 +16,9 @@ describe('Get User Balance Controller', () => {
 
     const makeSut = () => {
         const getUserBalanceUseCase = new GetUserBalanceUseCaseStub();
-        const getUserBalanceController = new GetUserBalanceController(getUserBalanceUseCase);
+        const getUserBalanceController = new GetUserBalanceController(
+            getUserBalanceUseCase,
+        );
 
         return { getUserBalanceController, getUserBalanceUseCase };
     };
@@ -31,7 +36,8 @@ describe('Get User Balance Controller', () => {
     it('should return 200 when getting user balance', async () => {
         const { getUserBalanceController } = makeSut();
 
-        const httpResponse = await getUserBalanceController.execute(httpRequest);
+        const httpResponse =
+            await getUserBalanceController.execute(httpRequest);
 
         expect(httpResponse.statusCode).toBe(200);
     });
@@ -50,6 +56,9 @@ describe('Get User Balance Controller', () => {
         });
 
         expect(result.statusCode).toBe(400);
+        expect(result.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
     });
 
     it('should return 500 if GetUserBalanceUseCase throws', async () => {

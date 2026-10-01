@@ -1,12 +1,11 @@
 import { faker } from '@faker-js/faker';
 import { EmailAlreadyInUseError } from '../../errors/user.js';
 import { user } from '../../tests/index.js';
-import { CreateUserController } from './create-user.js';
-import { CreateUserUseCase } from '../../use-cases/index.js';
+import { CreateUserController, ICreateUserUseCase } from './create-user.js';
 import { UserWithTokens } from '../../domain/index.js';
 
 describe('Create User Controller', () => {
-    class CreateUserUseCaseStub implements Pick<CreateUserUseCase, 'execute'> {
+    class CreateUserUseCaseStub implements ICreateUserUseCase {
         async execute(): Promise<UserWithTokens> {
             return {
                 ...user,

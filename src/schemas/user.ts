@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { uuidSchema } from './params.js';
 
 export const createUserSchema = z.object({
     first_name: z
@@ -74,8 +75,17 @@ export const refreshTokenSchema = z.object({
 
 export type RefreshTokenSchema = z.infer<typeof refreshTokenSchema>;
 
+export const getUserBalanceQuerySchema = z.object({
+    from: z.iso.date(),
+    to: z.iso.date(),
+});
+
+export type GetUserBalanceQuerySchema = z.infer<
+    typeof getUserBalanceQuerySchema
+>;
+
 export const getUserBalanceSchema = z.object({
-    user_id: z.string().uuid(),
+    user_id: uuidSchema,
     from: z.iso.date(),
     to: z.iso.date(),
 });

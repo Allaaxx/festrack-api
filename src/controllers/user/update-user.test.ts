@@ -1,11 +1,14 @@
 import { faker } from '@faker-js/faker';
-import { EmailAlreadyInUseError, UserNotFoundError } from '../../errors/user.js';
+import {
+    EmailAlreadyInUseError,
+    UserNotFoundError,
+} from '../../errors/user.js';
 import { user } from '../../tests/index.js';
-import { UpdateUserController } from './update-user.js';
+import { UpdateUserController, IUpdateUserUseCase } from './update-user.js';
 import { User } from '../../domain/entities/user.js';
 
 describe('Update User Controller', () => {
-    class UpdateUserUseCaseStub {
+    class UpdateUserUseCaseStub implements IUpdateUserUseCase {
         async execute(): Promise<User> {
             return user;
         }
@@ -13,7 +16,9 @@ describe('Update User Controller', () => {
 
     const makeSut = () => {
         const updateUserUseCase = new UpdateUserUseCaseStub();
-        const updateUserController = new UpdateUserController(updateUserUseCase);
+        const updateUserController = new UpdateUserController(
+            updateUserUseCase,
+        );
 
         return { updateUserController, updateUserUseCase };
     };
@@ -81,6 +86,9 @@ describe('Update User Controller', () => {
         });
 
         expect(response.statusCode).toBe(400);
+        expect(response.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
     });
 
     it('should return 400 when an unallowed field is provided', async () => {
@@ -91,7 +99,7 @@ describe('Update User Controller', () => {
             body: {
                 ...httpRequest.body,
                 unallowed_field: 'unallowed_value',
-            },
+            } as any,
         });
 
         expect(response.statusCode).toBe(400);

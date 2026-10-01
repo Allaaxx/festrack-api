@@ -1,18 +1,20 @@
 import { faker } from '@faker-js/faker';
 import { user } from '../../tests/index.js';
-import { DeleteUserController } from './delete-user.js';
+import { DeleteUserController, IDeleteUserUseCase } from './delete-user.js';
 import { UserNotFoundError } from '../../errors/user.js';
 import { User } from '../../domain/entities/user.js';
 
 describe('Delete User Controller', () => {
-    class DeleteUserUseCaseStub {
+    class DeleteUserUseCaseStub implements IDeleteUserUseCase {
         async execute(): Promise<User> {
             return user;
         }
     }
     const makeSut = () => {
         const deleteUserUseCase = new DeleteUserUseCaseStub();
-        const deleteUserController = new DeleteUserController(deleteUserUseCase);
+        const deleteUserController = new DeleteUserController(
+            deleteUserUseCase,
+        );
 
         return { deleteUserUseCase, deleteUserController };
     };
@@ -41,6 +43,9 @@ describe('Delete User Controller', () => {
         });
 
         expect(result.statusCode).toBe(400);
+        expect(result.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
     });
 
     it('should return 404 if user is not found', async () => {

@@ -1,10 +1,13 @@
 import { faker } from '@faker-js/faker';
 import { user } from '../../tests/index.js';
-import { GetUserByIdController } from './get-user-by-id.js';
+import {
+    GetUserByIdController,
+    IGetUserByIdUseCase,
+} from './get-user-by-id.js';
 import { User } from '../../domain/entities/user.js';
 
 describe('Get User By Id Controller', () => {
-    class GetUserByIdUseCaseStub {
+    class GetUserByIdUseCaseStub implements IGetUserByIdUseCase {
         async execute(): Promise<User | null> {
             return user;
         }
@@ -12,7 +15,9 @@ describe('Get User By Id Controller', () => {
 
     const makeSut = () => {
         const getUserByIdUseCase = new GetUserByIdUseCaseStub();
-        const getUserByIdController = new GetUserByIdController(getUserByIdUseCase);
+        const getUserByIdController = new GetUserByIdController(
+            getUserByIdUseCase,
+        );
 
         return { getUserByIdController, getUserByIdUseCase };
     };
@@ -41,6 +46,9 @@ describe('Get User By Id Controller', () => {
         });
 
         expect(response.statusCode).toBe(400);
+        expect(response.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
     });
 
     it('should return 404 if user is not found', async () => {

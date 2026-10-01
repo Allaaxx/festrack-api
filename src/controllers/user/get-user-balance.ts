@@ -1,6 +1,11 @@
 import { ZodError } from 'zod';
 import { UserNotFoundError } from '../../errors/user.js';
-import { getUserBalanceSchema } from '../../schemas/user.js';
+import {
+    getUserBalanceQuerySchema,
+    GetUserBalanceQuerySchema,
+    userIdParamSchema,
+    UserIdParamSchema,
+} from '../../schemas/index.js';
 import {
     badRequest,
     ok,
@@ -9,22 +14,35 @@ import {
     HttpResponse,
 } from '../helpers/index.js';
 import { Controller, HttpRequest } from '../protocols.js';
-import { GetUserBalanceUseCase } from '../../use-cases/user/get-user-balance.js';
+import { UserBalance } from '../../domain/entities/user.js';
 
-export class GetUserBalanceController implements Controller {
-    constructor(private readonly getUserBalanceUseCase: Pick<GetUserBalanceUseCase, 'execute'>) {}
+export interface IGetUserBalanceUseCase {
+    execute(userId: string, from: string, to: string): Promise<UserBalance>;
+}
 
-    async execute(httpRequest: HttpRequest): Promise<HttpResponse> {
+export class GetUserBalanceController implements Controller<
+    never,
+    UserIdParamSchema,
+    GetUserBalanceQuerySchema
+> {
+    constructor(
+        private readonly getUserBalanceUseCase: IGetUserBalanceUseCase,
+    ) {}
+
+    async execute(
+        httpRequest: HttpRequest<
+            never,
+            UserIdParamSchema,
+            GetUserBalanceQuerySchema
+        >,
+    ): Promise<HttpResponse> {
         try {
-            const userId = httpRequest.params?.userId;
-            const from = httpRequest.query?.from;
-            const to = httpRequest.query?.to;
-
-            await getUserBalanceSchema.parseAsync({
-                user_id: userId,
-                from,
-                to,
-            });
+            const { userId } = await userIdParamSchema.parseAsync(
+                httpRequest.params,
+            );
+            const { from, to } = await getUserBalanceQuerySchema.parseAsync(
+                httpRequest.query,
+            );
 
             const balance = await this.getUserBalanceUseCase.execute(
                 userId,
@@ -34,15 +52,15 @@ export class GetUserBalanceController implements Controller {
 
             return ok(balance);
         } catch (error) {
-            console.error(error);
-            if (error instanceof UserNotFoundError) {
-                return userNotFoundResponse();
-            }
             if (error instanceof ZodError) {
                 return badRequest({
                     message: error.issues[0].message,
                 });
             }
+            if (error instanceof UserNotFoundError) {
+                return userNotFoundResponse();
+            }
+            console.error(error);
             return serverError();
         }
     }
