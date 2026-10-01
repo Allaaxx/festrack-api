@@ -1,18 +1,18 @@
 import { UserNotFoundError } from '../../errors/user.js';
 
 export class GetEventsByUserIdUseCase {
-    constructor(getEventsByUserIdRepository, getUserByIdRepository) {
-        this.getEventsByUserIdRepository = getEventsByUserIdRepository;
-        this.getUserByIdRepository = getUserByIdRepository;
+    constructor(eventRepository, userRepository) {
+        this.eventRepository = eventRepository;
+        this.userRepository = userRepository;
     }
 
     async execute(userId) {
-        const user = await this.getUserByIdRepository.execute(userId);
+        const user = await this.userRepository.findById(userId);
 
         if (!user) {
             throw new UserNotFoundError(userId);
         }
 
-        return await this.getEventsByUserIdRepository.execute(userId);
+        return await this.eventRepository.findByUserId(userId);
     }
 }

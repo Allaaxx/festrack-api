@@ -5,40 +5,34 @@ import { ForbiddenError } from '../../errors/auth.js';
 import { UpdateTransactionUseCase } from './update-transaction.js';
 
 describe('Update Transaction Use Case', () => {
-    class UpdateTransactionRepositoryStub {
-        async execute() {
+    class TransactionRepositoryStub {
+        async findById() {
+            return transaction;
+        }
+
+        async update() {
             return transaction;
         }
     }
 
-    class GetTransactionByIdStub {
-        async execute() {
-            return transaction;
-        }
-    }
-
-    class GetEventByIdStub {
-        async execute() {
+    class EventRepositoryStub {
+        async findById() {
             return { id: 'valid_event_id', user_id: transaction.user_id };
         }
     }
 
     const makeSut = () => {
-        const updateTransactionRepository =
-            new UpdateTransactionRepositoryStub();
-        const getTransactionByIdRepository = new GetTransactionByIdStub();
-        const getEventByIdRepository = new GetEventByIdStub();
+        const transactionRepository = new TransactionRepositoryStub();
+        const eventRepository = new EventRepositoryStub();
         const sut = new UpdateTransactionUseCase(
-            updateTransactionRepository,
-            getTransactionByIdRepository,
-            getEventByIdRepository,
+            transactionRepository,
+            eventRepository,
         );
 
         return {
             sut,
-            updateTransactionRepository,
-            getTransactionByIdRepository,
-            getEventByIdRepository,
+            transactionRepository,
+            eventRepository,
         };
     };
 
@@ -51,31 +45,24 @@ describe('Update Transaction Use Case', () => {
         expect(result).toEqual(transaction);
     });
 
-    it('should call UpdateTransactionRepository with correct params', async () => {
-        const { sut, updateTransactionRepository } = makeSut();
-        const updateTransactionRepositorySpy = jest.spyOn(
-            updateTransactionRepository,
-            'execute',
-        );
+    it('should call transactionRepository.update with correct params', async () => {
+        const { sut, transactionRepository } = makeSut();
+        const updateSpy = jest.spyOn(transactionRepository, 'update');
 
         await sut.execute(transaction.id, {
             amount: transaction.amount,
         });
 
-        expect(updateTransactionRepositorySpy).toHaveBeenCalledWith(
-            transaction.id,
-            {
-                amount: transaction.amount,
-            },
-        );
+        expect(updateSpy).toHaveBeenCalledWith(transaction.id, {
+            amount: transaction.amount,
+        });
     });
 
-    it('should throw if UpdateTransactionRepository throws', async () => {
-        const { sut, updateTransactionRepository } = makeSut();
-        jest.spyOn(
-            updateTransactionRepository,
-            'execute',
-        ).mockRejectedValueOnce(new Error());
+    it('should throw if transactionRepository.update throws', async () => {
+        const { sut, transactionRepository } = makeSut();
+        jest.spyOn(transactionRepository, 'update').mockRejectedValueOnce(
+            new Error(),
+        );
 
         const promise = sut.execute(transaction.id, {
             amount: transaction.amount,
@@ -94,10 +81,8 @@ describe('Update Transaction Use Case', () => {
     });
 
     it('should throw EventNotFoundError if event does not exist', async () => {
-        const { sut, getEventByIdRepository } = makeSut();
-        jest.spyOn(getEventByIdRepository, 'execute').mockResolvedValueOnce(
-            null,
-        );
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce(null);
 
         const promise = sut.execute(transaction.id, {
             event_id: 'non-existing-event',
@@ -109,8 +94,8 @@ describe('Update Transaction Use Case', () => {
     });
 
     it('should throw ForbiddenError if event belongs to another user', async () => {
-        const { sut, getEventByIdRepository } = makeSut();
-        jest.spyOn(getEventByIdRepository, 'execute').mockResolvedValueOnce({
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             id: 'event-id',
             user_id: 'different-user-id',
         });

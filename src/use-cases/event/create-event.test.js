@@ -8,39 +8,27 @@ describe('Create Event Use Case', () => {
         id: undefined,
     };
 
-    class CreateEventRepositoryStub {
-        async execute() {
+    class EventRepositoryStub {
+        async create() {
             return event;
         }
     }
 
-    class IdGeneratorAdapterStub {
-        execute() {
-            return 'random_id';
-        }
-    }
-
-    class GetUserByIdRepositoryStub {
-        async execute() {
+    class UserRepositoryStub {
+        async findById() {
             return user;
         }
     }
 
     const makeSut = () => {
-        const createEventRepository = new CreateEventRepositoryStub();
-        const idGeneratorAdapter = new IdGeneratorAdapterStub();
-        const getUserByIdRepository = new GetUserByIdRepositoryStub();
-        const sut = new CreateEventUseCase(
-            createEventRepository,
-            getUserByIdRepository,
-            idGeneratorAdapter,
-        );
+        const eventRepository = new EventRepositoryStub();
+        const userRepository = new UserRepositoryStub();
+        const sut = new CreateEventUseCase(eventRepository, userRepository);
 
         return {
             sut,
-            createEventRepository,
-            idGeneratorAdapter,
-            getUserByIdRepository,
+            eventRepository,
+            userRepository,
         };
     };
 
@@ -52,49 +40,27 @@ describe('Create Event Use Case', () => {
         expect(result).toEqual(event);
     });
 
-    it('should call GetUserByIdRepository with correct params', async () => {
-        const { sut, getUserByIdRepository } = makeSut();
-        const getUserByIdRepositorySpy = jest.spyOn(
-            getUserByIdRepository,
-            'execute',
-        );
+    it('should call userRepository.findById with correct params', async () => {
+        const { sut, userRepository } = makeSut();
+        const findByIdSpy = jest.spyOn(userRepository, 'findById');
 
         await sut.execute(createEventParams);
 
-        expect(getUserByIdRepositorySpy).toHaveBeenCalledWith(
-            createEventParams.user_id,
-        );
+        expect(findByIdSpy).toHaveBeenCalledWith(createEventParams.user_id);
     });
 
-    it('should call IdGeneratorAdapter', async () => {
-        const { sut, idGeneratorAdapter } = makeSut();
-        const idGeneratorAdapterSpy = jest.spyOn(idGeneratorAdapter, 'execute');
+    it('should call EventRepository.create with correct params', async () => {
+        const { sut, eventRepository } = makeSut();
+        const createSpy = jest.spyOn(eventRepository, 'create');
 
         await sut.execute(createEventParams);
 
-        expect(idGeneratorAdapterSpy).toHaveBeenCalled();
-    });
-
-    it('should call CreateEventRepository with correct params', async () => {
-        const { sut, createEventRepository } = makeSut();
-        const createEventRepositorySpy = jest.spyOn(
-            createEventRepository,
-            'execute',
-        );
-
-        await sut.execute(createEventParams);
-
-        expect(createEventRepositorySpy).toHaveBeenCalledWith({
-            ...createEventParams,
-            id: 'random_id',
-        });
+        expect(createSpy).toHaveBeenCalledWith(createEventParams);
     });
 
     it('should throw UserNotFoundError if user does not exist', async () => {
-        const { sut, getUserByIdRepository } = makeSut();
-        jest.spyOn(getUserByIdRepository, 'execute').mockResolvedValueOnce(
-            null,
-        );
+        const { sut, userRepository } = makeSut();
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce(null);
 
         const promise = sut.execute(createEventParams);
 
@@ -103,9 +69,9 @@ describe('Create Event Use Case', () => {
         );
     });
 
-    it('should throw if GetUserByIdRepository throws', async () => {
-        const { sut, getUserByIdRepository } = makeSut();
-        jest.spyOn(getUserByIdRepository, 'execute').mockRejectedValueOnce(
+    it('should throw if userRepository.findById throws', async () => {
+        const { sut, userRepository } = makeSut();
+        jest.spyOn(userRepository, 'findById').mockRejectedValueOnce(
             new Error(),
         );
 
@@ -114,20 +80,9 @@ describe('Create Event Use Case', () => {
         await expect(promise).rejects.toThrow();
     });
 
-    it('should throw if IdGeneratorAdapter throws', async () => {
-        const { sut, idGeneratorAdapter } = makeSut();
-        jest.spyOn(idGeneratorAdapter, 'execute').mockImplementationOnce(() => {
-            throw new Error();
-        });
-
-        const promise = sut.execute(createEventParams);
-
-        await expect(promise).rejects.toThrow();
-    });
-
-    it('should throw if CreateEventRepository throws', async () => {
-        const { sut, createEventRepository } = makeSut();
-        jest.spyOn(createEventRepository, 'execute').mockRejectedValueOnce(
+    it('should throw if EventRepository.create throws', async () => {
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'create').mockRejectedValueOnce(
             new Error(),
         );
 

@@ -1,29 +1,20 @@
 import { EmailAlreadyInUseError } from '../../errors/user.js';
 
 export class CreateUserUseCase {
-    constructor(
-        getUserByEmailRepository,
-        createUserRepository,
-        passwordHasherAdapter,
-        idGeneratorAdapter,
-        tokensGeneratorAdapter,
-    ) {
-        this.getUserByEmailRepository = getUserByEmailRepository;
-        this.createUserRepository = createUserRepository;
+    constructor(userRepository, passwordHasherAdapter, tokensGeneratorAdapter) {
+        this.userRepository = userRepository;
         this.passwordHasherAdapter = passwordHasherAdapter;
-        this.idGeneratorAdapter = idGeneratorAdapter;
         this.tokensGeneratorAdapter = tokensGeneratorAdapter;
     }
 
     async execute(createUserParams) {
-        const userWithProvideEmail =
-            await this.getUserByEmailRepository.execute(createUserParams.email);
+        const userWithProvideEmail = await this.userRepository.findByEmail(
+            createUserParams.email,
+        );
 
         if (userWithProvideEmail) {
             throw new EmailAlreadyInUseError(createUserParams.email);
         }
-
-        const userId = this.idGeneratorAdapter.execute();
 
         const hashedPassword = await this.passwordHasherAdapter.execute(
             createUserParams.password,
@@ -31,15 +22,14 @@ export class CreateUserUseCase {
 
         const user = {
             ...createUserParams,
-            id: userId,
             password: hashedPassword,
         };
 
-        const createdUser = await this.createUserRepository.execute(user);
+        const createdUser = await this.userRepository.create(user);
 
         return {
             ...createdUser,
-            tokens: this.tokensGeneratorAdapter.execute(userId),
+            tokens: this.tokensGeneratorAdapter.execute(createdUser.id),
         };
     }
 }

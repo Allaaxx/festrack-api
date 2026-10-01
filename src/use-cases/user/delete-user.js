@@ -1,9 +1,9 @@
 export class DeleteUserUseCase {
-    constructor(deleteUserRepository) {
-        this.deleteUserRepository = deleteUserRepository;
+    constructor(userRepository) {
+        this.userRepository = userRepository;
     }
     async execute(userId) {
-        const deletedUser = await this.deleteUserRepository.execute(userId);
+        const deletedUser = await this.userRepository.delete(userId);
 
         return deletedUser;
     }

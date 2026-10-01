@@ -1,22 +1,16 @@
 import { EmailAlreadyInUseError } from '../../errors/user.js';
 
 export class UpdateUserUseCase {
-    constructor(
-        getUserByEmailRepository,
-        updateUserRepository,
-        passwordHasherAdapter,
-    ) {
-        this.getUserByEmailRepository = getUserByEmailRepository;
-        this.updateUserRepository = updateUserRepository;
+    constructor(userRepository, passwordHasherAdapter) {
+        this.userRepository = userRepository;
         this.passwordHasherAdapter = passwordHasherAdapter;
     }
 
     async execute(userId, updateUserParams) {
         if (updateUserParams.email) {
-            const userWithProvideEmail =
-                await this.getUserByEmailRepository.execute(
-                    updateUserParams.email,
-                );
+            const userWithProvideEmail = await this.userRepository.findByEmail(
+                updateUserParams.email,
+            );
 
             if (userWithProvideEmail && userWithProvideEmail.id != userId) {
                 throw new EmailAlreadyInUseError(updateUserParams.email);
@@ -34,10 +28,7 @@ export class UpdateUserUseCase {
             user.password = hashedPassword;
         }
 
-        const updatedUser = await this.updateUserRepository.execute(
-            userId,
-            user,
-        );
+        const updatedUser = await this.userRepository.update(userId, user);
 
         return updatedUser;
     }
