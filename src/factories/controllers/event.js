@@ -1,4 +1,3 @@
-import { IdGeneratorAdapter } from '../../adapters/index.js';
 import {
     CreateEventController,
     DeleteEventController,
@@ -7,12 +6,8 @@ import {
     UpdateEventController,
 } from '../../controllers/index.js';
 import {
-    PostgresCreateEventRepository,
-    PostgresDeleteEventRepository,
-    PostgresGetEventByIdRepository,
-    PostgresGetEventsByUserIdRepository,
+    PostgresEventRepository,
     PostgresGetUserByIdRepository,
-    PostgresUpdateEventRepository,
 } from '../../repositories/postgres/index.js';
 import {
     CreateEventUseCase,
@@ -23,26 +18,23 @@ import {
 } from '../../use-cases/index.js';
 
 export const makeCreateEventController = () => {
-    const createEventRepository = new PostgresCreateEventRepository();
+    const eventRepository = new PostgresEventRepository();
     const getUserByIdRepository = new PostgresGetUserByIdRepository();
-    const idGeneratorAdapter = new IdGeneratorAdapter();
 
     const createEventUseCase = new CreateEventUseCase(
-        createEventRepository,
+        eventRepository,
         getUserByIdRepository,
-        idGeneratorAdapter,
     );
 
     return new CreateEventController(createEventUseCase);
 };
 
 export const makeGetEventsByUserIdController = () => {
-    const getEventsByUserIdRepository =
-        new PostgresGetEventsByUserIdRepository();
+    const eventRepository = new PostgresEventRepository();
     const getUserByIdRepository = new PostgresGetUserByIdRepository();
 
     const getEventsByUserIdUseCase = new GetEventsByUserIdUseCase(
-        getEventsByUserIdRepository,
+        eventRepository,
         getUserByIdRepository,
     );
 
@@ -50,33 +42,25 @@ export const makeGetEventsByUserIdController = () => {
 };
 
 export const makeGetEventByIdController = () => {
-    const getEventByIdRepository = new PostgresGetEventByIdRepository();
+    const eventRepository = new PostgresEventRepository();
 
-    const getEventByIdUseCase = new GetEventByIdUseCase(getEventByIdRepository);
+    const getEventByIdUseCase = new GetEventByIdUseCase(eventRepository);
 
     return new GetEventByIdController(getEventByIdUseCase);
 };
 
 export const makeUpdateEventController = () => {
-    const getEventByIdRepository = new PostgresGetEventByIdRepository();
-    const updateEventRepository = new PostgresUpdateEventRepository();
+    const eventRepository = new PostgresEventRepository();
 
-    const updateEventUseCase = new UpdateEventUseCase(
-        getEventByIdRepository,
-        updateEventRepository,
-    );
+    const updateEventUseCase = new UpdateEventUseCase(eventRepository);
 
     return new UpdateEventController(updateEventUseCase);
 };
 
 export const makeDeleteEventController = () => {
-    const getEventByIdRepository = new PostgresGetEventByIdRepository();
-    const deleteEventRepository = new PostgresDeleteEventRepository();
+    const eventRepository = new PostgresEventRepository();
 
-    const deleteEventUseCase = new DeleteEventUseCase(
-        getEventByIdRepository,
-        deleteEventRepository,
-    );
+    const deleteEventUseCase = new DeleteEventUseCase(eventRepository);
 
     return new DeleteEventController(deleteEventUseCase);
 };

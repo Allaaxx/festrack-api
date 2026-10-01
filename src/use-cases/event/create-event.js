@@ -1,14 +1,9 @@
 import { UserNotFoundError } from '../../errors/user.js';
 
 export class CreateEventUseCase {
-    constructor(
-        createEventRepository,
-        getUserByIdRepository,
-        idGeneratorAdapter,
-    ) {
-        this.createEventRepository = createEventRepository;
+    constructor(eventRepository, getUserByIdRepository) {
+        this.eventRepository = eventRepository;
         this.getUserByIdRepository = getUserByIdRepository;
-        this.idGeneratorAdapter = idGeneratorAdapter;
     }
 
     async execute(params) {
@@ -20,13 +15,6 @@ export class CreateEventUseCase {
             throw new UserNotFoundError(userId);
         }
 
-        const eventId = this.idGeneratorAdapter.execute();
-
-        const event = await this.createEventRepository.execute({
-            ...params,
-            id: eventId,
-        });
-
-        return event;
+        return await this.eventRepository.create(params);
     }
 }

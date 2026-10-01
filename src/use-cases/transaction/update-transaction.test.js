@@ -17,8 +17,8 @@ describe('Update Transaction Use Case', () => {
         }
     }
 
-    class GetEventByIdStub {
-        async execute() {
+    class EventRepositoryStub {
+        async findById() {
             return { id: 'valid_event_id', user_id: transaction.user_id };
         }
     }
@@ -27,18 +27,18 @@ describe('Update Transaction Use Case', () => {
         const updateTransactionRepository =
             new UpdateTransactionRepositoryStub();
         const getTransactionByIdRepository = new GetTransactionByIdStub();
-        const getEventByIdRepository = new GetEventByIdStub();
+        const eventRepository = new EventRepositoryStub();
         const sut = new UpdateTransactionUseCase(
             updateTransactionRepository,
             getTransactionByIdRepository,
-            getEventByIdRepository,
+            eventRepository,
         );
 
         return {
             sut,
             updateTransactionRepository,
             getTransactionByIdRepository,
-            getEventByIdRepository,
+            eventRepository,
         };
     };
 
@@ -94,10 +94,8 @@ describe('Update Transaction Use Case', () => {
     });
 
     it('should throw EventNotFoundError if event does not exist', async () => {
-        const { sut, getEventByIdRepository } = makeSut();
-        jest.spyOn(getEventByIdRepository, 'execute').mockResolvedValueOnce(
-            null,
-        );
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce(null);
 
         const promise = sut.execute(transaction.id, {
             event_id: 'non-existing-event',
@@ -109,8 +107,8 @@ describe('Update Transaction Use Case', () => {
     });
 
     it('should throw ForbiddenError if event belongs to another user', async () => {
-        const { sut, getEventByIdRepository } = makeSut();
-        jest.spyOn(getEventByIdRepository, 'execute').mockResolvedValueOnce({
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             id: 'event-id',
             user_id: 'different-user-id',
         });

@@ -28,8 +28,8 @@ describe('Create Transaction Use Case', () => {
         }
     }
 
-    class GetEventByIdRepositoryStub {
-        async execute() {
+    class EventRepositoryStub {
+        async findById() {
             return { id: 'valid_event_id', user_id: user.id };
         }
     }
@@ -39,12 +39,12 @@ describe('Create Transaction Use Case', () => {
             new CreateTransactionRepositoryStub();
         const idGeneratorAdapter = new IdGeneratorAdapterStub();
         const getUserByIdRepository = new GetUserByIdRepositoryStub();
-        const getEventByIdRepository = new GetEventByIdRepositoryStub();
+        const eventRepository = new EventRepositoryStub();
         const sut = new CreateTransactionUseCase(
             createTransactionRepository,
             getUserByIdRepository,
             idGeneratorAdapter,
-            getEventByIdRepository,
+            eventRepository,
         );
 
         return {
@@ -52,7 +52,7 @@ describe('Create Transaction Use Case', () => {
             createTransactionRepository,
             idGeneratorAdapter,
             getUserByIdRepository,
-            getEventByIdRepository,
+            eventRepository,
         };
     };
 
@@ -150,10 +150,8 @@ describe('Create Transaction Use Case', () => {
     });
 
     it('should throw EventNotFoundError if event does not exist', async () => {
-        const { sut, getEventByIdRepository } = makeSut();
-        jest.spyOn(getEventByIdRepository, 'execute').mockResolvedValueOnce(
-            null,
-        );
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce(null);
 
         const promise = sut.execute({
             ...CreateTransactionParams,
@@ -166,8 +164,8 @@ describe('Create Transaction Use Case', () => {
     });
 
     it('should throw ForbiddenError if event belongs to another user', async () => {
-        const { sut, getEventByIdRepository } = makeSut();
-        jest.spyOn(getEventByIdRepository, 'execute').mockResolvedValueOnce({
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             id: 'event-id',
             user_id: 'different-user-id',
         });

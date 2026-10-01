@@ -1,8 +1,8 @@
 import { UserNotFoundError } from '../../errors/user.js';
 
 export class GetEventsByUserIdUseCase {
-    constructor(getEventsByUserIdRepository, getUserByIdRepository) {
-        this.getEventsByUserIdRepository = getEventsByUserIdRepository;
+    constructor(eventRepository, getUserByIdRepository) {
+        this.eventRepository = eventRepository;
         this.getUserByIdRepository = getUserByIdRepository;
     }
 
@@ -13,6 +13,6 @@ export class GetEventsByUserIdUseCase {
             throw new UserNotFoundError(userId);
         }
 
-        return await this.getEventsByUserIdRepository.execute(userId);
+        return await this.eventRepository.findByUserId(userId);
     }
 }

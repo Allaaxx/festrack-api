@@ -7,12 +7,12 @@ export class CreateTransactionUseCase {
         createTransactionRepository,
         getUserByIdRepository,
         idGeneratorAdapter,
-        getEventByIdRepository,
+        eventRepository,
     ) {
         this.createTransactionRepository = createTransactionRepository;
         this.getUserByIdRepository = getUserByIdRepository;
         this.idGeneratorAdapter = idGeneratorAdapter;
-        this.getEventByIdRepository = getEventByIdRepository;
+        this.eventRepository = eventRepository;
     }
 
     async execute(params) {
@@ -25,9 +25,7 @@ export class CreateTransactionUseCase {
         }
 
         if (params.event_id) {
-            const event = await this.getEventByIdRepository.execute(
-                params.event_id,
-            );
+            const event = await this.eventRepository.findById(params.event_id);
 
             if (!event) {
                 throw new EventNotFoundError(params.event_id);

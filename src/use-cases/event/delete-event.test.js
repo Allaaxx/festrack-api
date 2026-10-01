@@ -4,30 +4,23 @@ import { event, user } from '../../tests/index.js';
 import { DeleteEventUseCase } from './delete-event.js';
 
 describe('Delete Event Use Case', () => {
-    class GetEventByIdRepositoryStub {
-        async execute() {
+    class EventRepositoryStub {
+        async findById() {
             return { ...event, user_id: user.id };
         }
-    }
 
-    class DeleteEventRepositoryStub {
-        async execute() {
+        async delete() {
             return { ...event, user_id: user.id };
         }
     }
 
     const makeSut = () => {
-        const getEventByIdRepository = new GetEventByIdRepositoryStub();
-        const deleteEventRepository = new DeleteEventRepositoryStub();
-        const sut = new DeleteEventUseCase(
-            getEventByIdRepository,
-            deleteEventRepository,
-        );
+        const eventRepository = new EventRepositoryStub();
+        const sut = new DeleteEventUseCase(eventRepository);
 
         return {
             sut,
-            getEventByIdRepository,
-            deleteEventRepository,
+            eventRepository,
         };
     };
 
@@ -39,18 +32,18 @@ describe('Delete Event Use Case', () => {
         expect(result).toEqual({ ...event, user_id: user.id });
     });
 
-    it('should call GetEventByIdRepository with correct params', async () => {
-        const { sut, getEventByIdRepository } = makeSut();
-        const spy = jest.spyOn(getEventByIdRepository, 'execute');
+    it('should call EventRepository.findById with correct params', async () => {
+        const { sut, eventRepository } = makeSut();
+        const spy = jest.spyOn(eventRepository, 'findById');
 
         await sut.execute(event.id, user.id);
 
         expect(spy).toHaveBeenCalledWith(event.id);
     });
 
-    it('should call DeleteEventRepository with correct params', async () => {
-        const { sut, deleteEventRepository } = makeSut();
-        const spy = jest.spyOn(deleteEventRepository, 'execute');
+    it('should call EventRepository.delete with correct params', async () => {
+        const { sut, eventRepository } = makeSut();
+        const spy = jest.spyOn(eventRepository, 'delete');
 
         await sut.execute(event.id, user.id);
 
@@ -58,10 +51,8 @@ describe('Delete Event Use Case', () => {
     });
 
     it('should throw EventNotFoundError if event is not found', async () => {
-        const { sut, getEventByIdRepository } = makeSut();
-        jest.spyOn(getEventByIdRepository, 'execute').mockResolvedValueOnce(
-            null,
-        );
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce(null);
 
         const promise = sut.execute(event.id, user.id);
 
@@ -69,8 +60,8 @@ describe('Delete Event Use Case', () => {
     });
 
     it('should throw ForbiddenError if event belongs to another user', async () => {
-        const { sut, getEventByIdRepository } = makeSut();
-        jest.spyOn(getEventByIdRepository, 'execute').mockResolvedValueOnce({
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             ...event,
             user_id: 'other_user_id',
         });
@@ -80,9 +71,9 @@ describe('Delete Event Use Case', () => {
         await expect(promise).rejects.toThrow(new ForbiddenError());
     });
 
-    it('should throw if GetEventByIdRepository throws', async () => {
-        const { sut, getEventByIdRepository } = makeSut();
-        jest.spyOn(getEventByIdRepository, 'execute').mockRejectedValueOnce(
+    it('should throw if EventRepository.findById throws', async () => {
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockRejectedValueOnce(
             new Error(),
         );
 
@@ -91,9 +82,9 @@ describe('Delete Event Use Case', () => {
         await expect(promise).rejects.toThrow();
     });
 
-    it('should throw if DeleteEventRepository throws', async () => {
-        const { sut, deleteEventRepository } = makeSut();
-        jest.spyOn(deleteEventRepository, 'execute').mockRejectedValueOnce(
+    it('should throw if EventRepository.delete throws', async () => {
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'delete').mockRejectedValueOnce(
             new Error(),
         );
 

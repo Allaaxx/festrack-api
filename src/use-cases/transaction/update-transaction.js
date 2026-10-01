@@ -6,11 +6,11 @@ export class UpdateTransactionUseCase {
     constructor(
         updateTransactionRepository,
         getTransactionByIdRepository,
-        getEventByIdRepository,
+        eventRepository,
     ) {
         this.updateTransactionRepository = updateTransactionRepository;
         this.getTransactionByIdRepository = getTransactionByIdRepository;
-        this.getEventByIdRepository = getEventByIdRepository;
+        this.eventRepository = eventRepository;
     }
 
     async execute(transactionId, params) {
@@ -26,9 +26,7 @@ export class UpdateTransactionUseCase {
         }
 
         if (params.event_id) {
-            const event = await this.getEventByIdRepository.execute(
-                params.event_id,
-            );
+            const event = await this.eventRepository.findById(params.event_id);
 
             if (!event) {
                 throw new EventNotFoundError(params.event_id);
