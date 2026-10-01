@@ -10,41 +10,35 @@ import { auth } from '../middlewares/auth.js';
 
 export const eventsRouter = Router();
 
-eventsRouter.post(
-    '/me',
-    auth,
-    async (request: Request, response: Response) => {
-        const controller = makeCreateEventController();
+eventsRouter.post('/me', auth, async (request: Request, response: Response) => {
+    const controller = makeCreateEventController();
 
-        const { statusCode, body } = await controller.execute({
-            ...request,
-            body: {
-                ...request.body,
-                user_id: request.userId,
-            },
-        });
+    const { statusCode, body } = await controller.execute({
+        body: {
+            ...request.body,
+            user_id: request.userId!,
+        },
+        headers: request.headers,
+        userId: request.userId,
+    });
 
-        response.status(statusCode).send(body);
-    },
-);
+    response.status(statusCode).send(body);
+});
 
-eventsRouter.get(
-    '/me',
-    auth,
-    async (request: Request, response: Response) => {
-        const controller = makeGetEventsByUserIdController();
+eventsRouter.get('/me', auth, async (request: Request, response: Response) => {
+    const controller = makeGetEventsByUserIdController();
 
-        const { statusCode, body } = await controller.execute({
-            ...request,
-            query: {
-                ...request.query,
-                userId: request.userId!,
-            },
-        });
+    const { statusCode, body } = await controller.execute({
+        query: {
+            ...request.query,
+            userId: request.userId!,
+        },
+        headers: request.headers,
+        userId: request.userId,
+    });
 
-        response.status(statusCode).send(body);
-    },
-);
+    response.status(statusCode).send(body);
+});
 
 eventsRouter.get(
     '/me/:eventId',
@@ -53,10 +47,10 @@ eventsRouter.get(
         const controller = makeGetEventByIdController();
 
         const { statusCode, body } = await controller.execute({
-            ...request,
             params: {
                 eventId: request.params.eventId,
             },
+            headers: request.headers,
             userId: request.userId,
         });
 
@@ -71,10 +65,11 @@ eventsRouter.patch(
         const controller = makeUpdateEventController();
 
         const { statusCode, body } = await controller.execute({
-            ...request,
+            body: request.body,
             params: {
                 eventId: request.params.eventId,
             },
+            headers: request.headers,
             userId: request.userId,
         });
 
@@ -89,10 +84,10 @@ eventsRouter.delete(
         const controller = makeDeleteEventController();
 
         const { statusCode, body } = await controller.execute({
-            ...request,
             params: {
                 eventId: request.params.eventId,
             },
+            headers: request.headers,
             userId: request.userId,
         });
 

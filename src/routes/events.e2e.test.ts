@@ -279,4 +279,61 @@ describe('Event Routes E2E Tests', () => {
 
         expect(response.status).toBe(403);
     });
+
+    it('GET /api/events/me/:eventId should return 400 when eventId is invalid UUID', async () => {
+        const { body: createdUser } = await request(app)
+            .post('/api/auth')
+            .send({
+                ...user,
+                id: undefined,
+            });
+
+        const response = await request(app)
+            .get('/api/events/me/invalid-uuid')
+            .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`);
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
+    });
+
+    it('PATCH /api/events/me/:eventId should return 400 when eventId is invalid UUID', async () => {
+        const { body: createdUser } = await request(app)
+            .post('/api/auth')
+            .send({
+                ...user,
+                id: undefined,
+            });
+
+        const response = await request(app)
+            .patch('/api/events/me/invalid-uuid')
+            .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`)
+            .send({
+                name: 'Valid Name',
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
+    });
+
+    it('DELETE /api/events/me/:eventId should return 400 when eventId is invalid UUID', async () => {
+        const { body: createdUser } = await request(app)
+            .post('/api/auth')
+            .send({
+                ...user,
+                id: undefined,
+            });
+
+        const response = await request(app)
+            .delete('/api/events/me/invalid-uuid')
+            .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`);
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
+    });
 });

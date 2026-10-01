@@ -1,14 +1,11 @@
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import { event, user } from '../../tests/index.js';
-import { UpdateEventController } from './update-event.js';
-import { UpdateEventUseCase } from '../../use-cases/index.js';
+import { UpdateEventController, IUpdateEventUseCase } from './update-event.js';
 import { Event } from '../../domain/index.js';
 
 describe('Update Event Controller', () => {
-    class UpdateEventUseCaseStub
-        implements Pick<UpdateEventUseCase, 'execute'>
-    {
+    class UpdateEventUseCaseStub implements IUpdateEventUseCase {
         async execute(): Promise<Event> {
             return event;
         }
@@ -49,6 +46,9 @@ describe('Update Event Controller', () => {
         });
 
         expect(response.statusCode).toBe(400);
+        expect(response.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
     });
 
     it('should return 400 when body has invalid fields', async () => {

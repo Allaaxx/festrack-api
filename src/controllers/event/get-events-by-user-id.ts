@@ -6,14 +6,15 @@ import {
 } from '../helpers/index.js';
 import { UserNotFoundError } from '../../errors/user.js';
 import { Controller, HttpRequest } from '../protocols.js';
-import { GetEventsByUserIdUseCase } from '../../use-cases/index.js';
+import { Event } from '../../domain/entities/event.js';
+
+export interface IGetEventsByUserIdUseCase {
+    execute(userId: string): Promise<Event[]>;
+}
 
 export class GetEventsByUserIdController implements Controller {
     constructor(
-        private readonly getEventsByUserIdUseCase: Pick<
-            GetEventsByUserIdUseCase,
-            'execute'
-        >,
+        private readonly getEventsByUserIdUseCase: IGetEventsByUserIdUseCase,
     ) {}
 
     async execute(

@@ -9,22 +9,22 @@ import {
 } from '../helpers/index.js';
 import { UserNotFoundError } from '../../errors/user.js';
 import { Controller, HttpRequest } from '../protocols.js';
-import { CreateEventUseCase } from '../../use-cases/index.js';
+import { Event } from '../../domain/entities/event.js';
 
-export class CreateEventController implements Controller {
-    constructor(
-        private readonly createEventUseCase: Pick<
-            CreateEventUseCase,
-            'execute'
-        >,
-    ) {}
+export interface ICreateEventUseCase {
+    execute(params: CreateEventSchema): Promise<Event>;
+}
+
+export class CreateEventController implements Controller<CreateEventSchema> {
+    constructor(private readonly createEventUseCase: ICreateEventUseCase) {}
 
     async execute(
         httpRequest: HttpRequest<CreateEventSchema>,
     ): Promise<HttpResponse> {
         try {
-            const params = httpRequest.body;
-            const validatedParams = await createEventSchema.parseAsync(params);
+            const validatedParams = await createEventSchema.parseAsync(
+                httpRequest.body,
+            );
 
             const event =
                 await this.createEventUseCase.execute(validatedParams);

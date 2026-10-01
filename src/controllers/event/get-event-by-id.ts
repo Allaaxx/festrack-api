@@ -1,8 +1,8 @@
+import { ZodError } from 'zod';
 import {
-    checkIfIdIsValid,
+    badRequest,
     eventNotFoundResponse,
     forbidden,
-    invalidIdResponse,
     ok,
     serverError,
     HttpResponse,
@@ -10,31 +10,27 @@ import {
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/index.js';
 import { Controller, HttpRequest } from '../protocols.js';
-import { GetEventByIdUseCase } from '../../use-cases/index.js';
+import { Event } from '../../domain/entities/event.js';
+import { eventIdParamSchema, EventIdParamSchema } from '../../schemas/index.js';
 
-export class GetEventByIdController implements Controller {
-    constructor(
-        private readonly getEventByIdUseCase: Pick<
-            GetEventByIdUseCase,
-            'execute'
-        >,
-    ) {}
+export interface IGetEventByIdUseCase {
+    execute(eventId: string, userId: string): Promise<Event | null>;
+}
+
+export class GetEventByIdController implements Controller<
+    never,
+    EventIdParamSchema
+> {
+    constructor(private readonly getEventByIdUseCase: IGetEventByIdUseCase) {}
 
     async execute(
-        httpRequest: HttpRequest<any, { eventId: string }>,
+        httpRequest: HttpRequest<never, EventIdParamSchema>,
     ): Promise<HttpResponse> {
         try {
-            const eventId = httpRequest.params?.eventId;
+            const { eventId } = await eventIdParamSchema.parseAsync(
+                httpRequest.params,
+            );
             const userId = httpRequest.userId;
-
-            if (!eventId) {
-                return invalidIdResponse();
-            }
-
-            const isIdValid = checkIfIdIsValid(eventId);
-            if (!isIdValid) {
-                return invalidIdResponse();
-            }
 
             const event = await this.getEventByIdUseCase.execute(
                 eventId,
@@ -43,6 +39,10 @@ export class GetEventByIdController implements Controller {
 
             return ok(event);
         } catch (error) {
+            if (error instanceof ZodError) {
+                return badRequest({ message: error.issues[0].message });
+            }
+
             if (error instanceof EventNotFoundError) {
                 return eventNotFoundResponse();
             }

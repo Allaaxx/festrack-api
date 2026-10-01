@@ -1,14 +1,14 @@
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import { event, user } from '../../tests/index.js';
-import { GetEventByIdController } from './get-event-by-id.js';
-import { GetEventByIdUseCase } from '../../use-cases/index.js';
+import {
+    GetEventByIdController,
+    IGetEventByIdUseCase,
+} from './get-event-by-id.js';
 import { Event } from '../../domain/index.js';
 
 describe('Get Event By Id Controller', () => {
-    class GetEventByIdUseCaseStub
-        implements Pick<GetEventByIdUseCase, 'execute'>
-    {
+    class GetEventByIdUseCaseStub implements IGetEventByIdUseCase {
         async execute(): Promise<Event> {
             return event;
         }
@@ -46,6 +46,9 @@ describe('Get Event By Id Controller', () => {
         });
 
         expect(response.statusCode).toBe(400);
+        expect(response.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
     });
 
     it('should return 404 when event is not found', async () => {

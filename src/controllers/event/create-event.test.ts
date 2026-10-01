@@ -1,13 +1,10 @@
 import { UserNotFoundError } from '../../errors/user.js';
 import { event } from '../../tests/index.js';
-import { CreateEventController } from './create-event.js';
-import { CreateEventUseCase } from '../../use-cases/index.js';
+import { CreateEventController, ICreateEventUseCase } from './create-event.js';
 import { Event } from '../../domain/index.js';
 
 describe('Create Event Controller', () => {
-    class CreateEventUseCaseStub
-        implements Pick<CreateEventUseCase, 'execute'>
-    {
+    class CreateEventUseCaseStub implements ICreateEventUseCase {
         async execute(): Promise<Event> {
             return event;
         }

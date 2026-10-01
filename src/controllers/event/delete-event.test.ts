@@ -1,14 +1,11 @@
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import { event, user } from '../../tests/index.js';
-import { DeleteEventController } from './delete-event.js';
-import { DeleteEventUseCase } from '../../use-cases/index.js';
+import { DeleteEventController, IDeleteEventUseCase } from './delete-event.js';
 import { Event } from '../../domain/index.js';
 
 describe('Delete Event Controller', () => {
-    class DeleteEventUseCaseStub
-        implements Pick<DeleteEventUseCase, 'execute'>
-    {
+    class DeleteEventUseCaseStub implements IDeleteEventUseCase {
         async execute(): Promise<Event> {
             return event;
         }
@@ -46,6 +43,9 @@ describe('Delete Event Controller', () => {
         });
 
         expect(response.statusCode).toBe(400);
+        expect(response.body).toEqual({
+            message: 'The provided id is not valid.',
+        });
     });
 
     it('should return 404 when event is not found', async () => {

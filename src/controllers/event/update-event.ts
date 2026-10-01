@@ -1,51 +1,52 @@
 import { ZodError } from 'zod';
-import { updateEventSchema, UpdateEventSchema } from '../../schemas/index.js';
+import {
+    eventIdParamSchema,
+    EventIdParamSchema,
+    updateEventSchema,
+    UpdateEventSchema,
+} from '../../schemas/index.js';
 import { EventNotFoundError } from '../../errors/event.js';
 import { ForbiddenError } from '../../errors/index.js';
 import {
     badRequest,
-    checkIfIdIsValid,
     eventNotFoundResponse,
     forbidden,
-    invalidIdResponse,
     ok,
     serverError,
     HttpResponse,
 } from '../helpers/index.js';
 import { Controller, HttpRequest } from '../protocols.js';
-import { UpdateEventUseCase } from '../../use-cases/index.js';
+import { Event } from '../../domain/entities/event.js';
 
-export class UpdateEventController implements Controller {
-    constructor(
-        private readonly updateEventUseCase: Pick<
-            UpdateEventUseCase,
-            'execute'
-        >,
-    ) {}
+export interface IUpdateEventUseCase {
+    execute(
+        eventId: string,
+        userId: string,
+        params: UpdateEventSchema,
+    ): Promise<Event | null>;
+}
+
+export class UpdateEventController implements Controller<
+    UpdateEventSchema,
+    EventIdParamSchema
+> {
+    constructor(private readonly updateEventUseCase: IUpdateEventUseCase) {}
 
     async execute(
-        httpRequest: HttpRequest<UpdateEventSchema, { eventId: string }>,
+        httpRequest: HttpRequest<UpdateEventSchema, EventIdParamSchema>,
     ): Promise<HttpResponse> {
         try {
-            const eventId = httpRequest.params?.eventId;
-            const userId = httpRequest.userId;
-
-            if (!eventId) {
-                return invalidIdResponse();
-            }
-
-            const isIdValid = checkIfIdIsValid(eventId);
-            if (!isIdValid) {
-                return invalidIdResponse();
-            }
-
-            const params = httpRequest.body;
-            await updateEventSchema.parseAsync(params);
+            const { eventId } = await eventIdParamSchema.parseAsync(
+                httpRequest.params,
+            );
+            const sanitizedBody = await updateEventSchema.parseAsync(
+                httpRequest.body,
+            );
 
             const event = await this.updateEventUseCase.execute(
                 eventId,
-                userId!,
-                params!,
+                httpRequest.userId!,
+                sanitizedBody,
             );
 
             return ok(event);
