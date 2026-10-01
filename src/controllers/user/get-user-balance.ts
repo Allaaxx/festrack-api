@@ -6,17 +6,19 @@ import {
     ok,
     serverError,
     userNotFoundResponse,
+    HttpResponse,
 } from '../helpers/index.js';
+import { Controller, HttpRequest } from '../protocols.js';
+import { GetUserBalanceUseCase } from '../../use-cases/user/get-user-balance.js';
 
-export class GetUserBalanceController {
-    constructor(getUserBalanceUseCase) {
-        this.getUserBalanceUseCase = getUserBalanceUseCase;
-    }
-    async execute(httpRequest) {
+export class GetUserBalanceController implements Controller {
+    constructor(private readonly getUserBalanceUseCase: Pick<GetUserBalanceUseCase, 'execute'>) {}
+
+    async execute(httpRequest: HttpRequest): Promise<HttpResponse> {
         try {
-            const userId = httpRequest.params.userId;
-            const from = httpRequest.query.from;
-            const to = httpRequest.query.to;
+            const userId = httpRequest.params?.userId;
+            const from = httpRequest.query?.from;
+            const to = httpRequest.query?.to;
 
             await getUserBalanceSchema.parseAsync({
                 user_id: userId,

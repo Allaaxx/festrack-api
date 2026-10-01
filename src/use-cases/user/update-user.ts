@@ -1,23 +1,25 @@
 import { EmailAlreadyInUseError } from '../../errors/user.js';
+import { User, UpdateUserParams, UserRepository } from '../../domain/index.js';
+import { PasswordHasher } from '../../adapters/password-hasher.js';
 
 export class UpdateUserUseCase {
-    constructor(userRepository, passwordHasherAdapter) {
-        this.userRepository = userRepository;
-        this.passwordHasherAdapter = passwordHasherAdapter;
-    }
+    constructor(
+        private readonly userRepository: Pick<UserRepository, 'findByEmail' | 'update'>,
+        private readonly passwordHasherAdapter: PasswordHasher,
+    ) {}
 
-    async execute(userId, updateUserParams) {
+    async execute(userId: string, updateUserParams: UpdateUserParams): Promise<User> {
         if (updateUserParams.email) {
-            const userWithProvideEmail = await this.userRepository.findByEmail(
+            const userWithProvidedEmail = await this.userRepository.findByEmail(
                 updateUserParams.email,
             );
 
-            if (userWithProvideEmail && userWithProvideEmail.id != userId) {
+            if (userWithProvidedEmail && userWithProvidedEmail.id !== userId) {
                 throw new EmailAlreadyInUseError(updateUserParams.email);
             }
         }
 
-        const user = {
+        const user: UpdateUserParams = {
             ...updateUserParams,
         };
 

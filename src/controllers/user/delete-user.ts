@@ -4,16 +4,18 @@ import {
     ok,
     serverError,
     userNotFoundResponse,
+    HttpResponse,
 } from '../helpers/index.js';
 import { UserNotFoundError } from '../../errors/user.js';
+import { Controller, HttpRequest } from '../protocols.js';
+import { DeleteUserUseCase } from '../../use-cases/user/delete-user.js';
 
-export class DeleteUserController {
-    constructor(deleteUserUseCase) {
-        this.deleteUserUseCase = deleteUserUseCase;
-    }
-    async execute(httpRequest) {
+export class DeleteUserController implements Controller {
+    constructor(private readonly deleteUserUseCase: Pick<DeleteUserUseCase, 'execute'>) {}
+
+    async execute(httpRequest: HttpRequest): Promise<HttpResponse> {
         try {
-            const userId = httpRequest.params.userId;
+            const userId = httpRequest.params?.userId;
 
             const idIsValid = checkIfIdIsValid(userId);
 

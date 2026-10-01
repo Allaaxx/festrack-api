@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const createUserSchema = z.object({
     first_name: z
         .string({
-            required_error: 'First name is required.',
+            message: 'First name is required.',
         })
         .trim()
         .min(1, {
@@ -11,13 +11,16 @@ export const createUserSchema = z.object({
         }),
     last_name: z
         .string({
-            required_error: 'Last name is required.',
+            message: 'Last name is required.',
         })
         .trim()
         .min(1, {
             message: 'Last name is required.',
         }),
     email: z
+        .string({
+            message: 'E-mail is required.',
+        })
         .email({
             message: 'Please provide a valid e-mail.',
         })
@@ -27,7 +30,7 @@ export const createUserSchema = z.object({
         }),
     password: z
         .string({
-            required_error: 'Password is required',
+            message: 'Password is required',
         })
         .trim()
         .min(6, {
@@ -35,12 +38,17 @@ export const createUserSchema = z.object({
         }),
 });
 
-export const updatedUserSchema = createUserSchema.partial().strict({
-    message: 'Some provided field is not allowed.',
-});
+export type CreateUserSchema = z.infer<typeof createUserSchema>;
+
+export const updatedUserSchema = createUserSchema.partial().strict();
+
+export type UpdateUserSchema = z.infer<typeof updatedUserSchema>;
 
 export const loginSchema = z.object({
     email: z
+        .string({
+            message: 'E-mail is required.',
+        })
         .email({
             message: 'Please provide a valid e-mail.',
         })
@@ -50,20 +58,26 @@ export const loginSchema = z.object({
         }),
     password: z
         .string({
-            required_error: 'Password is required',
+            message: 'Password is required',
         })
         .trim()
         .min(6, {
             message: 'Password must have at least 6 characters',
         }),
 });
+
+export type LoginSchema = z.infer<typeof loginSchema>;
 
 export const refreshTokenSchema = z.object({
     refreshToken: z.string().trim().min(1, 'Refresh token is required'),
 });
 
+export type RefreshTokenSchema = z.infer<typeof refreshTokenSchema>;
+
 export const getUserBalanceSchema = z.object({
-    user_id: z.uuid(),
+    user_id: z.string().uuid(),
     from: z.iso.date(),
     to: z.iso.date(),
 });
+
+export type GetUserBalanceSchema = z.infer<typeof getUserBalanceSchema>;

@@ -1,19 +1,20 @@
 import { faker } from '@faker-js/faker';
-import { user } from '../../tests';
+import { user } from '../../tests/index.js';
 import { DeleteUserController } from './delete-user.js';
 import { UserNotFoundError } from '../../errors/user.js';
+import { User } from '../../domain/entities/user.js';
 
 describe('Delete User Controller', () => {
     class DeleteUserUseCaseStub {
-        async execute() {
+        async execute(): Promise<User> {
             return user;
         }
     }
     const makeSut = () => {
         const deleteUserUseCase = new DeleteUserUseCaseStub();
-        const sut = new DeleteUserController(deleteUserUseCase);
+        const deleteUserController = new DeleteUserController(deleteUserUseCase);
 
-        return { deleteUserUseCase, sut };
+        return { deleteUserUseCase, deleteUserController };
     };
 
     const httpRequest = {
@@ -23,17 +24,17 @@ describe('Delete User Controller', () => {
     };
 
     it('should return 200 if user is deleted', async () => {
-        const { sut } = makeSut();
+        const { deleteUserController } = makeSut();
 
-        const result = await sut.execute(httpRequest);
+        const result = await deleteUserController.execute(httpRequest);
 
         expect(result.statusCode).toBe(200);
     });
 
     it('should return 400 if id is invalid', async () => {
-        const { sut } = makeSut();
+        const { deleteUserController } = makeSut();
 
-        const result = await sut.execute({
+        const result = await deleteUserController.execute({
             params: {
                 userId: 'invalid_id',
             },
@@ -43,33 +44,33 @@ describe('Delete User Controller', () => {
     });
 
     it('should return 404 if user is not found', async () => {
-        const { sut, deleteUserUseCase } = makeSut();
+        const { deleteUserController, deleteUserUseCase } = makeSut();
         jest.spyOn(deleteUserUseCase, 'execute').mockRejectedValueOnce(
-            new UserNotFoundError(),
+            new UserNotFoundError('user-id'),
         );
 
-        const result = await sut.execute(httpRequest);
+        const result = await deleteUserController.execute(httpRequest);
 
         expect(result.statusCode).toBe(404);
     });
 
-    it('should return 500 if DeleteUserUseCase trhows', async () => {
-        const { sut, deleteUserUseCase } = makeSut();
+    it('should return 500 if DeleteUserUseCase throws', async () => {
+        const { deleteUserController, deleteUserUseCase } = makeSut();
 
         jest.spyOn(deleteUserUseCase, 'execute').mockRejectedValueOnce(
             new Error(),
         );
 
-        const result = await sut.execute(httpRequest);
+        const result = await deleteUserController.execute(httpRequest);
 
         expect(result.statusCode).toBe(500);
     });
 
     it('should call DeleteUserUseCase with correct values', async () => {
-        const { sut, deleteUserUseCase } = makeSut();
+        const { deleteUserController, deleteUserUseCase } = makeSut();
         const executeSpy = jest.spyOn(deleteUserUseCase, 'execute');
 
-        await sut.execute(httpRequest);
+        await deleteUserController.execute(httpRequest);
 
         expect(executeSpy).toHaveBeenCalledWith(httpRequest.params.userId);
     });

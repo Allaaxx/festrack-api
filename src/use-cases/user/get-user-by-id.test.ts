@@ -11,37 +11,37 @@ describe('Get User By Id Use Case', () => {
 
     const makeSut = () => {
         const userRepository = new UserRepositoryStub();
-        const sut = new GetUserByIdUseCase(userRepository);
+        const getUserByIdUseCase = new GetUserByIdUseCase(userRepository);
 
         return {
-            sut,
+            getUserByIdUseCase,
             userRepository,
         };
     };
 
     it('should get user by id successfully', async () => {
-        const { sut } = makeSut();
+        const { getUserByIdUseCase } = makeSut();
 
-        const result = await sut.execute(faker.string.uuid());
+        const result = await getUserByIdUseCase.execute(faker.string.uuid());
 
         expect(result).toEqual(user);
     });
 
     it('should call userRepository.findById with correct params', async () => {
-        const { sut, userRepository } = makeSut();
+        const { getUserByIdUseCase, userRepository } = makeSut();
         const executeSpy = jest.spyOn(userRepository, 'findById');
         const userId = faker.string.uuid();
 
-        await sut.execute(userId);
+        await getUserByIdUseCase.execute(userId);
 
         expect(executeSpy).toHaveBeenCalledWith(userId);
     });
 
     it('should throw if userRepository.findById throws', async () => {
-        const { sut, userRepository } = makeSut();
+        const { getUserByIdUseCase, userRepository } = makeSut();
         jest.spyOn(userRepository, 'findById').mockRejectedValue(new Error());
 
-        const promise = sut.execute(faker.string.uuid());
+        const promise = getUserByIdUseCase.execute(faker.string.uuid());
 
         await expect(promise).rejects.toThrow();
     });

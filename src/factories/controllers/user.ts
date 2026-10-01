@@ -13,38 +13,30 @@ import {
     UpdateUserUseCase,
 } from '../../use-cases/index.js';
 
-export const makeGetUserByIdController = () => {
+export const makeGetUserByIdController = (): GetUserByIdController => {
     const userRepository = new PostgresUserRepository();
-
     const getUserByIdUseCase = new GetUserByIdUseCase(userRepository);
-
     return new GetUserByIdController(getUserByIdUseCase);
 };
 
-export const makeUpdateUserController = () => {
+export const makeUpdateUserController = (): UpdateUserController => {
     const userRepository = new PostgresUserRepository();
     const passwordHasherAdapter = new PasswordHasherAdapter();
-
     const updateUserUseCase = new UpdateUserUseCase(
         userRepository,
         passwordHasherAdapter,
     );
-
     return new UpdateUserController(updateUserUseCase);
 };
 
-export const makeDeleteUserController = () => {
+export const makeDeleteUserController = (): DeleteUserController => {
     const userRepository = new PostgresUserRepository();
-
     const deleteUserUseCase = new DeleteUserUseCase(userRepository);
-
     return new DeleteUserController(deleteUserUseCase);
 };
 
-export const makeGetUserBalanceController = () => {
+export const makeGetUserBalanceController = (): GetUserBalanceController => {
     const userRepository = new PostgresUserRepository();
-
     const getUserBalanceUseCase = new GetUserBalanceUseCase(userRepository);
-
     return new GetUserBalanceController(getUserBalanceUseCase);
 };

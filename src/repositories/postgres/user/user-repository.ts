@@ -2,9 +2,18 @@ import { Prisma, TransactionType } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { prisma } from '../../../../prisma/prisma.js';
 import { UserNotFoundError } from '../../../errors/user.js';
+import {
+    User,
+    CreateUserParams,
+    UpdateUserParams,
+    UserBalance,
+    UserRepository,
+} from '../../../domain/index.js';
 
-export class PostgresUserRepository {
-    async create(createUserParams) {
+export { UserRepository };
+
+export class PostgresUserRepository implements UserRepository {
+    async create(createUserParams: CreateUserParams): Promise<User> {
         return await prisma.user.create({
             data: {
                 ...createUserParams,
@@ -12,7 +21,7 @@ export class PostgresUserRepository {
         });
     }
 
-    async findById(userId) {
+    async findById(userId: string): Promise<User | null> {
         return await prisma.user.findUnique({
             where: {
                 id: userId,
@@ -20,7 +29,7 @@ export class PostgresUserRepository {
         });
     }
 
-    async findByEmail(email) {
+    async findByEmail(email: string): Promise<User | null> {
         return await prisma.user.findUnique({
             where: {
                 email,
@@ -28,7 +37,7 @@ export class PostgresUserRepository {
         });
     }
 
-    async update(userId, updateUserParams) {
+    async update(userId: string, updateUserParams: UpdateUserParams): Promise<User> {
         try {
             return await prisma.user.update({
                 where: {
@@ -47,7 +56,7 @@ export class PostgresUserRepository {
         }
     }
 
-    async delete(userId) {
+    async delete(userId: string): Promise<User> {
         try {
             return await prisma.user.delete({
                 where: {
@@ -65,7 +74,7 @@ export class PostgresUserRepository {
         }
     }
 
-    async getBalance(userId, from, to) {
+    async getBalance(userId: string, from: string, to: string): Promise<UserBalance> {
         const dateFilter = {
             gte: new Date(from),
             lte: new Date(to),
@@ -124,15 +133,15 @@ export class PostgresUserRepository {
 
         const earningsPercentage = total.isZero()
             ? 0
-            : _totalEarnings.times(100).div(total).floor();
+            : _totalEarnings.times(100).div(total).floor().toNumber();
 
         const expensePercentage = total.isZero()
             ? 0
-            : _totalExpense.times(100).div(total).floor();
+            : _totalExpense.times(100).div(total).floor().toNumber();
 
         const investmentsPercentage = total.isZero()
             ? 0
-            : _totalInvestments.times(100).div(total).floor();
+            : _totalInvestments.times(100).div(total).floor().toNumber();
 
         return {
             earnings: _totalEarnings,

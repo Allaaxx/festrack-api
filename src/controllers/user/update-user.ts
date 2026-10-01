@@ -4,19 +4,21 @@ import {
     UserNotFoundError,
 } from '../../errors/user.js';
 import { updatedUserSchema } from '../../schemas/user.js';
-import { badRequest, ok, serverError } from '../helpers/http.js';
+import { badRequest, ok, serverError, HttpResponse } from '../helpers/http.js';
 import {
     checkIfIdIsValid,
     invalidIdResponse,
     userNotFoundResponse,
 } from '../helpers/index.js';
-export class UpdateUserController {
-    constructor(updateUserUseCase) {
-        this.updateUserUseCase = updateUserUseCase;
-    }
-    async execute(httpRequest) {
+import { Controller, HttpRequest } from '../protocols.js';
+import { UpdateUserUseCase } from '../../use-cases/user/update-user.js';
+
+export class UpdateUserController implements Controller {
+    constructor(private readonly updateUserUseCase: Pick<UpdateUserUseCase, 'execute'>) {}
+
+    async execute(httpRequest: HttpRequest): Promise<HttpResponse> {
         try {
-            const userId = httpRequest.params.userId;
+            const userId = httpRequest.params?.userId;
 
             const isIdValid = checkIfIdIsValid(userId);
 

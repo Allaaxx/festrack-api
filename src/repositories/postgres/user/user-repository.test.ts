@@ -5,7 +5,7 @@ import { PostgresUserRepository } from './user-repository.js';
 import { UserNotFoundError } from '../../../errors/user.js';
 
 describe('Postgres User Repository', () => {
-    let sut;
+    let sut: PostgresUserRepository;
 
     beforeEach(() => {
         sut = new PostgresUserRepository();
@@ -135,10 +135,10 @@ describe('Postgres User Repository', () => {
 
             const result = await sut.getBalance(user.id, from, to);
 
-            expect(result.balance.toNumber()).toBe(2000);
-            expect(result.earnings.toNumber()).toBe(5000);
-            expect(result.expenses.toNumber()).toBe(2000);
-            expect(result.investments.toNumber()).toBe(1000);
+            expect(Number(result.balance)).toBe(2000);
+            expect(Number(result.earnings)).toBe(5000);
+            expect(Number(result.expenses)).toBe(2000);
+            expect(Number(result.investments)).toBe(1000);
         });
     });
 });

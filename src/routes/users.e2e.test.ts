@@ -7,6 +7,7 @@ import { TransactionType } from '@prisma/client';
 describe('Users Routes E2E Tests', () => {
     const from = '2020-01-01';
     const to = '2027-12-31';
+
     it('GET /api/users/me should return 200 if user is authenticated', async () => {
         const { body: createdUser } = await request(app)
             .post(`/api/auth`)
@@ -50,7 +51,7 @@ describe('Users Routes E2E Tests', () => {
         expect(response.body.password).not.toBe(updateUserParams.password);
     });
 
-    it('DELETE /api/users/me should return 204 when user is deleted', async () => {
+    it('DELETE /api/users/me should return 200 when user is deleted', async () => {
         const { body: createdUser } = await request(app)
             .post(`/api/auth`)
             .send({
@@ -79,7 +80,7 @@ describe('Users Routes E2E Tests', () => {
             .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`)
             .send({
                 user_id: createdUser.id,
-                name: faker.commerce.productName(10),
+                name: faker.commerce.productName(),
                 date: new Date(from),
                 type: TransactionType.EARNING,
                 amount: 10000,
@@ -90,7 +91,7 @@ describe('Users Routes E2E Tests', () => {
             .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`)
             .send({
                 user_id: createdUser.id,
-                name: faker.commerce.productName(10),
+                name: faker.commerce.productName(),
                 date: new Date(from),
                 type: TransactionType.EXPENSE,
                 amount: 2000,
@@ -101,7 +102,7 @@ describe('Users Routes E2E Tests', () => {
             .set('Authorization', `Bearer ${createdUser.tokens.accessToken}`)
             .send({
                 user_id: createdUser.id,
-                name: faker.commerce.productName(10),
+                name: faker.commerce.productName(),
                 date: new Date(to),
                 type: TransactionType.INVESTMENT,
                 amount: 2000,
@@ -118,11 +119,11 @@ describe('Users Routes E2E Tests', () => {
         expect(response.status).toBe(200);
         expect(response.body).toEqual({
             earnings: '10000',
-            earningsPercentage: '71',
-            expensePercentage: '14',
+            earningsPercentage: 71,
+            expensePercentage: 14,
             expenses: '2000',
             investments: '2000',
-            investmentsPercentage: '14',
+            investmentsPercentage: 14,
             balance: '6000',
         });
     });
