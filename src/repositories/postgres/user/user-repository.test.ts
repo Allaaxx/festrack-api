@@ -33,7 +33,12 @@ describe('Postgres User Repository', () => {
 
             const result = await sut.findById(fakeUser.id);
 
-            expect(result).toStrictEqual(fakeUser);
+            expect(result).toMatchObject({
+                id: fakeUser.id,
+                email: fakeUser.email,
+                first_name: fakeUser.first_name,
+                last_name: fakeUser.last_name,
+            });
         });
 
         it('should return null if user not found', async () => {
@@ -49,7 +54,12 @@ describe('Postgres User Repository', () => {
 
             const result = await sut.findByEmail(fakeUser.email);
 
-            expect(result).toStrictEqual(fakeUser);
+            expect(result).toMatchObject({
+                id: fakeUser.id,
+                email: fakeUser.email,
+                first_name: fakeUser.first_name,
+                last_name: fakeUser.last_name,
+            });
         });
 
         it('should return null if email not found', async () => {
@@ -90,7 +100,12 @@ describe('Postgres User Repository', () => {
 
             const result = await sut.delete(fakeUser.id);
 
-            expect(result).toStrictEqual(fakeUser);
+            expect(result).toMatchObject({
+                id: fakeUser.id,
+                email: fakeUser.email,
+                first_name: fakeUser.first_name,
+                last_name: fakeUser.last_name,
+            });
 
             const [searchOnDb] = await db
                 .select()

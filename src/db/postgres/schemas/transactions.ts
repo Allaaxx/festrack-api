@@ -7,7 +7,7 @@ import {
     text,
     varchar,
 } from 'drizzle-orm/pg-core';
-import { usersTable } from './users.js';
+import { user } from './users.js';
 import { eventsTable } from './events.js';
 
 export const transactionTypeEnum = pgEnum('TransactionType', [
@@ -22,7 +22,7 @@ export const transactionsTable = pgTable('Transaction', {
         .$defaultFn(() => crypto.randomUUID()),
     user_id: text('user_id')
         .notNull()
-        .references(() => usersTable.id, {
+        .references(() => user.id, {
             onDelete: 'cascade',
             onUpdate: 'cascade',
         }),
@@ -39,9 +39,9 @@ export const transactionsTable = pgTable('Transaction', {
 export const transactionsRelations = relations(
     transactionsTable,
     ({ one }) => ({
-        user: one(usersTable, {
+        user: one(user, {
             fields: [transactionsTable.user_id],
-            references: [usersTable.id],
+            references: [user.id],
         }),
         event: one(eventsTable, {
             fields: [transactionsTable.event_id],

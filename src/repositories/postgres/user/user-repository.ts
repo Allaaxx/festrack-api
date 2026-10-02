@@ -43,9 +43,15 @@ export class PostgresUserRepository implements UserRepository {
     constructor(private readonly database: Database = db) {}
 
     async create(createUserParams: CreateUserParams): Promise<User> {
+        const { password: _, ...userData } = createUserParams;
         const [createdUser] = await this.database
             .insert(usersTable)
-            .values(createUserParams)
+            .values({
+                ...userData,
+                name:
+                    userData.name ||
+                    `${userData.first_name} ${userData.last_name}`.trim(),
+            })
             .returning();
 
         return createdUser;
@@ -73,9 +79,10 @@ export class PostgresUserRepository implements UserRepository {
         userId: string,
         updateUserParams: UpdateUserParams,
     ): Promise<User> {
+        const { password: _, ...updateData } = updateUserParams;
         const [updatedUser] = await this.database
             .update(usersTable)
-            .set(updateUserParams)
+            .set(updateData)
             .where(eq(usersTable.id, userId))
             .returning();
 

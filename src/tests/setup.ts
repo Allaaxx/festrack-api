@@ -9,10 +9,16 @@ globalThis.jest = jest;
 beforeEach(async () => {
     try {
         await sqlClient.unsafe(
-            'TRUNCATE TABLE "Transaction", "Event", "User" CASCADE;',
+            'TRUNCATE TABLE "Transaction", "Event", "session", "account", "verification", "user" CASCADE;',
         );
     } catch {
-        // Safe fallback if database is not reachable or tables do not exist
+        try {
+            await sqlClient.unsafe(
+                'TRUNCATE TABLE "Transaction", "Event", "User" CASCADE;',
+            );
+        } catch {
+            // Safe fallback if database is not reachable or tables do not exist
+        }
     }
 });
 
