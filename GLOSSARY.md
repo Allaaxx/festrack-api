@@ -13,7 +13,7 @@ An individual financial movement of money (earning, expense, or investment) belo
 _Avoid_: Movement, entry, record
 
 **User**:
-An account holder who owns events and transactions.
+An account holder who owns events and transactions. In the domain model, `User` remains the single actor owning events and transactions. Better Auth's `Account` table is strictly an infrastructure credential storage detail for authentication providers and password hashes, not a domain concept.
 _Avoid_: Account, member, client
 
 **Balance**:

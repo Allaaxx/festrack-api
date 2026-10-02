@@ -3,7 +3,12 @@ export interface User {
     first_name: string;
     last_name: string;
     email: string;
-    password: string;
+    name?: string;
+    emailVerified?: boolean;
+    image?: string | null;
+    createdAt?: Date;
+    updatedAt?: Date;
+    password?: string;
 }
 
 export type CreateUserParams = Omit<User, 'id'>;
@@ -11,12 +16,3 @@ export type CreateUserParams = Omit<User, 'id'>;
 export type UpdateUserParams = Partial<CreateUserParams>;
 
 export type { Balance, UserBalance, DecimalLike } from './balance.js';
-
-export interface Tokens {
-    accessToken: string;
-    refreshToken: string;
-}
-
-export interface UserWithTokens extends User {
-    tokens: Tokens;
-}

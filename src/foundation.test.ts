@@ -3,7 +3,7 @@ import { Elysia } from 'elysia';
 import { app } from './app.js';
 import { authPlugin } from './plugins/auth.js';
 import { testClient } from './test-helper.js';
-import { TokensGeneratorAdapter } from './adapters/tokens-generator.js';
+import { auth } from './auth.js';
 
 describe('Elysia Foundation & Plugins', () => {
     it('should respond to Swagger documentation endpoint at /docs', async () => {
@@ -52,8 +52,15 @@ describe('Elysia Foundation & Plugins', () => {
     });
 
     it('should allow access and extract userId when valid Bearer token is provided', async () => {
-        const tokensGenerator = new TokensGeneratorAdapter();
-        const tokens = tokensGenerator.execute('valid-user-id');
+        const testUser = await auth.api.signUpEmail({
+            body: {
+                email: `foundation_test_${Date.now()}@example.com`,
+                password: 'Password123!',
+                name: 'Foundation User',
+                first_name: 'Foundation',
+                last_name: 'User',
+            },
+        });
 
         const testApp = new Elysia()
             .use(authPlugin)
@@ -64,10 +71,10 @@ describe('Elysia Foundation & Plugins', () => {
         const client = testClient(testApp);
         const response = await client
             .get('/api/test-protected')
-            .set('Authorization', `Bearer ${tokens.accessToken}`);
+            .set('Authorization', `Bearer ${testUser.token}`);
 
         expect(response.status).toBe(200);
-        expect(response.body).toEqual({ userId: 'valid-user-id' });
+        expect(response.body).toEqual({ userId: testUser.user.id });
     });
 
     it('should reject invalid or expired Bearer token with 401', async () => {
