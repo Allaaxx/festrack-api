@@ -31,6 +31,11 @@ jobs:
             - name: Prettier
               run: bun run prettier:check
 
+            - name: Setup Test Database
+              run: |
+                  docker compose up -d --wait postgres-test
+                  DATABASE_URL=postgresql://postgres:password@localhost:5433/finance-app bun run db:push
+
             - name: Run Tests
               run: bun test
 
