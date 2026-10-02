@@ -1,15 +1,15 @@
+import { describe, it, expect } from 'bun:test';
 import { UnauthorizedError } from '../../errors/index.js';
 import { RefreshTokenUseCase } from './refresh-token.js';
 import {
     TokensGenerator,
     GeneratedTokens,
 } from '../../adapters/tokens-generator.js';
-import { TokenVerifier } from '../../adapters/token-verifier.js';
-import jwt from 'jsonwebtoken';
+import { TokenVerifier, TokenPayload } from '../../adapters/token-verifier.js';
 
 describe('Refresh Token Use Case', () => {
     class TokenVerifierAdapterStub implements Pick<TokenVerifier, 'execute'> {
-        execute(_token: string, _secret: string): string | jwt.JwtPayload {
+        execute(_token: string, _secret: string): string | TokenPayload {
             return { userId: 'any_user_id' };
         }
     }
@@ -82,7 +82,7 @@ describe('Refresh Token Use Case', () => {
         const { sut, tokenVerifierAdapter } = makeSut();
 
         jest.spyOn(tokenVerifierAdapter, 'execute').mockReturnValueOnce(
-            null as unknown as jwt.JwtPayload,
+            null as unknown as TokenPayload,
         );
 
         expect(() => sut.execute('invalid_refresh_token')).toThrow(

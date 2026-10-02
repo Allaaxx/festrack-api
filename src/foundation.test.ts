@@ -1,17 +1,19 @@
 import { describe, it, expect } from 'bun:test';
 import { Elysia } from 'elysia';
-import { elysiaApp, authPlugin, testClient } from './index.js';
-import jwt from 'jsonwebtoken';
+import { app } from './app.js';
+import { authPlugin } from './plugins/auth.js';
+import { testClient } from './test-helper.js';
+import { TokensGeneratorAdapter } from './adapters/tokens-generator.js';
 
 describe('Elysia Foundation & Plugins', () => {
     it('should respond to Swagger documentation endpoint at /docs', async () => {
-        const client = testClient(elysiaApp);
+        const client = testClient(app);
         const response = await client.get('/docs');
         expect(response.status).toBe(200);
     });
 
     it('should generate dynamic OpenAPI 3.0 specification at /docs/json', async () => {
-        const client = testClient(elysiaApp);
+        const client = testClient(app);
         const response = await client.get('/docs/json');
         expect(response.status).toBe(200);
         expect(response.body).toBeDefined();
@@ -20,7 +22,7 @@ describe('Elysia Foundation & Plugins', () => {
     });
 
     it('should enforce CORS headers on preflight requests', async () => {
-        const response = await elysiaApp.handle(
+        const response = await app.handle(
             new Request('http://localhost/docs', {
                 method: 'OPTIONS',
                 headers: {
@@ -50,11 +52,8 @@ describe('Elysia Foundation & Plugins', () => {
     });
 
     it('should allow access and extract userId when valid Bearer token is provided', async () => {
-        const secret =
-            process.env.JWT_ACCESS_TOKEN_SECRET || 'access_token_secret';
-        const validToken = jwt.sign({ userId: 'valid-user-id' }, secret, {
-            expiresIn: '15m',
-        });
+        const tokensGenerator = new TokensGeneratorAdapter();
+        const tokens = tokensGenerator.execute('valid-user-id');
 
         const testApp = new Elysia()
             .use(authPlugin)
@@ -65,7 +64,7 @@ describe('Elysia Foundation & Plugins', () => {
         const client = testClient(testApp);
         const response = await client
             .get('/api/test-protected')
-            .set('Authorization', `Bearer ${validToken}`);
+            .set('Authorization', `Bearer ${tokens.accessToken}`);
 
         expect(response.status).toBe(200);
         expect(response.body).toEqual({ userId: 'valid-user-id' });

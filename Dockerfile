@@ -15,7 +15,6 @@ COPY --from=install /temp/prod/node_modules node_modules
 COPY package.json .
 COPY index.ts .
 COPY src src
-COPY docs/swagger.json docs/swagger.json
 COPY drizzle.config.ts .
 
 USER bun
