@@ -51,7 +51,8 @@ export class TestRequestBuilder {
         onrejected?:
             ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
     ): Promise<TResult1 | TResult2> {
-        const url = `http://localhost${this.path}`;
+        const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:8080';
+        const url = `${baseUrl}${this.path}`;
         const reqHeaders = new Headers(this.headers);
         let body: BodyInit | undefined = undefined;
 
