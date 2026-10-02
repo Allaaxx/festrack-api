@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { auth } from './auth.js';

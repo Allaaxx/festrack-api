@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import { UnauthorizedError } from '../../errors/index.js';
 import { RefreshTokenUseCase } from './refresh-token.js';
 import {
