@@ -19,7 +19,17 @@ beforeAll(async () => {
             });
         }
     } catch {
-        // Allow tests to continue if check cannot be performed
+        try {
+            execSync('docker compose up -d --wait postgres-test', {
+                stdio: 'ignore',
+            });
+            execSync('bunx drizzle-kit push --force', {
+                env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+                stdio: 'ignore',
+            });
+        } catch {
+            // Allow tests to continue
+        }
     }
 });
 
