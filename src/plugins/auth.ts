@@ -1,33 +1,24 @@
 import { Elysia } from 'elysia';
-import { jwt } from '@elysiajs/jwt';
+import { auth } from '../auth.js';
 
 export const authPlugin = new Elysia({ name: 'auth-plugin' })
-    .use(
-        jwt({
-            name: 'jwtAccess',
-            secret:
-                process.env.JWT_ACCESS_TOKEN_SECRET || 'access_token_secret',
-        }),
-    )
-    .derive({ as: 'scoped' }, async ({ headers, jwtAccess }) => {
-        const authHeader = headers['authorization'];
-        if (!authHeader?.startsWith('Bearer ')) {
-            return { userId: null };
-        }
-        const token = authHeader.slice(7);
+    .derive({ as: 'scoped' }, async ({ request }) => {
         try {
-            const payload = await jwtAccess.verify(token);
-            if (
-                !payload ||
-                typeof payload !== 'object' ||
-                !('userId' in payload) ||
-                !payload.userId
-            ) {
-                return { userId: null };
+            const sessionData = await auth.api.getSession({
+                headers: request.headers,
+            });
+
+            if (!sessionData?.user?.id) {
+                return { userId: null, session: null, user: null };
             }
-            return { userId: payload.userId as string };
+
+            return {
+                userId: sessionData.user.id,
+                session: sessionData.session,
+                user: sessionData.user,
+            };
         } catch {
-            return { userId: null };
+            return { userId: null, session: null, user: null };
         }
     })
     .macro({

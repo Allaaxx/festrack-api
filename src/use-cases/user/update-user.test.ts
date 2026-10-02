@@ -1,3 +1,4 @@
+import { describe, it, expect, jest } from 'bun:test';
 import { faker } from '@faker-js/faker';
 import { EmailAlreadyInUseError } from '../../errors/user.js';
 import { user } from '../../tests/index.js';
@@ -15,28 +16,17 @@ describe('Update User Use Case', () => {
         }
     }
 
-    class PasswordHasherAdapterStub {
-        async execute(): Promise<string> {
-            return 'hashed_password';
-        }
-    }
-
     const makeSut = () => {
         const userRepository = new UserRepositoryStub();
-        const passwordHasherAdapter = new PasswordHasherAdapterStub();
-        const updateUserUseCase = new UpdateUserUseCase(
-            userRepository,
-            passwordHasherAdapter,
-        );
+        const updateUserUseCase = new UpdateUserUseCase(userRepository);
 
         return {
             updateUserUseCase,
             userRepository,
-            passwordHasherAdapter,
         };
     };
 
-    it('should update user successfully (without email and password)', async () => {
+    it('should update user successfully (without email)', async () => {
         const { updateUserUseCase } = makeSut();
 
         const result = await updateUserUseCase.execute(faker.string.uuid(), {
@@ -57,22 +47,6 @@ describe('Update User Use Case', () => {
         });
 
         expect(findByEmailSpy).toHaveBeenCalledWith(email);
-        expect(result).toBe(user);
-    });
-
-    it('should update user successfully (with password)', async () => {
-        const { updateUserUseCase, passwordHasherAdapter } = makeSut();
-        const passwordHasherAdapterSpy = jest.spyOn(
-            passwordHasherAdapter,
-            'execute',
-        );
-
-        const password = faker.internet.password();
-        const result = await updateUserUseCase.execute(faker.string.uuid(), {
-            password,
-        });
-
-        expect(passwordHasherAdapterSpy).toHaveBeenCalledWith(password);
         expect(result).toBe(user);
     });
 
@@ -100,15 +74,11 @@ describe('Update User Use Case', () => {
             first_name: user.first_name,
             last_name: user.last_name,
             email: user.email,
-            password: user.password,
         };
 
         await updateUserUseCase.execute(user.id, updateUserParams);
 
-        expect(updateSpy).toHaveBeenCalledWith(user.id, {
-            ...updateUserParams,
-            password: 'hashed_password',
-        });
+        expect(updateSpy).toHaveBeenCalledWith(user.id, updateUserParams);
     });
 
     it('should throw if findByEmail throws', async () => {
@@ -124,19 +94,6 @@ describe('Update User Use Case', () => {
         await expect(promise).rejects.toThrow();
     });
 
-    it('should throw if PasswordHasherAdapter throws', async () => {
-        const { updateUserUseCase, passwordHasherAdapter } = makeSut();
-        jest.spyOn(passwordHasherAdapter, 'execute').mockRejectedValue(
-            new Error(),
-        );
-
-        const promise = updateUserUseCase.execute(faker.string.uuid(), {
-            password: faker.internet.password(),
-        });
-
-        await expect(promise).rejects.toThrow();
-    });
-
     it('should throw if userRepository.update throws', async () => {
         const { updateUserUseCase, userRepository } = makeSut();
         jest.spyOn(userRepository, 'update').mockRejectedValue(new Error());
@@ -145,7 +102,6 @@ describe('Update User Use Case', () => {
             first_name: user.first_name,
             last_name: user.last_name,
             email: user.email,
-            password: user.password,
         });
 
         await expect(promise).rejects.toThrow();

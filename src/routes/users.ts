@@ -7,7 +7,6 @@ import {
     GetUserBalanceUseCase,
 } from '../use-cases/index.js';
 import { PostgresUserRepository } from '../repositories/postgres/index.js';
-import { PasswordHasherAdapter } from '../adapters/index.js';
 import { EmailAlreadyInUseError, UserNotFoundError } from '../errors/user.js';
 
 const isIsoDateOnly = (dateStr: string): boolean => {
@@ -54,11 +53,7 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
         '/me',
         async ({ userId, body, set }) => {
             const userRepository = new PostgresUserRepository();
-            const passwordHasher = new PasswordHasherAdapter();
-            const useCase = new UpdateUserUseCase(
-                userRepository,
-                passwordHasher,
-            );
+            const useCase = new UpdateUserUseCase(userRepository);
 
             try {
                 const updatedUser = await useCase.execute(userId!, body);
