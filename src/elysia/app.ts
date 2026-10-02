@@ -5,6 +5,7 @@ import { authPlugin } from './plugins/auth.js';
 import { authRoutes } from './routes/auth.js';
 import { usersRoutes } from './routes/users.js';
 import { eventsRoutes } from './routes/events.js';
+import { transactionsRoutes } from './routes/transactions.js';
 
 const allowedOrigins = [
     'http://localhost:5173',
@@ -80,4 +81,5 @@ export const elysiaApp = new Elysia({ normalize: false })
     .use(authPlugin)
     .use(authRoutes)
     .use(usersRoutes)
-    .use(eventsRoutes);
+    .use(eventsRoutes)
+    .use(transactionsRoutes);

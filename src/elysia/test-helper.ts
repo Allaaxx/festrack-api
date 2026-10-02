@@ -19,6 +19,22 @@ export class TestRequestBuilder {
         private path: string,
     ) {}
 
+    query(params: Record<string, string | number | undefined>): this {
+        const searchParams = new URLSearchParams();
+        for (const [key, value] of Object.entries(params)) {
+            if (value !== undefined) {
+                searchParams.set(key, String(value));
+            }
+        }
+        const queryString = searchParams.toString();
+        if (queryString) {
+            this.path = this.path.includes('?')
+                ? `${this.path}&${queryString}`
+                : `${this.path}?${queryString}`;
+        }
+        return this;
+    }
+
     set(header: string, value: string): this {
         this.headers[header.toLowerCase()] = value;
         return this;
