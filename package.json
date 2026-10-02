@@ -2,7 +2,7 @@
     "name": "finance-app-api",
     "version": "1.0.0",
     "description": "",
-    "main": "dist/index.js",
+    "main": "index.ts",
     "type": "module",
     "scripts": {
         "test": "dotenv -e .env.test -- node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests --silent --runInBand --detectOpenHandles --forceExit",
@@ -12,8 +12,8 @@
         "migrations": "drizzle-kit migrate",
         "db:push": "drizzle-kit push --force",
         "db:generate": "drizzle-kit generate",
-        "start:dev": "tsx watch index.ts",
-        "start": "node dist/index.js",
+        "start:dev": "bun --watch index.ts",
+        "start": "bun index.ts",
         "build": "tsc -p tsconfig.build.json",
         "typecheck": "tsc --noEmit",
         "eslint:check": "eslint src/ index.ts",
@@ -47,7 +47,6 @@
         "lint-staged": "^17.0.8",
         "prettier": "^3.9.5",
         "supertest": "^7.2.2",
-        "tsx": "^4.23.15",
         "typescript": "^6.0.3",
         "typescript-eslint": "^8.71.0"
     },
