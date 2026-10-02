@@ -1,6 +1,13 @@
 import { DecimalLike } from './balance.js';
 
-export type TransactionType = 'EXPENSE' | 'EARNING' | 'INVESTMENT';
+export const TransactionType = {
+    EXPENSE: 'EXPENSE',
+    EARNING: 'EARNING',
+    INVESTMENT: 'INVESTMENT',
+} as const;
+
+export type TransactionType =
+    (typeof TransactionType)[keyof typeof TransactionType];
 
 export interface Transaction {
     id: string;
