@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { app } from '../app.js';
 import { event, transaction, user } from '../tests/index.js';
-import { TransactionType } from '@prisma/client';
+import { TransactionType } from '../domain/index.js';
 
 describe('Transaction Routes E2E Tests', () => {
     const from = '2020-01-01';
