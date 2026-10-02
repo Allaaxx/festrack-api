@@ -2,6 +2,7 @@ import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { swagger } from '@elysiajs/swagger';
 import { authPlugin } from './plugins/auth.js';
+import { authRoutes } from './routes/auth.js';
 
 const allowedOrigins = [
     'http://localhost:5173',
@@ -10,6 +11,12 @@ const allowedOrigins = [
 ].filter((origin): origin is string => Boolean(origin));
 
 export const elysiaApp = new Elysia()
+    .onError(({ code, error, set }) => {
+        if (code === 'VALIDATION') {
+            set.status = 400;
+            return { message: error.message };
+        }
+    })
     .use(
         cors({
             origin: allowedOrigins,
@@ -45,4 +52,5 @@ export const elysiaApp = new Elysia()
             },
         }),
     )
-    .use(authPlugin);
+    .use(authPlugin)
+    .use(authRoutes);
