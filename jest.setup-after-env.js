@@ -1,13 +1,14 @@
 import { jest } from '@jest/globals';
-import { prisma } from './prisma/prisma.js';
+import { sqlClient } from './src/db/postgres/index.js';
 
 globalThis.jest = jest;
 
 beforeEach(async () => {
-    await prisma.transaction.deleteMany({});
-    await prisma.user.deleteMany({});
+    await sqlClient.unsafe(
+        'TRUNCATE TABLE "Transaction", "Event", "User" CASCADE;',
+    );
 });
 
-afterEach(async () => {
-    await prisma.$disconnect();
+afterAll(async () => {
+    await sqlClient.end();
 });

@@ -1,6 +1,6 @@
-# 0002. Migrate from Prisma to Drizzle ORM
+# 0002. Migrate ORM from Prisma to Drizzle ORM
 
-Date: 2026-10-01
+Date: 2026-10-02
 
 ## Status
 
@@ -8,49 +8,52 @@ Accepted
 
 ## Context
 
-The application initially used Prisma ORM with `@prisma/adapter-pg` and `@prisma/client` for database access and schema migrations. While Prisma provided rapid early prototyping and automated migrations, it introduced several constraints:
+The application previously relied on Prisma (`@prisma/client`, `@prisma/adapter-pg`, and `prisma`) as its Object-Relational Mapping (ORM) layer. While Prisma offered convenient schema management and generated client APIs, several architectural and operational challenges motivated a migration to Drizzle ORM:
 
-1. **Heavy Runtime Overhead and Engine Dependencies**: Prisma requires generating a binary or wasm runtime engine (`prisma generate`) during builds and postinstall scripts, increasing container startup time and package footprint.
-2. **Abstract Query Modeling**: Prisma abstracts SQL queries behind a proprietary query engine, complicating fine-grained SQL optimizations, partial projections, and complex aggregation queries (such as net user balance calculations).
-3. **Implicit Type Leaks**: Domain entities and route test suites occasionally imported types directly from `@prisma/client` (e.g. `TransactionType`, `Prisma.Decimal`), compromising architectural boundaries between domain definitions and persistence mechanisms.
+1. **Engine Overhead and Binary Dependencies**: Prisma requires a dedicated query engine and code generation step (`prisma generate`) on postinstall. In containerized environments and serverless architectures, external engine binaries introduce additional startup latency and maintenance overhead.
+2. **Framework Decoupling and Domain Boundary**: Clean architecture demands that domain layer types and repository contracts remain independent of ORM-specific types. Prisma types like `Prisma.Decimal` and `PrismaClientKnownRequestError` previously leaked across repositories and tests.
+3. **Transparent SQL Execution & Type Safety**: Drizzle ORM provides a lightweight, pure TypeScript SQL query builder that maps directly to PostgreSQL schemas without intermediate DSLs or proprietary runtime engines. Using `postgres.js`, database connection pooling is lightweight, efficient, and native to JavaScript runtimes.
 
 ## Decision
 
-We replace Prisma with Drizzle ORM paired with `postgres.js`:
+We migrate the persistence and data access layer from Prisma to Drizzle ORM (`drizzle-orm` and `postgres.js`):
 
-### 1. Underlying Driver & Database Client
+### 1. Underlying Database Client & Connection Pooling
 
-- Use `postgres` (`postgres.js`) as the underlying database driver.
-- Instantiate the Drizzle client in `src/db/index.ts` using connection pooling configured via `DATABASE_URL`.
-- Cleanly separate the database connection lifecycle from repository implementations.
+- The application uses `postgres.js` for pooled PostgreSQL connections configured via standard environment variables (`DATABASE_URL`).
+- The database connection lifecycle is decoupled from repository implementations, allowing repositories to accept an optional database client instance for dependency injection and testing.
 
-### 2. Modular Schema Organization
+### 2. Modular Database Schemas
 
-- Define database tables, relations, and enums modularly in `src/db/schema/` (`users.ts`, `transactions.ts`, `events.ts`, `relations.ts`), re-exported from `src/db/schema/index.ts`.
-- Enforce domain naming consistent with `GLOSSARY.md` (`User`, `Transaction`, `Event`, `Balance`).
+Database schemas are defined modularly using Drizzle PostgreSQL schema definitions (`src/db/postgres/schemas/`):
 
-### 3. Migration and Test Synchronization
+- `User`: Primary key UUID, `first_name` (varchar 50), `last_name` (varchar 50), `email` (varchar 100, unique index `User_email_key`), `password` (varchar 100).
+- `Event`: Primary key UUID, `name` (varchar 50), optional `description` (varchar 200), `start_date` and `end_date` (timestamp 3), `user_id` foreign key referencing `User` with cascade delete.
+- `Transaction`: Primary key UUID, `user_id` foreign key referencing `User` with cascade delete, `name` (varchar 50), `date` (date), `amount` (numeric 10, 2), `type` (enum `TransactionType`: `EXPENSE`, `EARNING`, `INVESTMENT`), nullable `event_id` foreign key referencing `Event` with set null delete.
 
-- Use `drizzle-kit` for schema management.
-- For development and production, generate immutable SQL migrations in `drizzle/` via `drizzle-kit generate`.
-- For automated test suites (`jest.global-setup.js`), synchronize the test schema using `drizzle-kit push` against the test container (`postgres-test`).
-- Replace Prisma cleanup hooks in `jest.setup-after-env.js` with Drizzle-based table truncation.
+### 3. Repository Layer Implementation
 
-### 4. Query Paradigms and Decimal Precision
+- Concrete repositories (`PostgresUserRepository`, `PostgresEventRepository`, `PostgresTransactionRepository`) implement canonical domain interfaces (`UserRepository`, `EventRepository`, `TransactionRepository`) exclusively using Drizzle ORM query builders and SQL expressions.
+- Domain entities and repository contracts remain completely free of ORM-specific types.
+- Balance aggregation queries leverage Drizzle SQL expressions (`sql`, `sum`) grouping and filtering by transaction type within specified date windows, using exact integer arithmetic (cents) to avoid floating-point inaccuracies. Zero division when no transactions match returns zero percentages.
 
-- Repositories (`PostgresUserRepository`, `PostgresTransactionRepository`, `PostgresEventRepository`) implement domain repository interfaces without leaking Drizzle types.
-- Relational queries (`db.query`) are used for structured lookups, while Drizzle's query builder and SQL aggregates (`sql`, `sum`) are used for balance aggregations.
-- Monetary amounts in PostgreSQL `DECIMAL(10, 2)` map to string representations in Drizzle to prevent floating-point inaccuracies, satisfying `DecimalLike` in domain entities.
+### 4. Migration & Testing Lifecycle
+
+- Schema migrations are managed via Drizzle Kit, targeting PostgreSQL and outputting reviewable SQL migration files (`src/db/postgres/migrations/`).
+- Automated test global setup synchronizes the test database schema using `drizzle-kit push --force`.
+- Test lifecycle hooks reset database state between test runs using table truncation (`TRUNCATE TABLE "Transaction", "Event", "User" CASCADE;`) and close client connections in `afterAll`.
+- All Prisma dependencies, generators, and configuration files are decommissioned.
 
 ## Consequences
 
 ### Positive
 
-- **Lightweight & High Performance**: Zero binary engine dependencies, faster cold starts, and minimal runtime footprint.
-- **SQL Transparency**: Queries are written as standard SQL expressions and relational builder patterns with full type inference.
-- **Strict Domain Seams**: Eliminates any direct dependency on `@prisma/client` in domain entities, repositories, and test fixtures.
+- **Pure JavaScript Driver**: Eliminates engine binaries and runtime generation steps, speeding up container builds and CI workflows.
+- **SQL Predictability**: Drizzle queries map 1:1 to SQL without magical abstractions or hidden round-trips.
+- **Strict Clean Architecture**: Zero leakage of ORM types into domain layers or public controller contracts.
+- **Auditable Migrations**: Declarative TypeScript schemas generate transparent, reviewable SQL migrations.
 
 ### Negative / Trade-offs
 
-- Requires manual table schema definitions in TypeScript rather than a single DSL file.
-- Aggregation results require explicit type casting and mapping to domain return types.
+- Manual mapping between database column types and domain entities is required (e.g. numeric amounts to domain string representations).
+- Query syntax changes from Prisma's object-based query syntax to SQL-like Drizzle query builders.

@@ -7,7 +7,6 @@ node_modules
 
 # Postgres volume
 .postgres-data
-/src/generated/prisma
 
 # Coverage
 coverage

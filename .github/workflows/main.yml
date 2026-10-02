@@ -58,8 +58,8 @@ jobs:
               with:
                   envkey_DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-            - name: Prisma migrate
-              run: npx prisma migrate deploy
+            - name: Drizzle migrate
+              run: npx drizzle-kit migrate
 
     deploy:
         runs-on: ubuntu-latest
