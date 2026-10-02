@@ -1,7 +1,13 @@
 import dayjs from 'dayjs';
 import { faker } from '@faker-js/faker';
-import { TransactionType } from '@prisma/client';
-import { prisma } from '../../../../prisma/prisma.js';
+import { eq } from 'drizzle-orm';
+import { db } from '../../../db/postgres/index.js';
+import {
+    usersTable,
+    eventsTable,
+    transactionsTable,
+} from '../../../db/postgres/schemas/index.js';
+import { TransactionType } from '../../../domain/index.js';
 import { transaction, user } from '../../../tests/index.js';
 import { PostgresTransactionRepository } from './transaction-repository.js';
 import { TransactionNotFoundError } from '../../../errors/transaction.js';
@@ -15,7 +21,7 @@ describe('Postgres Transaction Repository', () => {
 
     describe('create', () => {
         it('should create transaction on db', async () => {
-            await prisma.user.create({ data: user });
+            await db.insert(usersTable).values(user);
 
             const result = await sut.create({
                 ...transaction,
@@ -40,13 +46,12 @@ describe('Postgres Transaction Repository', () => {
 
     describe('findById', () => {
         it('should return transaction by id', async () => {
-            await prisma.user.create({ data: user });
-            await prisma.transaction.create({
-                data: {
-                    ...transaction,
-                    user_id: user.id,
-                    amount: transaction.amount.toString(),
-                },
+            await db.insert(usersTable).values(user);
+            await db.insert(transactionsTable).values({
+                ...transaction,
+                user_id: user.id,
+                date: new Date(transaction.date),
+                amount: transaction.amount.toString(),
             });
 
             const result = await sut.findById(transaction.id);
@@ -68,14 +73,12 @@ describe('Postgres Transaction Repository', () => {
 
         it('should return transactions of the provided user', async () => {
             const date = '2024-01-02';
-            await prisma.user.create({ data: user });
-            await prisma.transaction.create({
-                data: {
-                    ...transaction,
-                    date: new Date(date),
-                    user_id: user.id,
-                    amount: transaction.amount.toString(),
-                },
+            await db.insert(usersTable).values(user);
+            await db.insert(transactionsTable).values({
+                ...transaction,
+                date: new Date(date),
+                user_id: user.id,
+                amount: transaction.amount.toString(),
             });
 
             const result = await sut.findByUserId(user.id, from, to);
@@ -93,20 +96,19 @@ describe('Postgres Transaction Repository', () => {
 
     describe('update', () => {
         it('should update a transaction on db', async () => {
-            await prisma.user.create({ data: user });
-            await prisma.transaction.create({
-                data: {
-                    ...transaction,
-                    user_id: user.id,
-                    amount: transaction.amount.toString(),
-                },
+            await db.insert(usersTable).values(user);
+            await db.insert(transactionsTable).values({
+                ...transaction,
+                user_id: user.id,
+                date: new Date(transaction.date),
+                amount: transaction.amount.toString(),
             });
 
             const params = {
                 user_id: user.id,
                 name: faker.commerce.productName(),
                 date: faker.date.anytime().toISOString(),
-                type: TransactionType.EXPENSE,
+                type: 'EXPENSE' as TransactionType,
                 amount: Number(faker.finance.amount()),
             };
 
@@ -127,29 +129,55 @@ describe('Postgres Transaction Repository', () => {
 
     describe('delete', () => {
         it('should delete a transaction on db', async () => {
-            await prisma.user.create({ data: user });
-            await prisma.transaction.create({
-                data: {
-                    ...transaction,
-                    user_id: user.id,
-                    amount: transaction.amount.toString(),
-                },
+            await db.insert(usersTable).values(user);
+            await db.insert(transactionsTable).values({
+                ...transaction,
+                user_id: user.id,
+                date: new Date(transaction.date),
+                amount: transaction.amount.toString(),
             });
 
             const result = await sut.delete(transaction.id);
 
             expect(result.id).toBe(transaction.id);
 
-            const searchOnDb = await prisma.transaction.findUnique({
-                where: { id: transaction.id },
-            });
-            expect(searchOnDb).toBeNull();
+            const [searchOnDb] = await db
+                .select()
+                .from(transactionsTable)
+                .where(eq(transactionsTable.id, transaction.id));
+            expect(searchOnDb).toBeUndefined();
         });
 
         it('should throw TransactionNotFoundError if transaction does not exist', async () => {
             await expect(sut.delete(transaction.id)).rejects.toThrow(
                 new TransactionNotFoundError(transaction.id),
             );
+        });
+
+        it('should nullify event_id when associated event is deleted', async () => {
+            const eventId = faker.string.uuid();
+            await db.insert(usersTable).values(user);
+            await db.insert(eventsTable).values({
+                id: eventId,
+                name: 'Vacation',
+                start_date: new Date('2026-06-01'),
+                end_date: new Date('2026-06-15'),
+                user_id: user.id,
+            });
+
+            const created = await sut.create({
+                ...transaction,
+                user_id: user.id,
+                event_id: eventId,
+            });
+            expect(created.event_id).toBe(eventId);
+
+            await db.delete(eventsTable).where(eq(eventsTable.id, eventId));
+
+            const found = await sut.findById(created.id);
+            expect(found).not.toBeNull();
+            expect(found?.id).toBe(created.id);
+            expect(found?.event_id).toBeNull();
         });
     });
 });

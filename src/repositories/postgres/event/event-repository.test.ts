@@ -1,7 +1,10 @@
 import dayjs from 'dayjs';
-import { prisma } from '../../../../prisma/prisma.js';
+import { eq } from 'drizzle-orm';
+import { db } from '../../../db/postgres/index.js';
+import { eventsTable, usersTable } from '../../../db/postgres/schemas/index.js';
 import { event, user } from '../../../tests/index.js';
 import { PostgresEventRepository } from './event-repository.js';
+import { EventNotFoundError } from '../../../errors/event.js';
 
 describe('Postgres Event Repository', () => {
     let sut: PostgresEventRepository;
@@ -12,7 +15,7 @@ describe('Postgres Event Repository', () => {
 
     describe('create', () => {
         it('should create an event on db with correct dates', async () => {
-            await prisma.user.create({ data: user });
+            await db.insert(usersTable).values(user);
 
             const result = await sut.create({ ...event, user_id: user.id });
 
@@ -28,10 +31,10 @@ describe('Postgres Event Repository', () => {
             );
         });
 
-        it('should throw if Prisma throws', async () => {
-            jest.spyOn(prisma.event, 'create').mockRejectedValueOnce(
-                new Error(),
-            );
+        it('should throw if database throws', async () => {
+            jest.spyOn(sut['database'], 'insert').mockImplementationOnce(() => {
+                throw new Error();
+            });
 
             await expect(sut.create(event)).rejects.toThrow();
         });
@@ -39,14 +42,12 @@ describe('Postgres Event Repository', () => {
 
     describe('findById', () => {
         it('should return event by id', async () => {
-            await prisma.user.create({ data: user });
-            await prisma.event.create({
-                data: {
-                    ...event,
-                    user_id: user.id,
-                    start_date: new Date(event.start_date),
-                    end_date: new Date(event.end_date),
-                },
+            await db.insert(usersTable).values(user);
+            await db.insert(eventsTable).values({
+                ...event,
+                user_id: user.id,
+                start_date: new Date(event.start_date),
+                end_date: new Date(event.end_date),
             });
 
             const result = await sut.findById(event.id);
@@ -66,14 +67,12 @@ describe('Postgres Event Repository', () => {
 
     describe('findByUserId', () => {
         it('should return all events for a user', async () => {
-            await prisma.user.create({ data: user });
-            await prisma.event.create({
-                data: {
-                    ...event,
-                    user_id: user.id,
-                    start_date: new Date(event.start_date),
-                    end_date: new Date(event.end_date),
-                },
+            await db.insert(usersTable).values(user);
+            await db.insert(eventsTable).values({
+                ...event,
+                user_id: user.id,
+                start_date: new Date(event.start_date),
+                end_date: new Date(event.end_date),
             });
 
             const result = await sut.findByUserId(user.id);
@@ -92,14 +91,12 @@ describe('Postgres Event Repository', () => {
 
     describe('update', () => {
         it('should update event fields and dates on db', async () => {
-            await prisma.user.create({ data: user });
-            await prisma.event.create({
-                data: {
-                    ...event,
-                    user_id: user.id,
-                    start_date: new Date(event.start_date),
-                    end_date: new Date(event.end_date),
-                },
+            await db.insert(usersTable).values(user);
+            await db.insert(eventsTable).values({
+                ...event,
+                user_id: user.id,
+                start_date: new Date(event.start_date),
+                end_date: new Date(event.end_date),
             });
 
             const updatedData = {
@@ -118,28 +115,39 @@ describe('Postgres Event Repository', () => {
                 dayjs(updatedData.end_date).toISOString(),
             );
         });
+
+        it('should throw EventNotFoundError if event does not exist', async () => {
+            await expect(
+                sut.update(event.id, { name: 'Non Existent' }),
+            ).rejects.toThrow(new EventNotFoundError(event.id));
+        });
     });
 
     describe('delete', () => {
         it('should delete event from db and return deleted event', async () => {
-            await prisma.user.create({ data: user });
-            await prisma.event.create({
-                data: {
-                    ...event,
-                    user_id: user.id,
-                    start_date: new Date(event.start_date),
-                    end_date: new Date(event.end_date),
-                },
+            await db.insert(usersTable).values(user);
+            await db.insert(eventsTable).values({
+                ...event,
+                user_id: user.id,
+                start_date: new Date(event.start_date),
+                end_date: new Date(event.end_date),
             });
 
             const result = await sut.delete(event.id);
 
             expect(result.id).toBe(event.id);
 
-            const searchOnDb = await prisma.event.findUnique({
-                where: { id: event.id },
-            });
-            expect(searchOnDb).toBeNull();
+            const [searchOnDb] = await db
+                .select()
+                .from(eventsTable)
+                .where(eq(eventsTable.id, event.id));
+            expect(searchOnDb).toBeUndefined();
+        });
+
+        it('should throw EventNotFoundError if event does not exist', async () => {
+            await expect(sut.delete(event.id)).rejects.toThrow(
+                new EventNotFoundError(event.id),
+            );
         });
     });
 });

@@ -1,0 +1,218 @@
+{
+    "id": "c9320ef2-aaa3-40c5-84bf-a0177b50660e",
+    "prevId": "00000000-0000-0000-0000-000000000000",
+    "version": "7",
+    "dialect": "postgresql",
+    "tables": {
+        "public.User": {
+            "name": "User",
+            "schema": "",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "text",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "first_name": {
+                    "name": "first_name",
+                    "type": "varchar(50)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "last_name": {
+                    "name": "last_name",
+                    "type": "varchar(50)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "email": {
+                    "name": "email",
+                    "type": "varchar(100)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "password": {
+                    "name": "password",
+                    "type": "varchar(100)",
+                    "primaryKey": false,
+                    "notNull": true
+                }
+            },
+            "indexes": {
+                "User_email_key": {
+                    "name": "User_email_key",
+                    "columns": [
+                        {
+                            "expression": "email",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": true,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                }
+            },
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "public.Event": {
+            "name": "Event",
+            "schema": "",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "text",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "name": {
+                    "name": "name",
+                    "type": "varchar(50)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "description": {
+                    "name": "description",
+                    "type": "varchar(200)",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "start_date": {
+                    "name": "start_date",
+                    "type": "timestamp (3)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "end_date": {
+                    "name": "end_date",
+                    "type": "timestamp (3)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "user_id": {
+                    "name": "user_id",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                }
+            },
+            "indexes": {},
+            "foreignKeys": {
+                "Event_user_id_User_id_fk": {
+                    "name": "Event_user_id_User_id_fk",
+                    "tableFrom": "Event",
+                    "tableTo": "User",
+                    "columnsFrom": ["user_id"],
+                    "columnsTo": ["id"],
+                    "onDelete": "cascade",
+                    "onUpdate": "cascade"
+                }
+            },
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "public.Transaction": {
+            "name": "Transaction",
+            "schema": "",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "text",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "user_id": {
+                    "name": "user_id",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "name": {
+                    "name": "name",
+                    "type": "varchar(50)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "date": {
+                    "name": "date",
+                    "type": "date",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "amount": {
+                    "name": "amount",
+                    "type": "numeric(10, 2)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "type": {
+                    "name": "type",
+                    "type": "TransactionType",
+                    "typeSchema": "public",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "event_id": {
+                    "name": "event_id",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                }
+            },
+            "indexes": {},
+            "foreignKeys": {
+                "Transaction_user_id_User_id_fk": {
+                    "name": "Transaction_user_id_User_id_fk",
+                    "tableFrom": "Transaction",
+                    "tableTo": "User",
+                    "columnsFrom": ["user_id"],
+                    "columnsTo": ["id"],
+                    "onDelete": "cascade",
+                    "onUpdate": "cascade"
+                },
+                "Transaction_event_id_Event_id_fk": {
+                    "name": "Transaction_event_id_Event_id_fk",
+                    "tableFrom": "Transaction",
+                    "tableTo": "Event",
+                    "columnsFrom": ["event_id"],
+                    "columnsTo": ["id"],
+                    "onDelete": "set null",
+                    "onUpdate": "cascade"
+                }
+            },
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        }
+    },
+    "enums": {
+        "public.TransactionType": {
+            "name": "TransactionType",
+            "schema": "public",
+            "values": ["EXPENSE", "EARNING", "INVESTMENT"]
+        }
+    },
+    "schemas": {},
+    "sequences": {},
+    "roles": {},
+    "policies": {},
+    "views": {},
+    "_meta": {
+        "columns": {},
+        "schemas": {},
+        "tables": {}
+    }
+}

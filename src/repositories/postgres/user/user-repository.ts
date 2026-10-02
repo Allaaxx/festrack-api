@@ -1,6 +1,9 @@
-import { Prisma, TransactionType } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
-import { prisma } from '../../../../prisma/prisma.js';
+import { and, eq, sql } from 'drizzle-orm';
+import { db, Database } from '../../../db/postgres/index.js';
+import {
+    usersTable,
+    transactionsTable,
+} from '../../../db/postgres/schemas/index.js';
 import { UserNotFoundError } from '../../../errors/user.js';
 import {
     User,
@@ -12,69 +15,88 @@ import {
 
 export type { UserRepository };
 
+function toCents(val: string | number | null | undefined): bigint {
+    if (!val) return 0n;
+    const str = String(val).trim();
+    if (str === '' || str === '0') return 0n;
+    const isNeg = str.startsWith('-');
+    const clean = isNeg ? str.slice(1) : str;
+    const [intPart = '0', fracPart = ''] = clean.split('.');
+    const paddedFrac = (fracPart + '00').slice(0, 2);
+    const cents = BigInt(intPart || '0') * 100n + BigInt(paddedFrac);
+    return isNeg ? -cents : cents;
+}
+
+function fromCents(cents: bigint): string {
+    const isNeg = cents < 0n;
+    const abs = isNeg ? -cents : cents;
+    const intPart = (abs / 100n).toString();
+    const fracPart = (abs % 100n).toString().padStart(2, '0');
+    const trimmedFrac = fracPart.replace(/0+$/, '');
+    const sign = isNeg ? '-' : '';
+    return trimmedFrac
+        ? `${sign}${intPart}.${trimmedFrac}`
+        : `${sign}${intPart}`;
+}
+
 export class PostgresUserRepository implements UserRepository {
+    constructor(private readonly database: Database = db) {}
+
     async create(createUserParams: CreateUserParams): Promise<User> {
-        return await prisma.user.create({
-            data: {
-                ...createUserParams,
-            },
-        });
+        const [createdUser] = await this.database
+            .insert(usersTable)
+            .values(createUserParams)
+            .returning();
+
+        return createdUser;
     }
 
     async findById(userId: string): Promise<User | null> {
-        return await prisma.user.findUnique({
-            where: {
-                id: userId,
-            },
-        });
+        const [user] = await this.database
+            .select()
+            .from(usersTable)
+            .where(eq(usersTable.id, userId));
+
+        return user || null;
     }
 
     async findByEmail(email: string): Promise<User | null> {
-        return await prisma.user.findUnique({
-            where: {
-                email,
-            },
-        });
+        const [user] = await this.database
+            .select()
+            .from(usersTable)
+            .where(eq(usersTable.email, email));
+
+        return user || null;
     }
 
     async update(
         userId: string,
         updateUserParams: UpdateUserParams,
     ): Promise<User> {
-        try {
-            return await prisma.user.update({
-                where: {
-                    id: userId,
-                },
-                data: updateUserParams,
-            });
-        } catch (error) {
-            if (error instanceof PrismaClientKnownRequestError) {
-                if (error.code === 'P2025') {
-                    throw new UserNotFoundError(userId);
-                }
-            }
+        const [updatedUser] = await this.database
+            .update(usersTable)
+            .set(updateUserParams)
+            .where(eq(usersTable.id, userId))
+            .returning();
 
-            throw error;
+        if (!updatedUser) {
+            throw new UserNotFoundError(userId);
         }
+
+        return updatedUser;
     }
 
     async delete(userId: string): Promise<User> {
-        try {
-            return await prisma.user.delete({
-                where: {
-                    id: userId,
-                },
-            });
-        } catch (error) {
-            if (error instanceof PrismaClientKnownRequestError) {
-                if (error.code === 'P2025') {
-                    throw new UserNotFoundError(userId);
-                }
-            }
+        const [deletedUser] = await this.database
+            .delete(usersTable)
+            .where(eq(usersTable.id, userId))
+            .returning();
 
-            throw error;
+        if (!deletedUser) {
+            throw new UserNotFoundError(userId);
         }
+
+        return deletedUser;
     }
 
     async getBalance(
@@ -82,82 +104,50 @@ export class PostgresUserRepository implements UserRepository {
         from: string,
         to: string,
     ): Promise<UserBalance> {
-        const dateFilter = {
-            gte: new Date(from),
-            lte: new Date(to),
-        };
+        const fromDate = new Date(from).toISOString().slice(0, 10);
+        const toDate = new Date(to).toISOString().slice(0, 10);
 
-        const {
-            _sum: { amount: totalExpense },
-        } = await prisma.transaction.aggregate({
-            where: {
-                user_id: userId,
-                type: TransactionType.EXPENSE,
-                date: dateFilter,
-            },
-            _sum: {
-                amount: true,
-            },
-        });
+        const [aggregation] = await this.database
+            .select({
+                totalEarnings: sql<string>`coalesce(sum(case when ${transactionsTable.type} = 'EARNING' then ${transactionsTable.amount} else 0 end), 0)::text`,
+                totalExpenses: sql<string>`coalesce(sum(case when ${transactionsTable.type} = 'EXPENSE' then ${transactionsTable.amount} else 0 end), 0)::text`,
+                totalInvestments: sql<string>`coalesce(sum(case when ${transactionsTable.type} = 'INVESTMENT' then ${transactionsTable.amount} else 0 end), 0)::text`,
+            })
+            .from(transactionsTable)
+            .where(
+                and(
+                    eq(transactionsTable.user_id, userId),
+                    sql`${transactionsTable.date} >= ${fromDate}::date`,
+                    sql`${transactionsTable.date} <= ${toDate}::date`,
+                ),
+            );
 
-        const {
-            _sum: { amount: totalEarnings },
-        } = await prisma.transaction.aggregate({
-            where: {
-                user_id: userId,
-                type: TransactionType.EARNING,
-                date: dateFilter,
-            },
-            _sum: {
-                amount: true,
-            },
-        });
+        const earningsCents = toCents(aggregation?.totalEarnings);
+        const expensesCents = toCents(aggregation?.totalExpenses);
+        const investmentsCents = toCents(aggregation?.totalInvestments);
 
-        const {
-            _sum: { amount: totalInvestments },
-        } = await prisma.transaction.aggregate({
-            where: {
-                user_id: userId,
-                type: TransactionType.INVESTMENT,
-                date: dateFilter,
-            },
-            _sum: {
-                amount: true,
-            },
-        });
+        const totalCents = earningsCents + expensesCents + investmentsCents;
+        const balanceCents = earningsCents - expensesCents - investmentsCents;
 
-        const _totalEarnings = totalEarnings || new Prisma.Decimal(0);
-        const _totalExpense = totalExpense || new Prisma.Decimal(0);
-        const _totalInvestments = totalInvestments || new Prisma.Decimal(0);
+        const earningsPercentage =
+            totalCents === 0n ? 0 : Number((earningsCents * 100n) / totalCents);
 
-        const total = _totalEarnings
-            .plus(_totalExpense)
-            .plus(_totalInvestments);
+        const expensePercentage =
+            totalCents === 0n ? 0 : Number((expensesCents * 100n) / totalCents);
 
-        const balance = _totalEarnings
-            .minus(_totalExpense)
-            .minus(_totalInvestments);
-
-        const earningsPercentage = total.isZero()
-            ? 0
-            : _totalEarnings.times(100).div(total).floor().toNumber();
-
-        const expensePercentage = total.isZero()
-            ? 0
-            : _totalExpense.times(100).div(total).floor().toNumber();
-
-        const investmentsPercentage = total.isZero()
-            ? 0
-            : _totalInvestments.times(100).div(total).floor().toNumber();
+        const investmentsPercentage =
+            totalCents === 0n
+                ? 0
+                : Number((investmentsCents * 100n) / totalCents);
 
         return {
-            earnings: _totalEarnings,
-            expenses: _totalExpense,
-            investments: _totalInvestments,
+            earnings: fromCents(earningsCents),
+            expenses: fromCents(expensesCents),
+            investments: fromCents(investmentsCents),
             earningsPercentage,
             expensePercentage,
             investmentsPercentage,
-            balance,
+            balance: fromCents(balanceCents),
         };
     }
 }

@@ -14,6 +14,6 @@
         "declaration": false,
         "types": ["node", "jest"]
     },
-    "include": ["src/**/*", "index.ts", "prisma/**/*"],
+    "include": ["src/**/*", "index.ts", "drizzle.config.ts"],
     "exclude": ["node_modules", "dist", "coverage"]
 }

@@ -1,5 +1,10 @@
 import { faker } from '@faker-js/faker';
-import { prisma } from '../../../../prisma/prisma.js';
+import { eq } from 'drizzle-orm';
+import { db } from '../../../db/postgres/index.js';
+import {
+    usersTable,
+    transactionsTable,
+} from '../../../db/postgres/schemas/index.js';
 import { user as fakeUser } from '../../../tests/index.js';
 import { PostgresUserRepository } from './user-repository.js';
 import { UserNotFoundError } from '../../../errors/user.js';
@@ -24,7 +29,7 @@ describe('Postgres User Repository', () => {
 
     describe('findById', () => {
         it('should get user by id on db', async () => {
-            await prisma.user.create({ data: fakeUser });
+            await sut.create(fakeUser);
 
             const result = await sut.findById(fakeUser.id);
 
@@ -40,7 +45,7 @@ describe('Postgres User Repository', () => {
 
     describe('findByEmail', () => {
         it('should get user by email on db', async () => {
-            await prisma.user.create({ data: fakeUser });
+            await sut.create(fakeUser);
 
             const result = await sut.findByEmail(fakeUser.email);
 
@@ -56,7 +61,7 @@ describe('Postgres User Repository', () => {
 
     describe('update', () => {
         it('should update user on db', async () => {
-            await prisma.user.create({ data: fakeUser });
+            await sut.create(fakeUser);
 
             const updateUserParams = {
                 first_name: faker.person.firstName(),
@@ -81,16 +86,17 @@ describe('Postgres User Repository', () => {
 
     describe('delete', () => {
         it('should delete a user on db', async () => {
-            await prisma.user.create({ data: fakeUser });
+            await sut.create(fakeUser);
 
             const result = await sut.delete(fakeUser.id);
 
             expect(result).toStrictEqual(fakeUser);
 
-            const searchOnDb = await prisma.user.findUnique({
-                where: { id: fakeUser.id },
-            });
-            expect(searchOnDb).toBeNull();
+            const [searchOnDb] = await db
+                .select()
+                .from(usersTable)
+                .where(eq(usersTable.id, fakeUser.id));
+            expect(searchOnDb).toBeUndefined();
         });
 
         it('should throw UserNotFoundError if user does not exist', async () => {
@@ -105,33 +111,31 @@ describe('Postgres User Repository', () => {
         const to = '2026-12-31';
 
         it('should get user balance on db', async () => {
-            const user = await prisma.user.create({ data: fakeUser });
+            const user = await sut.create(fakeUser);
 
-            await prisma.transaction.createMany({
-                data: [
-                    {
-                        name: faker.string.sample(),
-                        amount: 5000,
-                        date: new Date(from),
-                        type: 'EARNING',
-                        user_id: user.id,
-                    },
-                    {
-                        name: faker.string.sample(),
-                        amount: 2000,
-                        date: new Date(from),
-                        type: 'EXPENSE',
-                        user_id: user.id,
-                    },
-                    {
-                        name: faker.string.sample(),
-                        amount: 1000,
-                        date: new Date(from),
-                        type: 'INVESTMENT',
-                        user_id: user.id,
-                    },
-                ],
-            });
+            await db.insert(transactionsTable).values([
+                {
+                    name: faker.string.sample(),
+                    amount: '5000',
+                    date: new Date(from),
+                    type: 'EARNING',
+                    user_id: user.id,
+                },
+                {
+                    name: faker.string.sample(),
+                    amount: '2000',
+                    date: new Date(from),
+                    type: 'EXPENSE',
+                    user_id: user.id,
+                },
+                {
+                    name: faker.string.sample(),
+                    amount: '1000',
+                    date: new Date(from),
+                    type: 'INVESTMENT',
+                    user_id: user.id,
+                },
+            ]);
 
             const result = await sut.getBalance(user.id, from, to);
 
@@ -139,6 +143,23 @@ describe('Postgres User Repository', () => {
             expect(Number(result.earnings)).toBe(5000);
             expect(Number(result.expenses)).toBe(2000);
             expect(Number(result.investments)).toBe(1000);
+            expect(result.earningsPercentage).toBe(62);
+            expect(result.expensePercentage).toBe(25);
+            expect(result.investmentsPercentage).toBe(12);
+        });
+
+        it('should return zero percentages and balance when no transactions exist', async () => {
+            const user = await sut.create(fakeUser);
+
+            const result = await sut.getBalance(user.id, from, to);
+
+            expect(result.balance).toBe('0');
+            expect(result.earnings).toBe('0');
+            expect(result.expenses).toBe('0');
+            expect(result.investments).toBe('0');
+            expect(result.earningsPercentage).toBe(0);
+            expect(result.expensePercentage).toBe(0);
+            expect(result.investmentsPercentage).toBe(0);
         });
     });
 });

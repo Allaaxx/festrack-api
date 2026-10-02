@@ -2,7 +2,7 @@ import request from 'supertest';
 import { app } from '../app.js';
 import { user } from '../tests/fixtures/user.js';
 import { faker } from '@faker-js/faker';
-import { TransactionType } from '@prisma/client';
+import { TransactionType } from '../domain/index.js';
 
 describe('Users Routes E2E Tests', () => {
     const from = '2020-01-01';

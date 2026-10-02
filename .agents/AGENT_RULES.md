@@ -10,7 +10,7 @@ This project is a back-end API for a Finance Application about events, party, we
 
 - **Runtime**: Node.js (ESM modules - `"type": "module"`).
 - **Web Framework**: Express.js.
-- **Database & ORM**: PostgreSQL with Prisma (`@prisma/client` and `@prisma/adapter-pg`).
+- **Database & ORM**: PostgreSQL with Drizzle ORM (`drizzle-orm` and `postgres.js`).
 - **Validation**: Zod.
 - **Authentication/Security**: JSON Web Tokens (JWT) and Bcrypt.
 - **Testing**: Jest and Supertest.
