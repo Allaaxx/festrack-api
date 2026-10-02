@@ -14,7 +14,7 @@
         "db:generate": "drizzle-kit generate",
         "start:dev": "bun --watch index.ts",
         "start": "bun index.ts",
-        "build": "tsc -p tsconfig.build.json",
+        "build": "tsc --noEmit",
         "typecheck": "tsc --noEmit",
         "eslint:check": "eslint src/ index.ts",
         "prettier:check": "prettier --check src/"
@@ -52,7 +52,6 @@
         "cors": "^2.8.6",
         "dayjs": "^1.11.21",
         "dotenv": "^17.4.2",
-        "dotenv-cli": "^11.0.0",
         "drizzle-orm": "^0.45.3",
         "express": "^5.2.1",
         "jsonwebtoken": "^9.0.3",
