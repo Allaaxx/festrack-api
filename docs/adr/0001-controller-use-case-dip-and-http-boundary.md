@@ -4,7 +4,7 @@ Date: 2026-10-01
 
 ## Status
 
-Accepted
+Superseded by [ADR-0004](./0004-migrate-http-framework-express-to-elysia.md)
 
 ## Context
 
