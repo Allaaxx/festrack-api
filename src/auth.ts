@@ -38,6 +38,33 @@ export const auth = betterAuth({
     emailAndPassword: {
         enabled: true,
     },
+    socialProviders: {
+        google: {
+            clientId: process.env.GOOGLE_CLIENT_ID || '',
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+            accessType: 'offline',
+            prompt: 'consent',
+            scope: ['https://www.googleapis.com/auth/calendar.events'],
+            mapProfileToUser: (profile) => {
+                const firstName =
+                    profile.given_name || profile.name?.split(' ')[0] || 'User';
+                const lastName =
+                    profile.family_name ||
+                    profile.name?.split(' ').slice(1).join(' ') ||
+                    firstName;
+                return {
+                    first_name: firstName,
+                    last_name: lastName,
+                };
+            },
+        },
+    },
+    account: {
+        accountLinking: {
+            enabled: true,
+            trustedProviders: ['google'],
+        },
+    },
     hooks: {
         before: createAuthMiddleware(async (ctx) => {
             if (ctx.path === '/sign-up/email') {

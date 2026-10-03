@@ -1,6 +1,9 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { app } from '../app.js';
 import { testClient } from '../test-helper.js';
+import { db } from '../db/postgres/index.js';
+import { user, account } from '../db/postgres/schemas/index.js';
+import { eq } from 'drizzle-orm';
 
 describe('Better Auth Endpoints (E2E)', () => {
     const client = testClient(app);
@@ -245,6 +248,307 @@ describe('Better Auth Endpoints (E2E)', () => {
 
             expect(response.status).toBe(200);
             expect(response.body).toHaveProperty('user');
+        });
+    });
+
+    describe('Google OAuth & Social Linking Endpoints', () => {
+        const originalFetch = globalThis.fetch;
+        let mockTokenResponse: any = null;
+
+        const createMockGoogleIdToken = (payload: {
+            sub: string;
+            email: string;
+            name?: string;
+            given_name?: string;
+            family_name?: string;
+            picture?: string;
+        }) => {
+            const header = Buffer.from(
+                JSON.stringify({ alg: 'RS256', typ: 'JWT' }),
+            ).toString('base64url');
+            const fullPayload = Buffer.from(
+                JSON.stringify({
+                    sub: payload.sub,
+                    email: payload.email,
+                    email_verified: true,
+                    name: payload.name || 'Google User',
+                    given_name: payload.given_name || 'Google',
+                    family_name: payload.family_name || 'User',
+                    picture:
+                        payload.picture || 'https://example.com/avatar.jpg',
+                    iss: 'https://accounts.google.com',
+                    aud: 'mock-google-client-id',
+                    iat: Math.floor(Date.now() / 1000),
+                    exp: Math.floor(Date.now() / 1000) + 3600,
+                }),
+            ).toString('base64url');
+            return `${header}.${fullPayload}.mock_signature`;
+        };
+
+        beforeEach(() => {
+            mockTokenResponse = null;
+            globalThis.fetch = (async (input, init) => {
+                const url =
+                    typeof input === 'string'
+                        ? input
+                        : input instanceof Request
+                          ? input.url
+                          : input.toString();
+                if (
+                    url.includes('oauth2.googleapis.com/token') &&
+                    mockTokenResponse
+                ) {
+                    return new Response(JSON.stringify(mockTokenResponse), {
+                        status: 200,
+                        headers: { 'content-type': 'application/json' },
+                    });
+                }
+                return originalFetch(input, init);
+            }) as typeof fetch;
+        });
+
+        afterEach(() => {
+            globalThis.fetch = originalFetch;
+        });
+
+        describe('POST /api/auth/sign-in/social', () => {
+            it('should initiate Google OAuth and return authorization URL with offline access, prompt consent, and calendar scope', async () => {
+                const response = await client
+                    .post('/api/auth/sign-in/social')
+                    .send({
+                        provider: 'google',
+                        callbackURL: 'http://localhost:5174/dashboard',
+                    });
+
+                expect(response.status).toBe(200);
+                expect(response.body).toHaveProperty('url');
+                expect(response.body).toHaveProperty('redirect', true);
+
+                const url = new URL(response.body.url);
+                expect(url.origin).toBe('https://accounts.google.com');
+                expect(url.searchParams.get('response_type')).toBe('code');
+                expect(url.searchParams.get('client_id')).toBe(
+                    'mock-google-client-id',
+                );
+                expect(url.searchParams.get('access_type')).toBe('offline');
+                expect(url.searchParams.get('prompt')).toBe('consent');
+
+                const scope = url.searchParams.get('scope') || '';
+                expect(scope).toContain(
+                    'https://www.googleapis.com/auth/calendar.events',
+                );
+                expect(scope).toContain('email');
+                expect(scope).toContain('profile');
+
+                expect(response.headers.get('set-cookie')).toContain(
+                    'better-auth.state',
+                );
+            });
+        });
+
+        describe('POST /api/auth/link-social', () => {
+            it('should reject unauthenticated request with 401', async () => {
+                const response = await client
+                    .post('/api/auth/link-social')
+                    .send({
+                        provider: 'google',
+                        callbackURL: 'http://localhost:5174/settings',
+                    });
+
+                expect([401, 403]).toContain(response.status);
+            });
+
+            it('should return authorization URL when authenticated user requests linking', async () => {
+                const uniqueEmail = `link_init_${Date.now()}@example.com`;
+                const signUpRes = await client
+                    .post('/api/auth/sign-up/email')
+                    .send({
+                        email: uniqueEmail,
+                        password: 'Password123!',
+                        first_name: 'Link',
+                        last_name: 'Tester',
+                    });
+
+                const token = signUpRes.body.token;
+
+                const response = await client
+                    .post('/api/auth/link-social')
+                    .set('Authorization', `Bearer ${token}`)
+                    .send({
+                        provider: 'google',
+                        callbackURL: 'http://localhost:5174/settings',
+                    });
+
+                expect(response.status).toBe(200);
+                expect(response.body).toHaveProperty('url');
+                expect(response.body).toHaveProperty('redirect', true);
+
+                const url = new URL(response.body.url);
+                expect(url.origin).toBe('https://accounts.google.com');
+                expect(url.searchParams.get('access_type')).toBe('offline');
+                expect(url.searchParams.get('prompt')).toBe('consent');
+                expect(url.searchParams.get('scope')).toContain(
+                    'https://www.googleapis.com/auth/calendar.events',
+                );
+                expect(response.headers.get('set-cookie')).toContain(
+                    'better-auth.state',
+                );
+            });
+        });
+
+        describe('GET /api/auth/callback/google', () => {
+            it('should register new user and persist Google OAuth tokens in account table upon successful callback', async () => {
+                const signInRes = await client
+                    .post('/api/auth/sign-in/social')
+                    .send({
+                        provider: 'google',
+                        callbackURL: 'http://localhost:5174/dashboard',
+                    });
+
+                const authUrl = new URL(signInRes.body.url);
+                const state = authUrl.searchParams.get('state');
+                const stateCookie =
+                    signInRes.headers.get('set-cookie')?.split(';')[0] || '';
+
+                const googleSub = `google_sub_${Date.now()}`;
+                const googleEmail = `google_reg_${Date.now()}@example.com`;
+                const mockAccessToken = 'ya29.test_google_access_token';
+                const mockRefreshToken = '1//test_google_refresh_token';
+                const mockScope =
+                    'openid email profile https://www.googleapis.com/auth/calendar.events';
+
+                const idToken = createMockGoogleIdToken({
+                    sub: googleSub,
+                    email: googleEmail,
+                    given_name: 'GoogleFirst',
+                    family_name: 'GoogleLast',
+                });
+
+                mockTokenResponse = {
+                    access_token: mockAccessToken,
+                    refresh_token: mockRefreshToken,
+                    expires_in: 3600,
+                    token_type: 'Bearer',
+                    scope: mockScope,
+                    id_token: idToken,
+                };
+
+                const callbackRes = await client
+                    .get(
+                        `/api/auth/callback/google?code=mock_code&state=${state}`,
+                    )
+                    .set('Cookie', stateCookie);
+
+                expect([302, 200]).toContain(callbackRes.status);
+                if (callbackRes.status === 302) {
+                    expect(callbackRes.headers.get('location')).toContain(
+                        'http://localhost:5174/dashboard',
+                    );
+                }
+
+                // Verify user was registered in DB with mapped first_name and last_name
+                const [registeredUser] = await db
+                    .select()
+                    .from(user)
+                    .where(eq(user.email, googleEmail));
+
+                expect(registeredUser).toBeDefined();
+                expect(registeredUser.first_name).toBe('GoogleFirst');
+                expect(registeredUser.last_name).toBe('GoogleLast');
+
+                // Verify tokens are stored in the account table
+                const [savedAccount] = await db
+                    .select()
+                    .from(account)
+                    .where(eq(account.userId, registeredUser.id));
+
+                expect(savedAccount).toBeDefined();
+                expect(savedAccount.providerId).toBe('google');
+                expect(savedAccount.accountId).toBe(googleSub);
+                expect(savedAccount.accessToken).toBe(mockAccessToken);
+                expect(savedAccount.refreshToken).toBe(mockRefreshToken);
+                expect(savedAccount.scope).toContain(
+                    'https://www.googleapis.com/auth/calendar.events',
+                );
+                expect(savedAccount.accessTokenExpiresAt).toBeInstanceOf(Date);
+            });
+
+            it('should link Google account to existing authenticated user upon callback', async () => {
+                const uniqueEmail = `link_existing_${Date.now()}@example.com`;
+                const signUpRes = await client
+                    .post('/api/auth/sign-up/email')
+                    .send({
+                        email: uniqueEmail,
+                        password: 'Password123!',
+                        first_name: 'Existing',
+                        last_name: 'User',
+                    });
+
+                const token = signUpRes.body.token;
+                const existingUserId = signUpRes.body.user.id;
+
+                const linkRes = await client
+                    .post('/api/auth/link-social')
+                    .set('Authorization', `Bearer ${token}`)
+                    .send({
+                        provider: 'google',
+                        callbackURL: 'http://localhost:5174/settings',
+                    });
+
+                const linkUrl = new URL(linkRes.body.url);
+                const state = linkUrl.searchParams.get('state');
+                const linkCookie =
+                    linkRes.headers.get('set-cookie')?.split(';')[0] || '';
+
+                const googleSub = `google_linked_sub_${Date.now()}`;
+                const mockAccessToken = 'ya29.linked_google_access_token';
+                const mockRefreshToken = '1//linked_google_refresh_token';
+
+                const idToken = createMockGoogleIdToken({
+                    sub: googleSub,
+                    email: uniqueEmail,
+                    given_name: 'Existing',
+                    family_name: 'User',
+                });
+
+                mockTokenResponse = {
+                    access_token: mockAccessToken,
+                    refresh_token: mockRefreshToken,
+                    expires_in: 3600,
+                    token_type: 'Bearer',
+                    scope: 'openid email profile https://www.googleapis.com/auth/calendar.events',
+                    id_token: idToken,
+                };
+
+                const callbackRes = await client
+                    .get(
+                        `/api/auth/callback/google?code=mock_code&state=${state}`,
+                    )
+                    .set('Cookie', linkCookie);
+
+                expect([302, 200]).toContain(callbackRes.status);
+
+                // Verify the user now has two accounts in DB: credential and google
+                const userAccounts = await db
+                    .select()
+                    .from(account)
+                    .where(eq(account.userId, existingUserId));
+
+                expect(userAccounts.length).toBe(2);
+                const providers = userAccounts.map((a) => a.providerId);
+                expect(providers).toContain('credential');
+                expect(providers).toContain('google');
+
+                const googleAccount = userAccounts.find(
+                    (a) => a.providerId === 'google',
+                );
+                expect(googleAccount).toBeDefined();
+                expect(googleAccount?.accessToken).toBe(mockAccessToken);
+                expect(googleAccount?.refreshToken).toBe(mockRefreshToken);
+                expect(googleAccount?.scope).toContain(
+                    'https://www.googleapis.com/auth/calendar.events',
+                );
+            });
         });
     });
 });

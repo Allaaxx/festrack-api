@@ -78,12 +78,9 @@ export class TestRequestBuilder {
             }),
         );
 
-        const contentType = res.headers.get('content-type') || '';
-        let parsedBody: unknown;
-        if (contentType.includes('application/json')) {
-            parsedBody = await res.json();
-        } else {
-            const text = await res.text();
+        const text = await res.text();
+        let parsedBody: unknown = null;
+        if (text && text.trim().length > 0) {
             try {
                 parsedBody = JSON.parse(text);
             } catch {
