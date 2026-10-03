@@ -6,6 +6,8 @@ import {
     TransactionNotFoundError,
     UnauthorizedError,
     ForbiddenError,
+    CannotUnlinkLastProviderError,
+    AccountNotFoundError,
 } from './index.js';
 
 describe('Domain Errors', () => {
@@ -57,6 +59,22 @@ describe('Domain Errors', () => {
         const error = new ForbiddenError();
         expect(error.name).toBe('ForbiddenError');
         expect(error.message).toBe('Forbidden.');
+        expect(error).toBeInstanceOf(Error);
+    });
+
+    it('CannotUnlinkLastProviderError should have correct message and name', () => {
+        const error = new CannotUnlinkLastProviderError();
+        expect(error.name).toBe('CannotUnlinkLastProviderError');
+        expect(error.message).toBe(
+            'Cannot unlink the only remaining authentication provider.',
+        );
+        expect(error).toBeInstanceOf(Error);
+    });
+
+    it('AccountNotFoundError should have correct message and name', () => {
+        const error = new AccountNotFoundError('google');
+        expect(error.name).toBe('AccountNotFoundError');
+        expect(error.message).toBe('Account with provider google not found.');
         expect(error).toBeInstanceOf(Error);
     });
 });

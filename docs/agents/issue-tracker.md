@@ -27,7 +27,19 @@ GitHub shares one number space across issues and PRs, so a bare `#42` may be eit
 
 ## When a skill says "publish to the issue tracker"
 
-Create a GitHub issue.
+1. Create the GitHub issue: `gh issue create --title "..." --body "..." --label "..."`.
+2. **ALWAYS persist native relationships immediately via `gh api`**:
+    - **Parent-Child (Sub-issue)**: If the issue belongs to a parent issue, link it as a native sub-issue:
+        ```bash
+        CHILD_ID=$(gh api repos/<owner>/<repo>/issues/<child-number> --jq .id)
+        gh api --method POST repos/<owner>/<repo>/issues/<parent-number>/sub_issues -F sub_issue_id=$CHILD_ID
+        ```
+    - **Blocking Dependencies (`blocked_by`)**: If the issue is blocked by another issue, establish the native dependency:
+        ```bash
+        BLOCKER_ID=$(gh api repos/<owner>/<repo>/issues/<blocker-number> --jq .id)
+        gh api --method POST repos/<owner>/<repo>/issues/<child-number>/dependencies/blocked_by -F issue_id=$BLOCKER_ID
+        ```
+    - **NEVER** leave relationships only as text in markdown; you must execute the API commands so that GitHub's UI and `sub_issues_summary` / `issue_dependencies_summary` reflect the true state.
 
 ## When a skill says "fetch the relevant ticket"
 

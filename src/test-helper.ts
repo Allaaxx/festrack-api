@@ -57,13 +57,17 @@ export class TestRequestBuilder {
         let body: BodyInit | undefined = undefined;
 
         if (this.payload !== undefined) {
-            if (!reqHeaders.has('content-type')) {
-                reqHeaders.set('content-type', 'application/json');
+            if (this.payload instanceof FormData) {
+                body = this.payload;
+            } else {
+                if (!reqHeaders.has('content-type')) {
+                    reqHeaders.set('content-type', 'application/json');
+                }
+                body =
+                    typeof this.payload === 'string'
+                        ? this.payload
+                        : JSON.stringify(this.payload);
             }
-            body =
-                typeof this.payload === 'string'
-                    ? this.payload
-                    : JSON.stringify(this.payload);
         }
 
         const res = await this.app.handle(
@@ -74,12 +78,9 @@ export class TestRequestBuilder {
             }),
         );
 
-        const contentType = res.headers.get('content-type') || '';
-        let parsedBody: unknown;
-        if (contentType.includes('application/json')) {
-            parsedBody = await res.json();
-        } else {
-            const text = await res.text();
+        const text = await res.text();
+        let parsedBody: unknown = null;
+        if (text && text.trim().length > 0) {
             try {
                 parsedBody = JSON.parse(text);
             } catch {

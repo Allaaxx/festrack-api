@@ -1,5 +1,6 @@
 import {
     User,
+    UserAccount,
     CreateUserParams,
     UpdateUserParams,
     UserBalance,
@@ -12,4 +13,6 @@ export interface UserRepository {
     update(userId: string, updateUserParams: UpdateUserParams): Promise<User>;
     delete(userId: string): Promise<User>;
     getBalance(userId: string, from: string, to: string): Promise<UserBalance>;
+    listAccounts(userId: string): Promise<UserAccount[]>;
+    deleteAccount(userId: string, providerId: string): Promise<UserAccount>;
 }
