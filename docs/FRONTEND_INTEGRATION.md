@@ -246,7 +246,20 @@ async function uploadAvatar(file: File, token: string) {
 ### 4. Delete Account
 
 - **Endpoint**: `DELETE /api/users/me`
-- **Response (200 OK)**: Returns the deleted user object. Cascades deletion to events, transactions, sessions, and accounts.
+- **Headers**: Authenticated
+- **Body**:
+    ```json
+    {
+        "password": "CurrentPassword123!"
+    }
+    ```
+- **Response (200 OK)**: Returns the deleted user object. Cascades deletion across all events, transactions, sessions, and linked accounts, revoking all active authentication sessions immediately.
+- **Response (400 Bad Request)**: When password is missing, invalid, or incorrect:
+    ```json
+    {
+        "message": "Invalid password"
+    }
+    ```
 
 ### 5. Get Financial Balance Summary
 

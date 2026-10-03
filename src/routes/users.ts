@@ -10,7 +10,10 @@ import {
     UnlinkUserAccountUseCase,
 } from '../use-cases/index.js';
 import { PostgresUserRepository } from '../repositories/postgres/index.js';
-import { S3StorageService } from '../adapters/index.js';
+import {
+    S3StorageService,
+    BetterAuthPasswordVerifier,
+} from '../adapters/index.js';
 import {
     EmailAlreadyInUseError,
     UserNotFoundError,
@@ -18,6 +21,7 @@ import {
     FileSizeExceededError,
     CannotUnlinkLastProviderError,
     AccountNotFoundError,
+    InvalidPasswordError,
 } from '../errors/user.js';
 
 const isIsoDateOnly = (dateStr: string): boolean => {
@@ -164,15 +168,26 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
     )
     .delete(
         '/me',
-        async ({ userId, set }) => {
+        async ({ userId, body, set }) => {
             const userRepository = new PostgresUserRepository();
-            const useCase = new DeleteUserUseCase(userRepository);
+            const passwordVerifier = new BetterAuthPasswordVerifier();
+            const useCase = new DeleteUserUseCase(
+                userRepository,
+                passwordVerifier,
+            );
 
             try {
-                const deletedUser = await useCase.execute(userId!);
+                const deletedUser = await useCase.execute(
+                    userId!,
+                    body.password,
+                );
                 set.status = 200;
                 return deletedUser;
             } catch (error) {
+                if (error instanceof InvalidPasswordError) {
+                    set.status = 400;
+                    return { message: error.message };
+                }
                 if (error instanceof UserNotFoundError) {
                     set.status = 404;
                     return { message: 'User not found.' };
@@ -183,6 +198,12 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
         },
         {
             isAuth: true,
+            body: t.Object({
+                password: t.String({
+                    minLength: 1,
+                    error: 'Password is required.',
+                }),
+            }),
             detail: {
                 tags: ['Users'],
                 summary: 'Delete current user account',

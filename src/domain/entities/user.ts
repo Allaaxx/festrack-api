@@ -20,6 +20,7 @@ export interface UserAccount {
     userId: string;
     providerId: string;
     accountId: string;
+    password?: string | null;
     createdAt?: Date;
     updatedAt?: Date;
 }

@@ -7,3 +7,4 @@ export * from './repositories/balance-repository.js';
 export * from './entities/transaction.js';
 export * from './repositories/transaction-repository.js';
 export * from './adapters/storage-service.js';
+export * from './adapters/password-verifier.js';

@@ -189,6 +189,7 @@ describe('Postgres User Repository', () => {
                     userId: user.id,
                     providerId: 'credential',
                     accountId: user.id,
+                    password: 'hashed-password-xyz',
                 },
                 {
                     id: crypto.randomUUID(),
@@ -203,6 +204,10 @@ describe('Postgres User Repository', () => {
             const providers = accounts.map((a) => a.providerId);
             expect(providers).toContain('credential');
             expect(providers).toContain('google');
+            const credentialAcc = accounts.find(
+                (a) => a.providerId === 'credential',
+            );
+            expect(credentialAcc?.password).toBe('hashed-password-xyz');
 
             const deleted = await sut.deleteAccount(user.id, 'google');
             expect(deleted).toBeDefined();

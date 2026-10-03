@@ -167,6 +167,7 @@ export class PostgresUserRepository implements UserRepository {
                 userId: account.userId,
                 providerId: account.providerId,
                 accountId: account.accountId,
+                password: account.password,
                 createdAt: account.createdAt,
                 updatedAt: account.updatedAt,
             })

@@ -4,7 +4,13 @@ import { testClient } from '../test-helper.js';
 import { createAuthenticatedUser } from '../tests/auth-helper.js';
 import { S3StorageService } from '../adapters/index.js';
 import { db } from '../db/postgres/index.js';
-import { account } from '../db/postgres/schemas/index.js';
+import {
+    account,
+    eventsTable,
+    transactionsTable,
+    session,
+    usersTable,
+} from '../db/postgres/schemas/index.js';
 import { eq } from 'drizzle-orm';
 
 const VALID_PNG_BYTES = Buffer.from(
@@ -242,32 +248,161 @@ describe('Users Routes (Elysia E2E)', () => {
     });
 
     describe('DELETE /api/users/me', () => {
-        it('should delete user with Bearer token', async () => {
+        it('should reject deletion with 400 when password is missing', async () => {
             const authUser = await createAuthenticatedUser(client);
 
             const response = await client
                 .delete('/api/users/me')
-                .set('Authorization', authUser.bearerHeader);
+                .set('Authorization', authUser.bearerHeader)
+                .send({});
 
-            expect(response.status).toBe(200);
-            expect(response.body.id).toBe(authUser.user.id);
+            expect(response.status).toBe(400);
         });
 
-        it('should delete user with Cookie', async () => {
+        it('should reject deletion with 400 when password is wrong', async () => {
             const authUser = await createAuthenticatedUser(client);
 
             const response = await client
                 .delete('/api/users/me')
-                .set('Cookie', authUser.cookieHeader);
+                .set('Authorization', authUser.bearerHeader)
+                .send({
+                    password: 'WrongPassword123!',
+                });
 
-            expect(response.status).toBe(200);
-            expect(response.body.id).toBe(authUser.user.id);
+            expect(response.status).toBe(400);
+            expect(response.body.message).toContain('Invalid password');
         });
 
         it('should return 401 when deleting without auth', async () => {
-            const response = await client.delete('/api/users/me');
+            const response = await client.delete('/api/users/me').send({
+                password: 'Password123!',
+            });
             expect(response.status).toBe(401);
             expect(response.body).toEqual({ message: 'Unauthorized' });
+        });
+
+        it('should delete user with Bearer token, cascade cleanup events, transactions, accounts, sessions and revoke auth', async () => {
+            const authUser = await createAuthenticatedUser(client, {
+                password: 'MyValidPassword123!',
+            });
+            const userId = authUser.user.id;
+
+            // Create an event for this user
+            const [createdEvent] = await db
+                .insert(eventsTable)
+                .values({
+                    name: 'Cascade Event',
+                    description: 'Event to test cascade delete',
+                    start_date: new Date(),
+                    end_date: new Date(),
+                    user_id: userId,
+                })
+                .returning();
+
+            // Create a transaction for this user
+            await db.insert(transactionsTable).values({
+                name: 'Cascade Transaction',
+                amount: '50.00',
+                date: new Date(),
+                type: 'EXPENSE',
+                user_id: userId,
+                event_id: createdEvent.id,
+            });
+
+            // Verify before delete
+            const eventsBefore = await db
+                .select()
+                .from(eventsTable)
+                .where(eq(eventsTable.user_id, userId));
+            expect(eventsBefore.length).toBe(1);
+
+            const transactionsBefore = await db
+                .select()
+                .from(transactionsTable)
+                .where(eq(transactionsTable.user_id, userId));
+            expect(transactionsBefore.length).toBe(1);
+
+            const accountsBefore = await db
+                .select()
+                .from(account)
+                .where(eq(account.userId, userId));
+            expect(accountsBefore.length).toBeGreaterThanOrEqual(1);
+
+            const sessionsBefore = await db
+                .select()
+                .from(session)
+                .where(eq(session.userId, userId));
+            expect(sessionsBefore.length).toBeGreaterThanOrEqual(1);
+
+            // Execute delete
+            const response = await client
+                .delete('/api/users/me')
+                .set('Authorization', authUser.bearerHeader)
+                .send({
+                    password: 'MyValidPassword123!',
+                });
+
+            expect(response.status).toBe(200);
+            expect(response.body.id).toBe(userId);
+
+            // Verify cascade deletion
+            const usersAfter = await db
+                .select()
+                .from(usersTable)
+                .where(eq(usersTable.id, userId));
+            expect(usersAfter.length).toBe(0);
+
+            const eventsAfter = await db
+                .select()
+                .from(eventsTable)
+                .where(eq(eventsTable.user_id, userId));
+            expect(eventsAfter.length).toBe(0);
+
+            const transactionsAfter = await db
+                .select()
+                .from(transactionsTable)
+                .where(eq(transactionsTable.user_id, userId));
+            expect(transactionsAfter.length).toBe(0);
+
+            const accountsAfter = await db
+                .select()
+                .from(account)
+                .where(eq(account.userId, userId));
+            expect(accountsAfter.length).toBe(0);
+
+            const sessionsAfter = await db
+                .select()
+                .from(session)
+                .where(eq(session.userId, userId));
+            expect(sessionsAfter.length).toBe(0);
+
+            // Verify session revocation: subsequent requests are rejected with 401
+            const profileResponse = await client
+                .get('/api/users/me')
+                .set('Authorization', authUser.bearerHeader);
+            expect(profileResponse.status).toBe(401);
+        });
+
+        it('should delete user with Cookie when valid password is provided', async () => {
+            const authUser = await createAuthenticatedUser(client, {
+                password: 'CookiePassword123!',
+            });
+
+            const response = await client
+                .delete('/api/users/me')
+                .set('Cookie', authUser.cookieHeader)
+                .send({
+                    password: 'CookiePassword123!',
+                });
+
+            expect(response.status).toBe(200);
+            expect(response.body.id).toBe(authUser.user.id);
+
+            // Subsequent request with Cookie should be rejected with 401
+            const profileResponse = await client
+                .get('/api/users/me')
+                .set('Cookie', authUser.cookieHeader);
+            expect(profileResponse.status).toBe(401);
         });
     });
 
