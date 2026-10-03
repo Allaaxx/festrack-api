@@ -5,6 +5,7 @@ import { createAuthMiddleware } from 'better-auth/api';
 import { db } from './db/postgres/index.js';
 import * as schema from './db/postgres/schemas/index.js';
 import { i18n, locales } from '@better-auth/i18n';
+import { eq, and } from 'drizzle-orm';
 
 const envTrustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
     ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',').map((origin) =>
@@ -77,6 +78,33 @@ export const auth = betterAuth({
                         [ctx.body.first_name, ctx.body.last_name]
                             .filter(Boolean)
                             .join(' ') || 'User';
+                }
+            }
+
+            if (ctx.path === '/unlink-account') {
+                if (ctx.body && ctx.body.providerId && !ctx.body.accountId) {
+                    const session = await auth.api.getSession({
+                        headers: ctx.headers || new Headers(),
+                    });
+                    if (session) {
+                        const [userAccount] = await db
+                            .select()
+                            .from(schema.account)
+                            .where(
+                                and(
+                                    eq(schema.account.userId, session.user.id),
+                                    eq(
+                                        schema.account.providerId,
+                                        ctx.body.providerId,
+                                    ),
+                                ),
+                            );
+                        ctx.body.accountId = userAccount
+                            ? userAccount.id
+                            : 'non-existent-account-id';
+                    } else {
+                        ctx.body.accountId = 'unauthenticated';
+                    }
                 }
             }
         }),

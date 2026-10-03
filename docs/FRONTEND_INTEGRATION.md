@@ -116,6 +116,51 @@ export const authClient = createAuthClient({
     }
     ```
 
+#### 7. List Connected Accounts & Unlink Provider
+
+Users can view and unlink external authentication providers or credentials (prevented if only a single account remains).
+
+- **List Accounts**: `GET /api/users/me/accounts` (or Better Auth `GET /api/auth/list-accounts`)
+    - **Headers**: Authenticated
+    - **Response (200 OK)**:
+        ```json
+        [
+            {
+                "id": "acc-1",
+                "providerId": "google",
+                "accountId": "google-sub-123",
+                "createdAt": "2026-10-01T00:00:00.000Z"
+            },
+            {
+                "id": "acc-2",
+                "providerId": "credential",
+                "accountId": "user@example.com",
+                "createdAt": "2026-10-01T00:00:00.000Z"
+            }
+        ]
+        ```
+
+- **Unlink Account**: `POST /api/users/me/accounts/unlink` (or Better Auth `POST /api/auth/unlink-account`)
+    - **Headers**: Authenticated
+    - **Body**:
+        ```json
+        {
+            "providerId": "google"
+        }
+        ```
+    - **Response (200 OK)**:
+        ```json
+        {
+            "success": true
+        }
+        ```
+    - **Response (400 Bad Request)**: When trying to unlink the only remaining provider:
+        ```json
+        {
+            "message": "Cannot unlink the only remaining authentication provider for this user"
+        }
+        ```
+
 ---
 
 ## 3. User & Settings (`/api/users`)

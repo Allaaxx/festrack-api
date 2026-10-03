@@ -6,6 +6,8 @@ import {
     DeleteUserUseCase,
     GetUserBalanceUseCase,
     UploadUserAvatarUseCase,
+    ListUserAccountsUseCase,
+    UnlinkUserAccountUseCase,
 } from '../use-cases/index.js';
 import { PostgresUserRepository } from '../repositories/postgres/index.js';
 import { S3StorageService } from '../adapters/index.js';
@@ -14,6 +16,8 @@ import {
     UserNotFoundError,
     InvalidFileTypeError,
     FileSizeExceededError,
+    CannotUnlinkLastProviderError,
+    AccountNotFoundError,
 } from '../errors/user.js';
 
 const isIsoDateOnly = (dateStr: string): boolean => {
@@ -227,6 +231,76 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
             detail: {
                 tags: ['Users'],
                 summary: 'Get user balance over time period',
+            },
+        },
+    )
+    .get(
+        '/me/accounts',
+        async ({ userId, set }) => {
+            const userRepository = new PostgresUserRepository();
+            const useCase = new ListUserAccountsUseCase(userRepository);
+
+            try {
+                const accounts = await useCase.execute(userId!);
+                set.status = 200;
+                return accounts.map((acc) => ({
+                    id: acc.id,
+                    providerId: acc.providerId,
+                    createdAt: acc.createdAt,
+                }));
+            } catch {
+                set.status = 500;
+                return { message: 'Internal server error' };
+            }
+        },
+        {
+            isAuth: true,
+            detail: {
+                tags: ['Users'],
+                summary: 'List connected authentication accounts',
+            },
+        },
+    )
+    .post(
+        '/me/accounts/unlink',
+        async ({ userId, body, set }) => {
+            const userRepository = new PostgresUserRepository();
+            const useCase = new UnlinkUserAccountUseCase(userRepository);
+
+            try {
+                await useCase.execute(userId!, body.providerId);
+                set.status = 200;
+                return {
+                    success: true,
+                    message: `Provider ${body.providerId} unlinked successfully.`,
+                };
+            } catch (error) {
+                if (error instanceof CannotUnlinkLastProviderError) {
+                    set.status = 400;
+                    return { message: error.message };
+                }
+                if (error instanceof AccountNotFoundError) {
+                    set.status = 404;
+                    return { message: error.message };
+                }
+                set.status = 500;
+                return { message: 'Internal server error' };
+            }
+        },
+        {
+            isAuth: true,
+            body: t.Object(
+                {
+                    providerId: t.String({
+                        minLength: 1,
+                        error: 'Provider ID is required.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
+            detail: {
+                tags: ['Users'],
+                summary: 'Unlink an external authentication provider',
             },
         },
     );

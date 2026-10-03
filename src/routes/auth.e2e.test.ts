@@ -550,5 +550,109 @@ describe('Better Auth Endpoints (E2E)', () => {
                 );
             });
         });
+
+        describe('GET /api/auth/list-accounts', () => {
+            it('should reject unauthenticated request with 401', async () => {
+                const response = await client.get('/api/auth/list-accounts');
+                expect(response.status).toBe(401);
+            });
+
+            it('should return connected accounts for authenticated user', async () => {
+                const uniqueEmail = `list_auth_${Date.now()}@example.com`;
+                const signUpRes = await client
+                    .post('/api/auth/sign-up/email')
+                    .send({
+                        email: uniqueEmail,
+                        password: 'Password123!',
+                        first_name: 'List',
+                        last_name: 'Tester',
+                    });
+
+                const token = signUpRes.body.token;
+
+                const response = await client
+                    .get('/api/auth/list-accounts')
+                    .set('Authorization', `Bearer ${token}`);
+
+                expect(response.status).toBe(200);
+                expect(Array.isArray(response.body)).toBe(true);
+                expect(response.body.length).toBe(1);
+                expect(response.body[0].providerId).toBe('credential');
+            });
+        });
+
+        describe('POST /api/auth/unlink-account', () => {
+            it('should reject unauthenticated request with 401', async () => {
+                const response = await client
+                    .post('/api/auth/unlink-account')
+                    .send({ providerId: 'google' });
+
+                expect(response.status).toBe(401);
+            });
+
+            it('should return 400 when attempting to unlink the last account', async () => {
+                const uniqueEmail = `unlink_last_${Date.now()}@example.com`;
+                const signUpRes = await client
+                    .post('/api/auth/sign-up/email')
+                    .send({
+                        email: uniqueEmail,
+                        password: 'Password123!',
+                        first_name: 'Single',
+                        last_name: 'Provider',
+                    });
+
+                const token = signUpRes.body.token;
+
+                const response = await client
+                    .post('/api/auth/unlink-account')
+                    .set('Authorization', `Bearer ${token}`)
+                    .send({ providerId: 'credential' });
+
+                expect(response.status).toBe(400);
+                expect(response.body.code).toBe(
+                    'FAILED_TO_UNLINK_LAST_ACCOUNT',
+                );
+            });
+
+            it('should successfully unlink provider when multiple providers exist', async () => {
+                const uniqueEmail = `unlink_multi_${Date.now()}@example.com`;
+                const signUpRes = await client
+                    .post('/api/auth/sign-up/email')
+                    .send({
+                        email: uniqueEmail,
+                        password: 'Password123!',
+                        first_name: 'Multi',
+                        last_name: 'Account',
+                    });
+
+                const token = signUpRes.body.token;
+                const userId = signUpRes.body.user.id;
+
+                // Add Google account
+                await db.insert(account).values({
+                    id: crypto.randomUUID(),
+                    userId,
+                    providerId: 'google',
+                    accountId: `google_${Date.now()}`,
+                });
+
+                const response = await client
+                    .post('/api/auth/unlink-account')
+                    .set('Authorization', `Bearer ${token}`)
+                    .send({ providerId: 'google' });
+
+                expect(response.status).toBe(200);
+                expect(response.body.status).toBe(true);
+
+                // Verify Google account is deleted from DB
+                const remainingAccounts = await db
+                    .select()
+                    .from(account)
+                    .where(eq(account.userId, userId));
+
+                expect(remainingAccounts.length).toBe(1);
+                expect(remainingAccounts[0].providerId).toBe('credential');
+            });
+        });
     });
 });

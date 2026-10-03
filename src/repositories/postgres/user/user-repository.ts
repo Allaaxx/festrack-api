@@ -3,10 +3,12 @@ import { db, Database } from '../../../db/postgres/index.js';
 import {
     usersTable,
     transactionsTable,
+    account,
 } from '../../../db/postgres/schemas/index.js';
 import { UserNotFoundError } from '../../../errors/user.js';
 import {
     User,
+    UserAccount,
     CreateUserParams,
     UpdateUserParams,
     UserBalance,
@@ -156,5 +158,45 @@ export class PostgresUserRepository implements UserRepository {
             investmentsPercentage,
             balance: fromCents(balanceCents),
         };
+    }
+
+    async listAccounts(userId: string): Promise<UserAccount[]> {
+        const accounts = await this.database
+            .select({
+                id: account.id,
+                userId: account.userId,
+                providerId: account.providerId,
+                accountId: account.accountId,
+                createdAt: account.createdAt,
+                updatedAt: account.updatedAt,
+            })
+            .from(account)
+            .where(eq(account.userId, userId));
+
+        return accounts;
+    }
+
+    async deleteAccount(
+        userId: string,
+        providerId: string,
+    ): Promise<UserAccount> {
+        const [deletedAccount] = await this.database
+            .delete(account)
+            .where(
+                and(
+                    eq(account.userId, userId),
+                    eq(account.providerId, providerId),
+                ),
+            )
+            .returning({
+                id: account.id,
+                userId: account.userId,
+                providerId: account.providerId,
+                accountId: account.accountId,
+                createdAt: account.createdAt,
+                updatedAt: account.updatedAt,
+            });
+
+        return deletedAccount;
     }
 }

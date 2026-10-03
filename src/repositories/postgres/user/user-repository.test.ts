@@ -4,6 +4,7 @@ import { db } from '../../../db/postgres/index.js';
 import {
     usersTable,
     transactionsTable,
+    account,
 } from '../../../db/postgres/schemas/index.js';
 import { user as fakeUser } from '../../../tests/index.js';
 import { PostgresUserRepository } from './user-repository.js';
@@ -175,6 +176,41 @@ describe('Postgres User Repository', () => {
             expect(result.earningsPercentage).toBe(0);
             expect(result.expensePercentage).toBe(0);
             expect(result.investmentsPercentage).toBe(0);
+        });
+    });
+
+    describe('listAccounts & deleteAccount', () => {
+        it('should list all accounts for a user and delete specific provider account', async () => {
+            const user = await sut.create(fakeUser);
+
+            await db.insert(account).values([
+                {
+                    id: crypto.randomUUID(),
+                    userId: user.id,
+                    providerId: 'credential',
+                    accountId: user.id,
+                },
+                {
+                    id: crypto.randomUUID(),
+                    userId: user.id,
+                    providerId: 'google',
+                    accountId: 'google-sub-xyz',
+                },
+            ]);
+
+            const accounts = await sut.listAccounts(user.id);
+            expect(accounts.length).toBe(2);
+            const providers = accounts.map((a) => a.providerId);
+            expect(providers).toContain('credential');
+            expect(providers).toContain('google');
+
+            const deleted = await sut.deleteAccount(user.id, 'google');
+            expect(deleted).toBeDefined();
+            expect(deleted.providerId).toBe('google');
+
+            const remainingAccounts = await sut.listAccounts(user.id);
+            expect(remainingAccounts.length).toBe(1);
+            expect(remainingAccounts[0].providerId).toBe('credential');
         });
     });
 });

@@ -3,6 +3,9 @@ import { app } from '../app.js';
 import { testClient } from '../test-helper.js';
 import { createAuthenticatedUser } from '../tests/auth-helper.js';
 import { S3StorageService } from '../adapters/index.js';
+import { db } from '../db/postgres/index.js';
+import { account } from '../db/postgres/schemas/index.js';
+import { eq } from 'drizzle-orm';
 
 const VALID_PNG_BYTES = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
@@ -311,6 +314,132 @@ describe('Users Routes (Elysia E2E)', () => {
 
             expect(response.status).toBe(401);
             expect(response.body).toEqual({ message: 'Unauthorized' });
+        });
+    });
+
+    describe('GET /api/users/me/accounts', () => {
+        it('should return 401 when unauthenticated', async () => {
+            const response = await client.get('/api/users/me/accounts');
+            expect(response.status).toBe(401);
+            expect(response.body).toEqual({ message: 'Unauthorized' });
+        });
+
+        it('should return 200 with list of connected accounts for authenticated user', async () => {
+            const authUser = await createAuthenticatedUser(client);
+
+            // Insert additional Google account for this user
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                userId: authUser.user.id,
+                providerId: 'google',
+                accountId: `google_${Date.now()}`,
+                accessToken: 'ya29.mock_token',
+                scope: 'openid email profile https://www.googleapis.com/auth/calendar.events',
+            });
+
+            const response = await client
+                .get('/api/users/me/accounts')
+                .set('Authorization', authUser.bearerHeader);
+
+            expect(response.status).toBe(200);
+            expect(Array.isArray(response.body)).toBe(true);
+            expect(response.body.length).toBe(2);
+
+            const providerIds = response.body.map((a: any) => a.providerId);
+            expect(providerIds).toContain('credential');
+            expect(providerIds).toContain('google');
+
+            for (const acc of response.body) {
+                expect(acc).toHaveProperty('id');
+                expect(acc).toHaveProperty('providerId');
+                expect(acc).not.toHaveProperty('password');
+                expect(acc).not.toHaveProperty('accessToken');
+            }
+        });
+    });
+
+    describe('POST /api/users/me/accounts/unlink', () => {
+        it('should return 401 when unauthenticated', async () => {
+            const response = await client
+                .post('/api/users/me/accounts/unlink')
+                .send({ providerId: 'google' });
+
+            expect(response.status).toBe(401);
+            expect(response.body).toEqual({ message: 'Unauthorized' });
+        });
+
+        it('should return 400 when attempting to unlink the only remaining provider', async () => {
+            const authUser = await createAuthenticatedUser(client);
+
+            const response = await client
+                .post('/api/users/me/accounts/unlink')
+                .set('Authorization', authUser.bearerHeader)
+                .send({ providerId: 'credential' });
+
+            expect(response.status).toBe(400);
+            expect(response.body.message).toBe(
+                'Cannot unlink the only remaining authentication provider.',
+            );
+        });
+
+        it('should return 404 when attempting to unlink a provider that does not exist', async () => {
+            const authUser = await createAuthenticatedUser(client);
+
+            // Add another account so length > 1
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                userId: authUser.user.id,
+                providerId: 'google',
+                accountId: `google_${Date.now()}`,
+            });
+
+            const response = await client
+                .post('/api/users/me/accounts/unlink')
+                .set('Authorization', authUser.bearerHeader)
+                .send({ providerId: 'github' });
+
+            expect(response.status).toBe(404);
+            expect(response.body.message).toContain(
+                'Account with provider github not found.',
+            );
+        });
+
+        it('should successfully unlink an external provider when multiple providers exist and delete corresponding account row', async () => {
+            const authUser = await createAuthenticatedUser(client);
+
+            const googleAccountId = `google_${Date.now()}`;
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                userId: authUser.user.id,
+                providerId: 'google',
+                accountId: googleAccountId,
+                accessToken: 'ya29.mock_token',
+                refreshToken: '1//mock_refresh',
+                scope: 'openid email profile https://www.googleapis.com/auth/calendar.events',
+            });
+
+            // Verify 2 accounts exist prior to unlinking
+            const beforeAccounts = await db
+                .select()
+                .from(account)
+                .where(eq(account.userId, authUser.user.id));
+            expect(beforeAccounts.length).toBe(2);
+
+            const response = await client
+                .post('/api/users/me/accounts/unlink')
+                .set('Authorization', authUser.bearerHeader)
+                .send({ providerId: 'google' });
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+
+            // Verify Google account is deleted from DB
+            const afterAccounts = await db
+                .select()
+                .from(account)
+                .where(eq(account.userId, authUser.user.id));
+            expect(afterAccounts.length).toBe(1);
+            expect(afterAccounts[0].providerId).toBe('credential');
         });
     });
 });

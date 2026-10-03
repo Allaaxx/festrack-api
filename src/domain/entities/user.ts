@@ -15,4 +15,13 @@ export type CreateUserParams = Omit<User, 'id'>;
 
 export type UpdateUserParams = Partial<CreateUserParams>;
 
+export interface UserAccount {
+    id: string;
+    userId: string;
+    providerId: string;
+    accountId: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
 export type { Balance, UserBalance, DecimalLike } from './balance.js';

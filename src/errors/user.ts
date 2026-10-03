@@ -34,3 +34,21 @@ export class FileSizeExceededError extends Error {
         this.name = 'FileSizeExceededError';
     }
 }
+
+export class CannotUnlinkLastProviderError extends Error {
+    constructor() {
+        super('Cannot unlink the only remaining authentication provider.');
+        this.name = 'CannotUnlinkLastProviderError';
+    }
+}
+
+export class AccountNotFoundError extends Error {
+    constructor(providerId?: string) {
+        super(
+            providerId
+                ? `Account with provider ${providerId} not found.`
+                : 'Account not found.',
+        );
+        this.name = 'AccountNotFoundError';
+    }
+}
