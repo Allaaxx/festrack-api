@@ -35,9 +35,18 @@ const getValidationErrorMessage = (error: {
 
 export const app = new Elysia({ normalize: false })
     .onError(({ code, error, set }) => {
-        if (code === 'VALIDATION') {
+        if (
+            code === 'VALIDATION' ||
+            code === 'INVALID_FILE_TYPE' ||
+            (error as any)?.name === 'InvalidFileType'
+        ) {
             set.status = 400;
-            return { message: getValidationErrorMessage(error) };
+            return {
+                message:
+                    (error as any)?.message ||
+                    getValidationErrorMessage(error as any) ||
+                    'Validation failed',
+            };
         }
     })
     .use(

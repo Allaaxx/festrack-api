@@ -5,9 +5,16 @@ import {
     UpdateUserUseCase,
     DeleteUserUseCase,
     GetUserBalanceUseCase,
+    UploadUserAvatarUseCase,
 } from '../use-cases/index.js';
 import { PostgresUserRepository } from '../repositories/postgres/index.js';
-import { EmailAlreadyInUseError, UserNotFoundError } from '../errors/user.js';
+import { S3StorageService } from '../adapters/index.js';
+import {
+    EmailAlreadyInUseError,
+    UserNotFoundError,
+    InvalidFileTypeError,
+    FileSizeExceededError,
+} from '../errors/user.js';
 
 const isIsoDateOnly = (dateStr: string): boolean => {
     return (
@@ -46,6 +53,54 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
             detail: {
                 tags: ['Users'],
                 summary: 'Get current user profile',
+            },
+        },
+    )
+    .post(
+        '/me/avatar',
+        async ({ userId, body, set }) => {
+            const userRepository = new PostgresUserRepository();
+            const storageService = new S3StorageService();
+            const useCase = new UploadUserAvatarUseCase(
+                userRepository,
+                storageService,
+            );
+
+            try {
+                const user = await useCase.execute({
+                    userId: userId!,
+                    file: body.avatar,
+                });
+                set.status = 200;
+                return user;
+            } catch (error) {
+                if (
+                    error instanceof InvalidFileTypeError ||
+                    error instanceof FileSizeExceededError
+                ) {
+                    set.status = 400;
+                    return { message: error.message };
+                }
+                if (error instanceof UserNotFoundError) {
+                    set.status = 404;
+                    return { message: 'User not found.' };
+                }
+                set.status = 500;
+                return { message: 'Internal server error' };
+            }
+        },
+        {
+            isAuth: true,
+            body: t.Object({
+                avatar: t.File({
+                    type: ['image/jpeg', 'image/png', 'image/webp'],
+                    maxSize: '5m',
+                    error: 'Please provide a valid image file (JPEG, PNG, WebP) under 5MB.',
+                }),
+            }),
+            detail: {
+                tags: ['Users'],
+                summary: 'Upload current user profile avatar',
             },
         },
     )

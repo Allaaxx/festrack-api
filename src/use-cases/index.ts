@@ -2,6 +2,7 @@ export * from './user/delete-user.js';
 export * from './user/get-user-balance.js';
 export * from './user/get-user-by-id.js';
 export * from './user/update-user.js';
+export * from './user/upload-user-avatar.js';
 
 export * from './transaction/create-transaction.js';
 export * from './transaction/delete-transaction.js';

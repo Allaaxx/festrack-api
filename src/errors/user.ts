@@ -18,3 +18,19 @@ export class InvalidPasswordError extends Error {
         this.name = 'InvalidPasswordError';
     }
 }
+
+export class InvalidFileTypeError extends Error {
+    constructor(fileType: string) {
+        super(
+            `Invalid file type: ${fileType}. Allowed types are image/jpeg, image/png, image/webp.`,
+        );
+        this.name = 'InvalidFileTypeError';
+    }
+}
+
+export class FileSizeExceededError extends Error {
+    constructor(maxSizeMb: number = 5) {
+        super(`File size exceeds the maximum allowed size of ${maxSizeMb}MB.`);
+        this.name = 'FileSizeExceededError';
+    }
+}

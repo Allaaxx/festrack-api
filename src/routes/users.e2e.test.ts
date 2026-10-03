@@ -1,7 +1,13 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect, spyOn } from 'bun:test';
 import { app } from '../app.js';
 import { testClient } from '../test-helper.js';
 import { createAuthenticatedUser } from '../tests/auth-helper.js';
+import { S3StorageService } from '../adapters/index.js';
+
+const VALID_PNG_BYTES = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64',
+);
 
 describe('Users Routes (Elysia E2E)', () => {
     const client = testClient(app);
@@ -43,6 +49,101 @@ describe('Users Routes (Elysia E2E)', () => {
             const response = await client
                 .get('/api/users/me')
                 .set('Authorization', 'Bearer invalid_or_expired_token');
+
+            expect(response.status).toBe(401);
+            expect(response.body).toEqual({ message: 'Unauthorized' });
+        });
+    });
+
+    describe('POST /api/users/me/avatar', () => {
+        it('should upload avatar successfully with Bearer token', async () => {
+            const uploadSpy = spyOn(
+                S3StorageService.prototype,
+                'upload',
+            ).mockResolvedValue(
+                'https://storage.example.com/festrack/avatars/test.png',
+            );
+
+            const authUser = await createAuthenticatedUser(client);
+            const formData = new FormData();
+            formData.append(
+                'avatar',
+                new Blob([VALID_PNG_BYTES], { type: 'image/png' }),
+                'avatar.png',
+            );
+
+            const response = await client
+                .post('/api/users/me/avatar')
+                .set('Authorization', authUser.bearerHeader)
+                .send(formData);
+
+            expect(response.status).toBe(200);
+            expect(response.body.id).toBe(authUser.user.id);
+            expect(response.body.image).toBe(
+                'https://storage.example.com/festrack/avatars/test.png',
+            );
+            uploadSpy.mockRestore();
+        });
+
+        it('should return 400 when file type is not allowed', async () => {
+            const authUser = await createAuthenticatedUser(client);
+            const formData = new FormData();
+            formData.append(
+                'avatar',
+                new Blob(['fake text content'], { type: 'text/plain' }),
+                'document.txt',
+            );
+
+            const response = await client
+                .post('/api/users/me/avatar')
+                .set('Authorization', authUser.bearerHeader)
+                .send(formData);
+
+            expect(response.status).toBe(400);
+        });
+
+        it('should return 400 when file size exceeds 5MB', async () => {
+            const authUser = await createAuthenticatedUser(client);
+            const sixMbBuffer = new Uint8Array(6 * 1024 * 1024);
+            const formData = new FormData();
+            formData.append(
+                'avatar',
+                new Blob([sixMbBuffer], { type: 'image/png' }),
+                'large.png',
+            );
+
+            const response = await client
+                .post('/api/users/me/avatar')
+                .set('Authorization', authUser.bearerHeader)
+                .send(formData);
+
+            expect(response.status).toBe(400);
+        });
+
+        it('should return 400 when avatar file field is missing', async () => {
+            const authUser = await createAuthenticatedUser(client);
+            const formData = new FormData();
+            formData.append('unrelated', 'value');
+
+            const response = await client
+                .post('/api/users/me/avatar')
+                .set('Authorization', authUser.bearerHeader)
+                .send(formData);
+
+            expect(response.status).toBe(400);
+        });
+
+        it('should return 401 when uploading avatar without authentication', async () => {
+            const formData = new FormData();
+            formData.append(
+                'avatar',
+                new Blob([VALID_PNG_BYTES], { type: 'image/png' }),
+                'avatar.png',
+            );
+
+            const response = await client
+                .post('/api/users/me/avatar')
+                .send(formData);
 
             expect(response.status).toBe(401);
             expect(response.body).toEqual({ message: 'Unauthorized' });
