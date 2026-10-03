@@ -21,6 +21,10 @@ jobs:
                   echo "DATABASE_URL=postgresql://postgres:password@localhost:5433/finance-app" >> .env.test
                   echo "JWT_ACCESS_TOKEN_SECRET=test_access_secret" >> .env.test
                   echo "JWT_REFRESH_TOKEN_SECRET=test_refresh_secret" >> .env.test
+                  echo "BETTER_AUTH_SECRET=test_access_secret" >> .env.test
+                  echo "BETTER_AUTH_URL=http://localhost:8080" >> .env.test
+                  echo "GOOGLE_CLIENT_ID=mock-google-client-id" >> .env.test
+                  echo "GOOGLE_CLIENT_SECRET=mock-google-client-secret" >> .env.test
 
             - name: Install Dependencies
               run: bun install --frozen-lockfile
