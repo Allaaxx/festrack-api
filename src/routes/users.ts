@@ -94,12 +94,6 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
                             error: 'Please provide a valid e-mail.',
                         }),
                     ),
-                    password: t.Optional(
-                        t.String({
-                            minLength: 6,
-                            error: 'Password must have at least 6 characters',
-                        }),
-                    ),
                 },
                 { additionalProperties: false },
             ),

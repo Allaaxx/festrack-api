@@ -114,6 +114,19 @@ describe('Users Routes (Elysia E2E)', () => {
             expect(response.status).toBe(400);
         });
 
+        it('should return 400 when body contains password', async () => {
+            const authUser = await createAuthenticatedUser(client);
+
+            const response = await client
+                .patch('/api/users/me')
+                .set('Authorization', authUser.bearerHeader)
+                .send({
+                    password: 'newpassword123',
+                });
+
+            expect(response.status).toBe(400);
+        });
+
         it('should return 401 when not authenticated', async () => {
             const response = await client.patch('/api/users/me').send({
                 first_name: 'NoAuth',
