@@ -229,4 +229,22 @@ describe('Better Auth Endpoints (E2E)', () => {
             expect(getSessionRes.body).toBeNull();
         });
     });
+
+    describe('Origin Validation', () => {
+        it('should allow requests with trusted origin http://localhost:5174', async () => {
+            const uniqueEmail = `test_origin_${Date.now()}@example.com`;
+            const response = await client
+                .post('/api/auth/sign-up/email')
+                .set('Origin', 'http://localhost:5174')
+                .send({
+                    email: uniqueEmail,
+                    password: 'Password123!',
+                    first_name: 'Origin',
+                    last_name: 'Tester',
+                });
+
+            expect(response.status).toBe(200);
+            expect(response.body).toHaveProperty('user');
+        });
+    });
 });

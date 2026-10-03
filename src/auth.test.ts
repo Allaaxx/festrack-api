@@ -1,5 +1,4 @@
-import { describe, it, expect } from 'bun:test';
-import { auth } from './auth.js';
+import { auth, trustedOrigins } from './auth.js';
 import { db } from './db/postgres/index.js';
 import {
     user,
@@ -16,6 +15,12 @@ describe('Better Auth Core Configuration & Database Integration', () => {
         expect(typeof auth.api.signUpEmail).toBe('function');
         expect(typeof auth.api.signInEmail).toBe('function');
         expect(typeof auth.api.getSession).toBe('function');
+    });
+
+    it('should configure trusted origins including localhost ports', () => {
+        expect(trustedOrigins).toBeDefined();
+        expect(trustedOrigins).toContain('http://localhost:5173');
+        expect(trustedOrigins).toContain('http://localhost:5174');
     });
 
     it('should create a user with first_name and last_name in the database via Better Auth API', async () => {

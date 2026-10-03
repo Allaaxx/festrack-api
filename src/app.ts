@@ -2,18 +2,13 @@ import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { swagger } from '@elysiajs/swagger';
 import { authPlugin } from './plugins/auth.js';
+import { trustedOrigins } from './auth.js';
 import {
     authRoutes,
     usersRoutes,
     eventsRoutes,
     transactionsRoutes,
 } from './routes/index.js';
-
-const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    process.env.FRONTEND_URL,
-].filter((origin): origin is string => Boolean(origin));
 
 const getValidationErrorMessage = (error: {
     customError?: unknown;
@@ -47,7 +42,7 @@ export const app = new Elysia({ normalize: false })
     })
     .use(
         cors({
-            origin: allowedOrigins,
+            origin: trustedOrigins,
             methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
             allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
             credentials: true,

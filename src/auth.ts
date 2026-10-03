@@ -4,9 +4,24 @@ import { bearer } from 'better-auth/plugins';
 import { createAuthMiddleware } from 'better-auth/api';
 import { db } from './db/postgres/index.js';
 import * as schema from './db/postgres/schemas/index.js';
+import { i18n, locales } from '@better-auth/i18n';
+
+const envTrustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
+    ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',').map((origin) =>
+          origin.trim(),
+      )
+    : [];
+
+export const trustedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    process.env.FRONTEND_URL,
+    ...envTrustedOrigins,
+].filter((origin): origin is string => Boolean(origin));
 
 export const auth = betterAuth({
     baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:8080',
+    trustedOrigins,
     secret:
         process.env.BETTER_AUTH_SECRET ||
         process.env.JWT_ACCESS_TOKEN_SECRET ||
@@ -39,7 +54,15 @@ export const auth = betterAuth({
             }
         }),
     },
-    plugins: [bearer()],
+    plugins: [
+        bearer(),
+        i18n({
+            translations: {
+                pt: locales.pt,
+            },
+            defaultLocale: 'pt',
+        }),
+    ],
     user: {
         additionalFields: {
             first_name: { type: 'string', required: true },
