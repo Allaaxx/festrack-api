@@ -5,8 +5,6 @@ export default defineConfig({
     schema: './src/db/postgres/schemas/index.ts',
     out: './src/db/postgres/migrations',
     dbCredentials: {
-        url:
-            process.env.DATABASE_URL ||
-            'postgresql://postgres:password@localhost:5432/finance-app',
+        url: process.env.DATABASE_URL || '',
     },
 });

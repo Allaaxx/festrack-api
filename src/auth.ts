@@ -1,11 +1,11 @@
+import { i18n, locales } from '@better-auth/i18n';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { bearer } from 'better-auth/plugins';
 import { createAuthMiddleware } from 'better-auth/api';
+import { bearer } from 'better-auth/plugins';
+import { and, eq } from 'drizzle-orm';
 import { db } from './db/postgres/index.js';
 import * as schema from './db/postgres/schemas/index.js';
-import { i18n, locales } from '@better-auth/i18n';
-import { eq, and } from 'drizzle-orm';
 
 const envTrustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
     ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',').map((origin) =>
@@ -21,12 +21,9 @@ export const trustedOrigins = [
 ].filter((origin): origin is string => Boolean(origin));
 
 export const auth = betterAuth({
-    baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:8080',
+    baseURL: process.env.BETTER_AUTH_URL,
     trustedOrigins,
-    secret:
-        process.env.BETTER_AUTH_SECRET ||
-        process.env.JWT_ACCESS_TOKEN_SECRET ||
-        'secret',
+    secret: process.env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, {
         provider: 'pg',
         schema: {
@@ -38,6 +35,7 @@ export const auth = betterAuth({
     }),
     emailAndPassword: {
         enabled: true,
+        minPasswordLength: 6,
     },
     socialProviders: {
         google: {
