@@ -549,6 +549,79 @@ describe('Better Auth Endpoints (E2E)', () => {
                     'https://www.googleapis.com/auth/calendar.events',
                 );
             });
+
+            it('should merge/link Google account to existing registered email user when signing in with Google', async () => {
+                const uniqueEmail = `existing_email_${Date.now()}@example.com`;
+                const signUpRes = await client
+                    .post('/api/auth/sign-up/email')
+                    .send({
+                        email: uniqueEmail,
+                        password: 'Password123!',
+                        first_name: 'Existing',
+                        last_name: 'EmailUser',
+                    });
+
+                expect(signUpRes.status).toBe(200);
+                const existingUserId = signUpRes.body.user.id;
+
+                const signInRes = await client
+                    .post('/api/auth/sign-in/social')
+                    .send({
+                        provider: 'google',
+                        callbackURL: 'http://localhost:5174/dashboard',
+                    });
+
+                const authUrl = new URL(signInRes.body.url);
+                const state = authUrl.searchParams.get('state');
+                const stateCookie =
+                    signInRes.headers.get('set-cookie')?.split(';')[0] || '';
+
+                const googleSub = `google_same_email_sub_${Date.now()}`;
+                const mockAccessToken = 'ya29.merge_google_access_token';
+                const mockRefreshToken = '1//merge_google_refresh_token';
+
+                const idToken = createMockGoogleIdToken({
+                    sub: googleSub,
+                    email: uniqueEmail,
+                    given_name: 'Existing',
+                    family_name: 'EmailUser',
+                });
+
+                mockTokenResponse = {
+                    access_token: mockAccessToken,
+                    refresh_token: mockRefreshToken,
+                    expires_in: 3600,
+                    token_type: 'Bearer',
+                    scope: 'openid email profile https://www.googleapis.com/auth/calendar.events',
+                    id_token: idToken,
+                };
+
+                const callbackRes = await client
+                    .get(
+                        `/api/auth/callback/google?code=mock_code&state=${state}`,
+                    )
+                    .set('Cookie', stateCookie);
+
+                expect([302, 200]).toContain(callbackRes.status);
+                if (callbackRes.status === 302) {
+                    const location = callbackRes.headers.get('location') || '';
+                    expect(location).toContain(
+                        'http://localhost:5174/dashboard',
+                    );
+                    expect(location).not.toContain('error=');
+                }
+
+                // Verify the user now has two accounts in DB: credential and google
+                const userAccounts = await db
+                    .select()
+                    .from(account)
+                    .where(eq(account.userId, existingUserId));
+
+                expect(userAccounts.length).toBe(2);
+                const providers = userAccounts.map((a) => a.providerId);
+                expect(providers).toContain('credential');
+                expect(providers).toContain('google');
+            });
         });
 
         describe('GET /api/auth/list-accounts', () => {
