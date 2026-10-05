@@ -1,5 +1,6 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { StorageService, UploadFileParams } from '../domain/index.js';
+import { env } from '../config/env.js';
 
 export interface S3StorageConfig {
     bucket?: string;
@@ -18,15 +19,23 @@ export class S3StorageService implements StorageService {
     private region: string;
 
     constructor(config?: S3StorageConfig) {
-        this.bucket = config?.bucket || process.env.S3_BUCKET || 'festrack';
-        this.endpoint = config?.endpoint || process.env.S3_ENDPOINT;
-        this.region = config?.region || process.env.S3_REGION || 'auto';
-        this.publicUrl = config?.publicUrl || process.env.S3_PUBLIC_URL;
+        this.bucket = config?.bucket ?? env.S3_BUCKET;
+        this.region = config?.region ?? env.S3_REGION;
+        this.endpoint = config?.endpoint ?? env.S3_ENDPOINT;
 
-        const accessKeyId =
-            config?.accessKeyId || process.env.S3_ACCESS_KEY_ID || '';
+        // If caller explicitly configured endpoint without publicUrl, omit publicUrl
+        // Otherwise, prioritize config.publicUrl with fallback to env.S3_PUBLIC_URL
+        if (config?.publicUrl !== undefined) {
+            this.publicUrl = config.publicUrl || undefined;
+        } else if (config?.endpoint) {
+            this.publicUrl = undefined;
+        } else {
+            this.publicUrl = env.S3_PUBLIC_URL;
+        }
+
+        const accessKeyId = config?.accessKeyId ?? env.S3_ACCESS_KEY_ID ?? '';
         const secretAccessKey =
-            config?.secretAccessKey || process.env.S3_SECRET_ACCESS_KEY || '';
+            config?.secretAccessKey ?? env.S3_SECRET_ACCESS_KEY ?? '';
 
         this.client = new S3Client({
             region: this.region,

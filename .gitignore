@@ -8,6 +8,9 @@ node_modules
 # Postgres volume
 .postgres-data
 
+# MinIO volume
+.minio-data
+
 # Coverage
 coverage
 
