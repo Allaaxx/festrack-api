@@ -65,6 +65,8 @@ jobs:
               uses: SpicyPizza/create-envfile@v2
               with:
                   envkey_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+                  envkey_BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+                  envkey_BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
 
             - name: Drizzle migrate
               run: bunx drizzle-kit migrate
