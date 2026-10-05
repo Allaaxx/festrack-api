@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { StorageService, UploadFileParams } from '../domain/index.js';
 
 export interface S3StorageConfig {
