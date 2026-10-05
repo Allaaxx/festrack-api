@@ -20,8 +20,10 @@ jobs:
             - name: Setup Bun
               uses: oven-sh/setup-bun@v2
 
-            - name: Setup .env.test
-              run: cp .env.test.example .env.test
+            - name: Setup environment
+              run: |
+                  cp .env.test.example .env.test
+                  cp .env.test.example .env
 
             - name: Install Dependencies
               run: bun install --frozen-lockfile
