@@ -16,6 +16,7 @@ export default tseslint.config(
             },
         },
         rules: {
+            'no-process-env': 'error',
             '@typescript-eslint/no-explicit-any': 'off',
             '@typescript-eslint/no-unused-vars': [
                 'error',
@@ -24,6 +25,12 @@ export default tseslint.config(
                     varsIgnorePattern: '^_',
                 },
             ],
+        },
+    },
+    {
+        files: ['src/config/env.ts'],
+        rules: {
+            'no-process-env': 'off',
         },
     },
     {

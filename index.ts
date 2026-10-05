@@ -1,7 +1,8 @@
 import 'dotenv/config.js';
 import { app } from './src/app.js';
+import { env } from './src/config/env.js';
 
-const port = Number(process.env.PORT) || 3000;
+const port = env.PORT;
 
 app.listen(port, () => {
     const url = `http://localhost:${port}`;

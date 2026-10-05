@@ -1,3 +1,5 @@
+import { env } from './config/env.js';
+
 export interface TestResponse<T = any> {
     status: number;
     statusCode: number;
@@ -51,7 +53,7 @@ export class TestRequestBuilder {
         onrejected?:
             ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
     ): Promise<TResult1 | TResult2> {
-        const baseUrl = process.env.BETTER_AUTH_URL || 'http://localhost:8080';
+        const baseUrl = env.BETTER_AUTH_URL;
         const url = `${baseUrl}${this.path}`;
         const reqHeaders = new Headers(this.headers);
         let body: BodyInit | undefined = undefined;
