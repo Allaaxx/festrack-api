@@ -1,6 +1,7 @@
 node_modules
 .git
 .postgres-data
+.minio-data
 coverage
 dist
 .env

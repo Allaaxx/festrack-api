@@ -4,6 +4,10 @@ on:
     push:
         branches:
             - master
+    pull_request:
+        branches:
+            - master
+            - dev
 
 jobs:
     check:
@@ -17,17 +21,13 @@ jobs:
               uses: oven-sh/setup-bun@v2
 
             - name: Setup .env.test
-              run: |
-                  echo "DATABASE_URL=postgresql://postgres:password@localhost:5433/finance-app" >> .env.test
-                  echo "JWT_ACCESS_TOKEN_SECRET=test_access_secret" >> .env.test
-                  echo "JWT_REFRESH_TOKEN_SECRET=test_refresh_secret" >> .env.test
-                  echo "BETTER_AUTH_SECRET=test_access_secret" >> .env.test
-                  echo "BETTER_AUTH_URL=http://localhost:8080" >> .env.test
-                  echo "GOOGLE_CLIENT_ID=mock-google-client-id" >> .env.test
-                  echo "GOOGLE_CLIENT_SECRET=mock-google-client-secret" >> .env.test
+              run: cp .env.test.example .env.test
 
             - name: Install Dependencies
               run: bun install --frozen-lockfile
+
+            - name: Typecheck
+              run: bun run typecheck
 
             - name: ESLint
               run: bun run eslint:check
@@ -46,6 +46,7 @@ jobs:
     migrate:
         runs-on: ubuntu-latest
         needs: check
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         environment: production
 
         steps:

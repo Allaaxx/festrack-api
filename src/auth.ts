@@ -6,24 +6,23 @@ import { bearer } from 'better-auth/plugins';
 import { and, eq } from 'drizzle-orm';
 import { db } from './db/postgres/index.js';
 import * as schema from './db/postgres/schemas/index.js';
+import { env } from './config/env.js';
 
-const envTrustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
-    ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',').map((origin) =>
-          origin.trim(),
-      )
+const envTrustedOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS
+    ? env.BETTER_AUTH_TRUSTED_ORIGINS.split(',').map((origin) => origin.trim())
     : [];
 
 export const trustedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
-    process.env.FRONTEND_URL,
+    env.FRONTEND_URL,
     ...envTrustedOrigins,
 ].filter((origin): origin is string => Boolean(origin));
 
 export const auth = betterAuth({
-    baseURL: process.env.BETTER_AUTH_URL,
+    baseURL: env.BETTER_AUTH_URL,
     trustedOrigins,
-    secret: process.env.BETTER_AUTH_SECRET,
+    secret: env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, {
         provider: 'pg',
         schema: {
@@ -39,8 +38,8 @@ export const auth = betterAuth({
     },
     socialProviders: {
         google: {
-            clientId: process.env.GOOGLE_CLIENT_ID || '',
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+            clientId: env.GOOGLE_CLIENT_ID || '',
+            clientSecret: env.GOOGLE_CLIENT_SECRET || '',
             accessType: 'offline',
             prompt: 'consent',
             scope: ['https://www.googleapis.com/auth/calendar.events'],

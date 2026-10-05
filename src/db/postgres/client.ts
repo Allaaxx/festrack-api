@@ -1,10 +1,9 @@
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from './schemas/index.js';
+import { env } from '../../config/env.js';
 
-const connectionString =
-    process.env.DATABASE_URL ||
-    'postgresql://postgres:password@localhost:5432/finance-app';
+const connectionString = env.DATABASE_URL;
 
 export const sqlClient = postgres(connectionString, {
     max: 10,
