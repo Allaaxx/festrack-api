@@ -96,4 +96,124 @@ describe('Delete Event Use Case', () => {
 
         await expect(promise).rejects.toThrow();
     });
+
+    it('should delete Google Calendar event when sync is enabled and event has google_event_id', async () => {
+        const eventRepository = new EventRepositoryStub();
+        const userRepository = {
+            findById: jest.fn().mockResolvedValue({
+                ...user,
+                google_calendar_sync_enabled: true,
+            }),
+        };
+        const calendarAdapter = {
+            delete: jest.fn().mockResolvedValue(undefined),
+        };
+
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            user_id: user.id,
+            google_event_id: 'g-event-to-delete',
+        });
+
+        const sut = new DeleteEventUseCase(
+            eventRepository,
+            userRepository as any,
+            calendarAdapter,
+        );
+
+        await sut.execute(event.id, user.id);
+
+        expect(calendarAdapter.delete).toHaveBeenCalledWith(
+            user.id,
+            'g-event-to-delete',
+        );
+    });
+
+    it('should bypass Google Calendar delete when event has no google_event_id', async () => {
+        const eventRepository = new EventRepositoryStub();
+        const userRepository = {
+            findById: jest.fn().mockResolvedValue({
+                ...user,
+                google_calendar_sync_enabled: true,
+            }),
+        };
+        const calendarAdapter = {
+            delete: jest.fn(),
+        };
+
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            user_id: user.id,
+            google_event_id: null,
+        });
+
+        const sut = new DeleteEventUseCase(
+            eventRepository,
+            userRepository as any,
+            calendarAdapter,
+        );
+
+        await sut.execute(event.id, user.id);
+
+        expect(calendarAdapter.delete).not.toHaveBeenCalled();
+    });
+
+    it('should bypass Google Calendar delete when sync is disabled', async () => {
+        const eventRepository = new EventRepositoryStub();
+        const userRepository = {
+            findById: jest.fn().mockResolvedValue({
+                ...user,
+                google_calendar_sync_enabled: false,
+            }),
+        };
+        const calendarAdapter = {
+            delete: jest.fn(),
+        };
+
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            user_id: user.id,
+            google_event_id: 'g-event-to-delete',
+        });
+
+        const sut = new DeleteEventUseCase(
+            eventRepository,
+            userRepository as any,
+            calendarAdapter,
+        );
+
+        await sut.execute(event.id, user.id);
+
+        expect(calendarAdapter.delete).not.toHaveBeenCalled();
+    });
+
+    it('should tolerate Google Calendar delete failure and still delete event in Festrack (non-blocking resilience)', async () => {
+        const eventRepository = new EventRepositoryStub();
+        const userRepository = {
+            findById: jest.fn().mockResolvedValue({
+                ...user,
+                google_calendar_sync_enabled: true,
+            }),
+        };
+        const calendarAdapter = {
+            delete: jest.fn().mockRejectedValue(new Error('Google 500 error')),
+        };
+
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            user_id: user.id,
+            google_event_id: 'g-event-to-delete',
+        });
+
+        const sut = new DeleteEventUseCase(
+            eventRepository,
+            userRepository as any,
+            calendarAdapter,
+        );
+
+        const result = await sut.execute(event.id, user.id);
+
+        expect(result).toBeDefined();
+        expect(calendarAdapter.delete).toHaveBeenCalled();
+    });
 });

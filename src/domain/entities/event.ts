@@ -5,6 +5,7 @@ export interface Event {
     start_date: Date | string;
     end_date: Date | string;
     user_id: string;
+    google_event_id?: string | null;
 }
 
 export interface CreateEventParams {
@@ -13,6 +14,7 @@ export interface CreateEventParams {
     description?: string | null;
     start_date: Date | string;
     end_date: Date | string;
+    google_event_id?: string | null;
 }
 
 export interface UpdateEventParams {
@@ -20,4 +22,5 @@ export interface UpdateEventParams {
     description?: string | null;
     start_date?: Date | string;
     end_date?: Date | string;
+    google_event_id?: string | null;
 }

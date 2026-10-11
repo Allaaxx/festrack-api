@@ -21,7 +21,10 @@ export class S3StorageService implements StorageService {
     constructor(config?: S3StorageConfig) {
         this.bucket = config?.bucket ?? env.S3_BUCKET;
         this.region = config?.region ?? env.S3_REGION;
-        this.endpoint = config?.endpoint ?? env.S3_ENDPOINT;
+        this.endpoint =
+            config?.endpoint !== undefined
+                ? config.endpoint || undefined
+                : env.S3_ENDPOINT;
 
         // If caller explicitly configured endpoint without publicUrl, omit publicUrl
         // Otherwise, prioritize config.publicUrl with fallback to env.S3_PUBLIC_URL

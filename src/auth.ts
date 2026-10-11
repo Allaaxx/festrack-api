@@ -106,6 +106,21 @@ export const auth = betterAuth({
                 }
             }
         }),
+        after: createAuthMiddleware(async (ctx) => {
+            if (ctx.path === '/unlink-account') {
+                if (ctx.body && ctx.body.providerId === 'google') {
+                    const session = await auth.api.getSession({
+                        headers: ctx.headers || new Headers(),
+                    });
+                    if (session) {
+                        await db
+                            .update(schema.user)
+                            .set({ google_calendar_sync_enabled: false })
+                            .where(eq(schema.user.id, session.user.id));
+                    }
+                }
+            }
+        }),
     },
     plugins: [
         bearer(),
@@ -120,6 +135,11 @@ export const auth = betterAuth({
         additionalFields: {
             first_name: { type: 'string', required: true },
             last_name: { type: 'string', required: true },
+            google_calendar_sync_enabled: {
+                type: 'boolean',
+                required: false,
+                defaultValue: false,
+            },
         },
     },
 });

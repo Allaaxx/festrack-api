@@ -34,6 +34,7 @@ describe('Users Routes (Elysia E2E)', () => {
             expect(response.body.email).toBe(authUser.user.email);
             expect(response.body.first_name).toBe(authUser.user.first_name);
             expect(response.body.last_name).toBe(authUser.user.last_name);
+            expect(response.body.google_calendar_sync_enabled).toBe(false);
         });
 
         it('should return 200 with Cookie', async () => {
@@ -190,6 +191,32 @@ describe('Users Routes (Elysia E2E)', () => {
             expect(response.status).toBe(200);
             expect(response.body.first_name).toBe('CookieFirst');
             expect(response.body.last_name).toBe('CookieLast');
+        });
+
+        it('should update google_calendar_sync_enabled successfully', async () => {
+            const authUser = await createAuthenticatedUser(client);
+
+            // Enable sync
+            const enableRes = await client
+                .patch('/api/users/me')
+                .set('Authorization', authUser.bearerHeader)
+                .send({
+                    google_calendar_sync_enabled: true,
+                });
+
+            expect(enableRes.status).toBe(200);
+            expect(enableRes.body.google_calendar_sync_enabled).toBe(true);
+
+            // Disable sync
+            const disableRes = await client
+                .patch('/api/users/me')
+                .set('Authorization', authUser.bearerHeader)
+                .send({
+                    google_calendar_sync_enabled: false,
+                });
+
+            expect(disableRes.status).toBe(200);
+            expect(disableRes.body.google_calendar_sync_enabled).toBe(false);
         });
 
         it('should return 400 when email is already in use', async () => {
@@ -553,6 +580,12 @@ describe('Users Routes (Elysia E2E)', () => {
                 scope: 'openid email profile https://www.googleapis.com/auth/calendar.events',
             });
 
+            // Enable sync first
+            await client
+                .patch('/api/users/me')
+                .set('Authorization', authUser.bearerHeader)
+                .send({ google_calendar_sync_enabled: true });
+
             // Verify 2 accounts exist prior to unlinking
             const beforeAccounts = await db
                 .select()
@@ -575,6 +608,13 @@ describe('Users Routes (Elysia E2E)', () => {
                 .where(eq(account.userId, authUser.user.id));
             expect(afterAccounts.length).toBe(1);
             expect(afterAccounts[0].providerId).toBe('credential');
+
+            // Verify google_calendar_sync_enabled was reset to false
+            const [userInDb] = await db
+                .select()
+                .from(usersTable)
+                .where(eq(usersTable.id, authUser.user.id));
+            expect(userInDb.google_calendar_sync_enabled).toBe(false);
         });
     });
 });

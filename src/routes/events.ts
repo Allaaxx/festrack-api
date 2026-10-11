@@ -11,6 +11,7 @@ import {
     PostgresEventRepository,
     PostgresUserRepository,
 } from '../repositories/postgres/index.js';
+import { DefaultGoogleCalendarAdapter } from '../adapters/index.js';
 import { EventNotFoundError } from '../errors/event.js';
 import { ForbiddenError } from '../errors/index.js';
 
@@ -42,9 +43,11 @@ export const eventsRoutes = new Elysia({ prefix: '/api/events' })
 
             const eventRepository = new PostgresEventRepository();
             const userRepository = new PostgresUserRepository();
+            const calendarAdapter = new DefaultGoogleCalendarAdapter();
             const useCase = new CreateEventUseCase(
                 eventRepository,
                 userRepository,
+                calendarAdapter,
             );
 
             try {
@@ -180,7 +183,13 @@ export const eventsRoutes = new Elysia({ prefix: '/api/events' })
             }
 
             const repository = new PostgresEventRepository();
-            const useCase = new UpdateEventUseCase(repository);
+            const userRepository = new PostgresUserRepository();
+            const calendarAdapter = new DefaultGoogleCalendarAdapter();
+            const useCase = new UpdateEventUseCase(
+                repository,
+                userRepository,
+                calendarAdapter,
+            );
 
             try {
                 const event = await useCase.execute(
@@ -243,7 +252,13 @@ export const eventsRoutes = new Elysia({ prefix: '/api/events' })
         '/me/:eventId',
         async ({ userId, params, set }) => {
             const repository = new PostgresEventRepository();
-            const useCase = new DeleteEventUseCase(repository);
+            const userRepository = new PostgresUserRepository();
+            const calendarAdapter = new DefaultGoogleCalendarAdapter();
+            const useCase = new DeleteEventUseCase(
+                repository,
+                userRepository,
+                calendarAdapter,
+            );
 
             try {
                 const event = await useCase.execute(params.eventId, userId!);

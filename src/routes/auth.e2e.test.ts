@@ -701,6 +701,12 @@ describe('Better Auth Endpoints (E2E)', () => {
                 const token = signUpRes.body.token;
                 const userId = signUpRes.body.user.id;
 
+                // Set google_calendar_sync_enabled to true
+                await db
+                    .update(user)
+                    .set({ google_calendar_sync_enabled: true })
+                    .where(eq(user.id, userId));
+
                 // Add Google account
                 await db.insert(account).values({
                     id: crypto.randomUUID(),
@@ -725,6 +731,13 @@ describe('Better Auth Endpoints (E2E)', () => {
 
                 expect(remainingAccounts.length).toBe(1);
                 expect(remainingAccounts[0].providerId).toBe('credential');
+
+                // Verify google_calendar_sync_enabled was reset to false
+                const [userInDb] = await db
+                    .select()
+                    .from(user)
+                    .where(eq(user.id, userId));
+                expect(userInDb.google_calendar_sync_enabled).toBe(false);
             });
         });
     });

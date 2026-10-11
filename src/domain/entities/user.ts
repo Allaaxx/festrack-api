@@ -6,6 +6,7 @@ export interface User {
     name?: string;
     emailVerified?: boolean;
     image?: string | null;
+    google_calendar_sync_enabled?: boolean;
     createdAt?: Date;
     updatedAt?: Date;
     password?: string;
