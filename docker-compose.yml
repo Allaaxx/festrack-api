@@ -29,7 +29,7 @@ services:
             retries: 10
 
     minio:
-        image: minio/minio:latest
+        image: ghcr.io/coollabsio/minio:latest
         container_name: finance-app-minio
         environment:
             MINIO_ROOT_USER: minioadmin
@@ -42,7 +42,7 @@ services:
             - ./.minio-data:/data
 
     minio-create-bucket:
-        image: minio/mc:latest
+        image: ghcr.io/coollabsio/minio:latest
         container_name: finance-app-minio-setup
         depends_on:
             - minio
