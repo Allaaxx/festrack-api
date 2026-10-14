@@ -122,16 +122,23 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
         async ({ userId, query, set }) => {
             const transactionRepository = new PostgresTransactionRepository();
             const userRepository = new PostgresUserRepository();
+            const eventRepository = new PostgresEventRepository();
             const useCase = new GetTransactionByUserIdUseCase(
                 transactionRepository,
                 userRepository,
+                eventRepository,
             );
 
             try {
                 const transactions = await useCase.execute(
                     userId!,
-                    query?.from,
-                    query?.to,
+                    query
+                        ? {
+                              from: query.from,
+                              to: query.to,
+                              event_id: query.event_id,
+                          }
+                        : undefined,
                 );
                 set.status = 200;
                 return transactions;
@@ -140,19 +147,38 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
                     set.status = 404;
                     return { message: 'User not found.' };
                 }
+                if (error instanceof EventNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Event not found.' };
+                }
+                if (error instanceof ForbiddenError) {
+                    set.status = 403;
+                    return { message: 'Forbidden' };
+                }
                 set.status = 500;
                 return { message: 'Internal server error' };
             }
         },
         {
             isAuth: true,
-            query: t.Object({
-                from: t.Optional(t.String()),
-                to: t.Optional(t.String()),
-            }),
+            query: t.Object(
+                {
+                    from: t.Optional(t.String()),
+                    to: t.Optional(t.String()),
+                    event_id: t.Optional(
+                        t.String({
+                            format: 'uuid',
+                            error: 'Event ID must be a valid UUID.',
+                        }),
+                    ),
+                },
+                { additionalProperties: false },
+            ),
             detail: {
                 tags: ['Transactions'],
                 summary: 'Get all user transactions',
+                description:
+                    'Retrieve transactions for the authenticated user, optionally filtered by date range or associated event.',
             },
         },
     )

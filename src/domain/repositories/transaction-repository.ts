@@ -4,6 +4,12 @@ import {
     UpdateTransactionParams,
 } from '../entities/transaction.js';
 
+export interface TransactionFilters {
+    from?: string;
+    to?: string;
+    event_id?: string;
+}
+
 export interface TransactionRepository {
     create(
         createTransactionParams: CreateTransactionParams,
@@ -11,8 +17,7 @@ export interface TransactionRepository {
     findById(transactionId: string): Promise<Transaction | null>;
     findByUserId(
         userId: string,
-        from?: string,
-        to?: string,
+        filters?: TransactionFilters,
     ): Promise<Transaction[]>;
     update(
         transactionId: string,

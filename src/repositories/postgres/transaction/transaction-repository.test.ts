@@ -68,8 +68,10 @@ describe('Postgres Transaction Repository', () => {
     });
 
     describe('findByUserId', () => {
-        const from = '2020-01-01';
-        const to = '2025-12-31';
+        const filters = {
+            from: '2020-01-01',
+            to: '2025-12-31',
+        };
 
         it('should return transactions of the provided user', async () => {
             const date = '2024-01-02';
@@ -81,16 +83,162 @@ describe('Postgres Transaction Repository', () => {
                 amount: transaction.amount.toString(),
             });
 
-            const result = await sut.findByUserId(user.id, from, to);
+            const result = await sut.findByUserId(user.id, filters);
 
             expect(result.length).toBe(1);
             expect(result[0].name).toBe(transaction.name);
         });
 
         it('should return empty list if user has no transactions', async () => {
-            const result = await sut.findByUserId(user.id, from, to);
+            const result = await sut.findByUserId(user.id, filters);
 
             expect(result).toEqual([]);
+        });
+
+        it('should return transactions ordered chronologically descending (newest first)', async () => {
+            await db.insert(usersTable).values(user);
+            const oldest = {
+                ...transaction,
+                id: faker.string.uuid(),
+                name: 'Oldest',
+                date: new Date('2024-01-10'),
+                user_id: user.id,
+                amount: '10.00',
+            };
+            const middle = {
+                ...transaction,
+                id: faker.string.uuid(),
+                name: 'Middle',
+                date: new Date('2024-05-20'),
+                user_id: user.id,
+                amount: '20.00',
+            };
+            const newest = {
+                ...transaction,
+                id: faker.string.uuid(),
+                name: 'Newest',
+                date: new Date('2024-11-15'),
+                user_id: user.id,
+                amount: '30.00',
+            };
+
+            await db.insert(transactionsTable).values([middle, oldest, newest]);
+
+            const result = await sut.findByUserId(user.id);
+
+            expect(result.length).toBe(3);
+            expect(result[0].id).toBe(newest.id);
+            expect(result[1].id).toBe(middle.id);
+            expect(result[2].id).toBe(oldest.id);
+        });
+
+        it('should filter transactions by from date', async () => {
+            await db.insert(usersTable).values(user);
+            await db.insert(transactionsTable).values([
+                {
+                    ...transaction,
+                    id: faker.string.uuid(),
+                    date: new Date('2023-01-01'),
+                    user_id: user.id,
+                    amount: '10.00',
+                },
+                {
+                    ...transaction,
+                    id: faker.string.uuid(),
+                    date: new Date('2024-06-01'),
+                    user_id: user.id,
+                    amount: '20.00',
+                },
+            ]);
+
+            const result = await sut.findByUserId(user.id, {
+                from: '2024-01-01',
+            });
+
+            expect(result.length).toBe(1);
+            expect(dayjs(result[0].date).year()).toBe(2024);
+        });
+
+        it('should filter transactions by to date', async () => {
+            await db.insert(usersTable).values(user);
+            await db.insert(transactionsTable).values([
+                {
+                    ...transaction,
+                    id: faker.string.uuid(),
+                    date: new Date('2023-01-01'),
+                    user_id: user.id,
+                    amount: '10.00',
+                },
+                {
+                    ...transaction,
+                    id: faker.string.uuid(),
+                    date: new Date('2024-06-01'),
+                    user_id: user.id,
+                    amount: '20.00',
+                },
+            ]);
+
+            const result = await sut.findByUserId(user.id, {
+                to: '2023-12-31',
+            });
+
+            expect(result.length).toBe(1);
+            expect(dayjs(result[0].date).year()).toBe(2023);
+        });
+
+        it('should filter transactions by event_id', async () => {
+            const eventId = faker.string.uuid();
+            await db.insert(usersTable).values(user);
+            await db.insert(eventsTable).values({
+                id: eventId,
+                name: 'Vacation',
+                start_date: new Date('2026-06-01'),
+                end_date: new Date('2026-06-15'),
+                user_id: user.id,
+            });
+
+            await db.insert(transactionsTable).values([
+                {
+                    ...transaction,
+                    id: faker.string.uuid(),
+                    date: new Date(transaction.date),
+                    user_id: user.id,
+                    amount: '10.00',
+                    event_id: eventId,
+                },
+                {
+                    ...transaction,
+                    id: faker.string.uuid(),
+                    date: new Date(transaction.date),
+                    user_id: user.id,
+                    amount: '20.00',
+                    event_id: null,
+                },
+            ]);
+
+            const result = await sut.findByUserId(user.id, {
+                event_id: eventId,
+            });
+
+            expect(result.length).toBe(1);
+            expect(result[0].event_id).toBe(eventId);
+        });
+
+        it('should safely ignore invalid from or to dates without throwing', async () => {
+            await db.insert(usersTable).values(user);
+            await db.insert(transactionsTable).values({
+                ...transaction,
+                user_id: user.id,
+                date: new Date('2024-01-01'),
+                amount: '10.00',
+            });
+
+            const result = await sut.findByUserId(user.id, {
+                from: 'invalid-date',
+                to: 'another-invalid-date',
+            });
+
+            expect(result.length).toBe(1);
         });
     });
 

@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { db, Database } from '../../../db/postgres/index.js';
 import {
     transactionsTable,
@@ -7,12 +7,13 @@ import {
 import { TransactionNotFoundError } from '../../../errors/transaction.js';
 import {
     Transaction,
+    TransactionFilters,
     CreateTransactionParams,
     UpdateTransactionParams,
     TransactionRepository,
 } from '../../../domain/index.js';
 
-export type { TransactionRepository };
+export type { TransactionRepository, TransactionFilters };
 
 function toCents(val: string | number | null | undefined): bigint {
     if (!val) return 0n;
@@ -79,24 +80,39 @@ export class PostgresTransactionRepository implements TransactionRepository {
 
     async findByUserId(
         userId: string,
-        from?: string,
-        to?: string,
+        filters?: TransactionFilters,
     ): Promise<Transaction[]> {
         const conditions = [eq(transactionsTable.user_id, userId)];
 
-        if (from && to) {
-            const fromDate = new Date(from).toISOString().slice(0, 10);
-            const toDate = new Date(to).toISOString().slice(0, 10);
-            conditions.push(
-                sql`${transactionsTable.date} >= ${fromDate}::date`,
-                sql`${transactionsTable.date} <= ${toDate}::date`,
-            );
+        if (filters?.from) {
+            const parsedFrom = new Date(filters.from);
+            if (!isNaN(parsedFrom.getTime())) {
+                const fromDate = parsedFrom.toISOString().slice(0, 10);
+                conditions.push(
+                    sql`${transactionsTable.date} >= ${fromDate}::date`,
+                );
+            }
+        }
+
+        if (filters?.to) {
+            const parsedTo = new Date(filters.to);
+            if (!isNaN(parsedTo.getTime())) {
+                const toDate = parsedTo.toISOString().slice(0, 10);
+                conditions.push(
+                    sql`${transactionsTable.date} <= ${toDate}::date`,
+                );
+            }
+        }
+
+        if (filters?.event_id) {
+            conditions.push(eq(transactionsTable.event_id, filters.event_id));
         }
 
         const rows = await this.database
             .select()
             .from(transactionsTable)
-            .where(and(...conditions));
+            .where(and(...conditions))
+            .orderBy(desc(transactionsTable.date));
 
         return rows.map(mapTransaction);
     }

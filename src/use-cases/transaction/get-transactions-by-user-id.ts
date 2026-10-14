@@ -1,6 +1,12 @@
-import { UserNotFoundError } from '../../errors/user.js';
 import {
+    EventNotFoundError,
+    ForbiddenError,
+    UserNotFoundError,
+} from '../../errors/index.js';
+import {
+    EventRepository,
     Transaction,
+    TransactionFilters,
     TransactionRepository,
     UserRepository,
 } from '../../domain/index.js';
@@ -12,12 +18,12 @@ export class GetTransactionByUserIdUseCase {
             'findByUserId'
         >,
         private readonly userRepository: Pick<UserRepository, 'findById'>,
+        private readonly eventRepository: Pick<EventRepository, 'findById'>,
     ) {}
 
     async execute(
         userId: string,
-        from?: string,
-        to?: string,
+        filters?: TransactionFilters,
     ): Promise<Transaction[]> {
         const user = await this.userRepository.findById(userId);
 
@@ -25,10 +31,21 @@ export class GetTransactionByUserIdUseCase {
             throw new UserNotFoundError(userId);
         }
 
+        if (filters?.event_id) {
+            const event = await this.eventRepository.findById(filters.event_id);
+
+            if (!event) {
+                throw new EventNotFoundError(filters.event_id);
+            }
+
+            if (event.user_id !== userId) {
+                throw new ForbiddenError();
+            }
+        }
+
         const transactions = await this.transactionRepository.findByUserId(
             userId,
-            from,
-            to,
+            filters,
         );
 
         return transactions;
