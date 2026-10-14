@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'bun:test';
 import { Elysia } from 'elysia';
+import { serverConfig, startServer } from '../index.js';
 import { app } from './app.js';
 import { authPlugin } from './plugins/auth.js';
 import { testClient } from './test-helper.js';
 import { auth } from './auth.js';
+import { env } from './config/env.js';
 
 describe('Elysia Foundation & Plugins', () => {
     it('should respond to Swagger documentation endpoint at /docs', async () => {
@@ -103,5 +105,14 @@ describe('Elysia Foundation & Plugins', () => {
 
         expect(response.status).toBe(200);
         expect(response.body).toEqual({ test: 'payload-value' });
+    });
+
+    it('should configure host binding to 0.0.0.0 and support starting server on specified config', async () => {
+        expect(serverConfig.hostname).toBe('0.0.0.0');
+        expect(serverConfig.port).toBe(env.PORT);
+
+        const server = startServer({ port: 0, hostname: '0.0.0.0' });
+        expect(server.server?.hostname).toBe('0.0.0.0');
+        await server.stop();
     });
 });

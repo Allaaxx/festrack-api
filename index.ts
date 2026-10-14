@@ -2,10 +2,20 @@ import 'dotenv/config.js';
 import { app } from './src/app.js';
 import { env } from './src/config/env.js';
 
-const port = env.PORT;
+export const serverConfig = {
+    port: env.PORT,
+    hostname: '0.0.0.0',
+};
 
-app.listen({ port, hostname: '0.0.0.0' }, () => {
-    const url = `http://0.0.0.0:${port}`;
+export const startServer = (config = serverConfig) => {
+    return app.listen(config, () => {
+        const url = `http://${config.hostname}:${config.port}`;
+        console.log(
+            `Servidor Rodando em \x1b]8;;${url}\x1b\\${url}\x1b]8;;\x1b\\`,
+        );
+    });
+};
 
-    console.log(`Servidor Rodando em \x1b]8;;${url}\x1b\\${url}\x1b]8;;\x1b\\`);
-});
+if (import.meta.main) {
+    startServer();
+}
