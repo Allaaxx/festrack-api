@@ -274,4 +274,24 @@ describe('Better Auth Core Configuration & Database Integration', () => {
             expect(prodStateCookie.attributes.httpOnly).toBe(true);
         });
     });
+
+    describe('Trusted Proxy IP Resolution & Cross-Domain OAuth State Check', () => {
+        it('should configure trusted proxy IP resolution headers and private network CIDRs', () => {
+            expect(auth.options.advanced?.ipAddress).toBeDefined();
+            expect(auth.options.advanced?.ipAddress?.ipAddressHeaders).toEqual([
+                'x-render-client-ip',
+                'x-forwarded-for',
+            ]);
+            expect(auth.options.advanced?.ipAddress?.trustedProxies).toEqual([
+                '10.0.0.0/8',
+                '172.16.0.0/12',
+                '192.168.0.0/16',
+                '127.0.0.1',
+            ]);
+        });
+
+        it('should enable skipStateCookieCheck in account options for cross-domain OAuth flows', () => {
+            expect(auth.options.account?.skipStateCookieCheck).toBe(true);
+        });
+    });
 });
