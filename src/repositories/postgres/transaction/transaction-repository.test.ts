@@ -223,6 +223,23 @@ describe('Postgres Transaction Repository', () => {
             expect(result.length).toBe(1);
             expect(result[0].event_id).toBe(eventId);
         });
+
+        it('should safely ignore invalid from or to dates without throwing', async () => {
+            await db.insert(usersTable).values(user);
+            await db.insert(transactionsTable).values({
+                ...transaction,
+                user_id: user.id,
+                date: new Date('2024-01-01'),
+                amount: '10.00',
+            });
+
+            const result = await sut.findByUserId(user.id, {
+                from: 'invalid-date',
+                to: 'another-invalid-date',
+            });
+
+            expect(result.length).toBe(1);
+        });
     });
 
     describe('update', () => {

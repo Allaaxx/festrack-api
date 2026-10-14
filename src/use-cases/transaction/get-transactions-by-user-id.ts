@@ -1,6 +1,8 @@
-import { UserNotFoundError } from '../../errors/user.js';
-import { EventNotFoundError } from '../../errors/event.js';
-import { ForbiddenError } from '../../errors/auth.js';
+import {
+    EventNotFoundError,
+    ForbiddenError,
+    UserNotFoundError,
+} from '../../errors/index.js';
 import {
     EventRepository,
     Transaction,

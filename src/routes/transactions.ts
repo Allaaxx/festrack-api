@@ -161,19 +161,24 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
         },
         {
             isAuth: true,
-            query: t.Object({
-                from: t.Optional(t.String()),
-                to: t.Optional(t.String()),
-                event_id: t.Optional(
-                    t.String({
-                        format: 'uuid',
-                        error: 'Event ID must be a valid UUID.',
-                    }),
-                ),
-            }),
+            query: t.Object(
+                {
+                    from: t.Optional(t.String()),
+                    to: t.Optional(t.String()),
+                    event_id: t.Optional(
+                        t.String({
+                            format: 'uuid',
+                            error: 'Event ID must be a valid UUID.',
+                        }),
+                    ),
+                },
+                { additionalProperties: false },
+            ),
             detail: {
                 tags: ['Transactions'],
                 summary: 'Get all user transactions',
+                description:
+                    'Retrieve transactions for the authenticated user, optionally filtered by date range or associated event.',
             },
         },
     )

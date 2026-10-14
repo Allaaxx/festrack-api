@@ -574,4 +574,15 @@ describe('Transaction Routes E2E Tests (Elysia)', () => {
         expect(response.body.length).toBe(1);
         expect(response.body[0].id).toBe(juneTx.id);
     });
+
+    it('GET /api/transactions/me should reject unknown query parameters', async () => {
+        const authUser = await createAuthenticatedUser(client);
+
+        const response = await client
+            .get('/api/transactions/me')
+            .query({ unknown_param: 'not_allowed' })
+            .set('Authorization', authUser.bearerHeader);
+
+        expect([400, 422]).toContain(response.status);
+    });
 });

@@ -85,15 +85,23 @@ export class PostgresTransactionRepository implements TransactionRepository {
         const conditions = [eq(transactionsTable.user_id, userId)];
 
         if (filters?.from) {
-            const fromDate = new Date(filters.from).toISOString().slice(0, 10);
-            conditions.push(
-                sql`${transactionsTable.date} >= ${fromDate}::date`,
-            );
+            const parsedFrom = new Date(filters.from);
+            if (!isNaN(parsedFrom.getTime())) {
+                const fromDate = parsedFrom.toISOString().slice(0, 10);
+                conditions.push(
+                    sql`${transactionsTable.date} >= ${fromDate}::date`,
+                );
+            }
         }
 
         if (filters?.to) {
-            const toDate = new Date(filters.to).toISOString().slice(0, 10);
-            conditions.push(sql`${transactionsTable.date} <= ${toDate}::date`);
+            const parsedTo = new Date(filters.to);
+            if (!isNaN(parsedTo.getTime())) {
+                const toDate = parsedTo.toISOString().slice(0, 10);
+                conditions.push(
+                    sql`${transactionsTable.date} <= ${toDate}::date`,
+                );
+            }
         }
 
         if (filters?.event_id) {
