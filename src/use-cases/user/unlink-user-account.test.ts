@@ -43,7 +43,7 @@ describe('Unlink User Account Use Case', () => {
         sut = new UnlinkUserAccountUseCase(userRepository);
     });
 
-    it('should successfully unlink an account when multiple accounts exist', async () => {
+    it('should successfully unlink an account when multiple accounts exist and reset sync flag if provider is google', async () => {
         const result = await sut.execute('user-1', 'google');
 
         expect(result).toEqual(mockAccounts[1]);
@@ -53,6 +53,33 @@ describe('Unlink User Account Use Case', () => {
             'google',
         );
         expect(userRepository.deleteAccount).toHaveBeenCalledTimes(1);
+        expect(userRepository.update).toHaveBeenCalledWith('user-1', {
+            google_calendar_sync_enabled: false,
+        });
+    });
+
+    it('should not update sync flag when unlinked provider is not google', async () => {
+        const nonGoogleAccounts = [
+            mockAccounts[0],
+            {
+                id: 'acc-3',
+                userId: 'user-1',
+                providerId: 'github',
+                accountId: 'gh-123',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            },
+        ];
+        (userRepository.listAccounts as any).mockResolvedValueOnce(
+            nonGoogleAccounts,
+        );
+        (userRepository.deleteAccount as any).mockResolvedValueOnce(
+            nonGoogleAccounts[1],
+        );
+
+        await sut.execute('user-1', 'github');
+
+        expect(userRepository.update).not.toHaveBeenCalled();
     });
 
     it('should throw CannotUnlinkLastProviderError when user only has one account', async () => {

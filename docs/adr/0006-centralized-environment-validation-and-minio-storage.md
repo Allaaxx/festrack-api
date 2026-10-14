@@ -31,7 +31,7 @@ We centralize and strictly validate all environment configuration using Zod, rem
 
 ### 3. MinIO Local Storage Integration (`docker-compose.yml`)
 
-- `docker-compose.yml` is updated with a `minio` service (`minio/minio`) exposing port `9000` (S3 API) and `9001` (Web Console UI) with credentials `minioadmin:minioadmin`.
+- `docker-compose.yml` is updated with a `minio` service (`ghcr.io/coollabsio/minio`) exposing port `9000` (S3 API) and `9001` (Web Console UI) with credentials `minioadmin:minioadmin`.
 - A helper container (`finance-app-minio-setup`) automatically verifies and initializes the default `festrack` bucket on startup with public download permissions.
 - `.env.example` is configured with default local MinIO endpoints (`http://localhost:9000`), enabling out-of-the-box local S3 asset storage.
 

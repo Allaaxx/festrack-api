@@ -55,6 +55,7 @@ describe('S3 Storage Service', () => {
             bucket: 'my-bucket',
             region: 'sa-east-1',
             publicUrl: '',
+            endpoint: '',
         });
         const sendSpy = (
             jest.spyOn(S3Client.prototype, 'send') as any

@@ -22,6 +22,17 @@ export class UnlinkUserAccountUseCase {
             throw new AccountNotFoundError(providerId);
         }
 
-        return this.userRepository.deleteAccount(userId, providerId);
+        const unlinkedAccount = await this.userRepository.deleteAccount(
+            userId,
+            providerId,
+        );
+
+        if (providerId === 'google') {
+            await this.userRepository.update(userId, {
+                google_calendar_sync_enabled: false,
+            });
+        }
+
+        return unlinkedAccount;
     }
 }

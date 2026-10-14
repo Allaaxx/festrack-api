@@ -21,6 +21,7 @@ export class PostgresEventRepository implements EventRepository {
                 ...createEventParams,
                 start_date: new Date(createEventParams.start_date),
                 end_date: new Date(createEventParams.end_date),
+                google_event_id: createEventParams.google_event_id ?? null,
             })
             .returning();
 

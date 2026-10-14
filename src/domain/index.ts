@@ -8,3 +8,4 @@ export * from './entities/transaction.js';
 export * from './repositories/transaction-repository.js';
 export * from './adapters/storage-service.js';
 export * from './adapters/password-verifier.js';
+export * from './adapters/google-calendar-adapter.js';

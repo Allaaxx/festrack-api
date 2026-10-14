@@ -20,6 +20,7 @@ export const eventsTable = pgTable('Event', {
             onDelete: 'cascade',
             onUpdate: 'cascade',
         }),
+    google_event_id: text('google_event_id'),
 });
 
 export const eventsRelations = relations(eventsTable, ({ one, many }) => ({

@@ -65,7 +65,10 @@ describe('Create Event Use Case', () => {
 
         await sut.execute(createEventParams);
 
-        expect(createSpy).toHaveBeenCalledWith(createEventParams);
+        expect(createSpy).toHaveBeenCalledWith({
+            ...createEventParams,
+            google_event_id: null,
+        });
     });
 
     it('should throw UserNotFoundError if user does not exist', async () => {
@@ -99,5 +102,99 @@ describe('Create Event Use Case', () => {
         const promise = sut.execute(createEventParams);
 
         await expect(promise).rejects.toThrow();
+    });
+
+    it('should export event to Google Calendar and persist google_event_id when sync is enabled', async () => {
+        const eventRepository = new EventRepositoryStub();
+        const userRepository = new UserRepositoryStub();
+        const calendarAdapter = {
+            insert: jest.fn().mockResolvedValue('google-event-123'),
+        };
+
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
+        const createSpy = jest.spyOn(eventRepository, 'create');
+
+        const sut = new CreateEventUseCase(
+            eventRepository,
+            userRepository,
+            calendarAdapter,
+        );
+
+        await sut.execute(createEventParams);
+
+        expect(calendarAdapter.insert).toHaveBeenCalledWith(
+            createEventParams.user_id,
+            {
+                name: createEventParams.name,
+                description: createEventParams.description,
+                start_date: createEventParams.start_date,
+                end_date: createEventParams.end_date,
+            },
+        );
+        expect(createSpy).toHaveBeenCalledWith({
+            ...createEventParams,
+            google_event_id: 'google-event-123',
+        });
+    });
+
+    it('should bypass Google Calendar export when sync is disabled', async () => {
+        const eventRepository = new EventRepositoryStub();
+        const userRepository = new UserRepositoryStub();
+        const calendarAdapter = {
+            insert: jest.fn(),
+        };
+
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: false,
+        });
+        const createSpy = jest.spyOn(eventRepository, 'create');
+
+        const sut = new CreateEventUseCase(
+            eventRepository,
+            userRepository,
+            calendarAdapter,
+        );
+
+        await sut.execute(createEventParams);
+
+        expect(calendarAdapter.insert).not.toHaveBeenCalled();
+        expect(createSpy).toHaveBeenCalledWith({
+            ...createEventParams,
+            google_event_id: null,
+        });
+    });
+
+    it('should tolerate Google Calendar failure and still create event in Festrack (non-blocking resilience)', async () => {
+        const eventRepository = new EventRepositoryStub();
+        const userRepository = new UserRepositoryStub();
+        const calendarAdapter = {
+            insert: jest
+                .fn()
+                .mockRejectedValue(new Error('Google API 500 error')),
+        };
+
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
+        const createSpy = jest.spyOn(eventRepository, 'create');
+
+        const sut = new CreateEventUseCase(
+            eventRepository,
+            userRepository,
+            calendarAdapter,
+        );
+
+        const result = await sut.execute(createEventParams);
+
+        expect(result).toBeDefined();
+        expect(createSpy).toHaveBeenCalledWith({
+            ...createEventParams,
+            google_event_id: null,
+        });
     });
 });

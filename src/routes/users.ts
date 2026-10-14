@@ -157,6 +157,7 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
                             error: 'Please provide a valid e-mail.',
                         }),
                     ),
+                    google_calendar_sync_enabled: t.Optional(t.Boolean()),
                 },
                 { additionalProperties: false },
             ),

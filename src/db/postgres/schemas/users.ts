@@ -21,6 +21,9 @@ export const user = pgTable('user', {
         .notNull(),
     first_name: text('first_name').notNull(),
     last_name: text('last_name').notNull(),
+    google_calendar_sync_enabled: boolean('google_calendar_sync_enabled')
+        .default(false)
+        .notNull(),
 });
 
 export const userRelations = relations(user, ({ many }) => ({
