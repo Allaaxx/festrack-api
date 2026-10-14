@@ -19,10 +19,23 @@ export const trustedOrigins = [
     ...envTrustedOrigins,
 ].filter((origin): origin is string => Boolean(origin));
 
+export const getCookieConfig = (nodeEnv: string = env.NODE_ENV) => {
+    const isProduction = nodeEnv === 'production';
+    return {
+        useSecureCookies: isProduction,
+        defaultCookieAttributes: {
+            sameSite: isProduction ? ('none' as const) : ('lax' as const),
+            secure: isProduction,
+            httpOnly: true,
+        },
+    };
+};
+
 export const auth = betterAuth({
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins,
     secret: env.BETTER_AUTH_SECRET,
+    advanced: getCookieConfig(env.NODE_ENV),
     database: drizzleAdapter(db, {
         provider: 'pg',
         schema: {

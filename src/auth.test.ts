@@ -1,4 +1,6 @@
-import { auth, trustedOrigins } from './auth.js';
+import { betterAuth } from 'better-auth';
+import { auth, trustedOrigins, getCookieConfig } from './auth.js';
+import { env } from './config/env.js';
 import { db } from './db/postgres/index.js';
 import {
     user,
@@ -201,6 +203,75 @@ describe('Better Auth Core Configuration & Database Integration', () => {
             expect(queriedAccount.scope).toContain(
                 'https://www.googleapis.com/auth/calendar.events',
             );
+        });
+    });
+
+    describe('Cookie Configuration & Cross-Site Attributes', () => {
+        it('should configure advanced cookie options on Better Auth instance', () => {
+            expect(auth.options.advanced).toBeDefined();
+            expect(auth.options.advanced?.useSecureCookies).toBe(
+                env.NODE_ENV === 'production',
+            );
+            expect(auth.options.advanced?.defaultCookieAttributes).toEqual({
+                sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+                secure: env.NODE_ENV === 'production',
+                httpOnly: true,
+            });
+        });
+
+        it('should return cross-site secure cookie settings for production environment', () => {
+            const prodConfig = getCookieConfig('production');
+
+            expect(prodConfig.useSecureCookies).toBe(true);
+            expect(prodConfig.defaultCookieAttributes).toEqual({
+                sameSite: 'none',
+                secure: true,
+                httpOnly: true,
+            });
+        });
+
+        it('should return permissive lax and non-secure cookie settings for development and test environments', () => {
+            const devConfig = getCookieConfig('development');
+            expect(devConfig.useSecureCookies).toBe(false);
+            expect(devConfig.defaultCookieAttributes).toEqual({
+                sameSite: 'lax',
+                secure: false,
+                httpOnly: true,
+            });
+
+            const testConfig = getCookieConfig('test');
+            expect(testConfig.useSecureCookies).toBe(false);
+            expect(testConfig.defaultCookieAttributes).toEqual({
+                sameSite: 'lax',
+                secure: false,
+                httpOnly: true,
+            });
+        });
+
+        it('should verify OAuth state cookie attributes in current environment', async () => {
+            const ctx = await auth.$context;
+            const stateCookie = ctx.createAuthCookie('state');
+
+            expect(stateCookie.name).toBe('better-auth.state');
+            expect(stateCookie.attributes.sameSite).toBe('lax');
+            expect(stateCookie.attributes.secure).toBe(false);
+            expect(stateCookie.attributes.httpOnly).toBe(true);
+        });
+
+        it('should generate secure prefixed state cookie with SameSite=None and Secure in production Better Auth instance', async () => {
+            const prodAuth = betterAuth({
+                baseURL: 'https://api.example.com',
+                secret: 'test-secret-123456789012345678901234',
+                advanced: getCookieConfig('production'),
+            });
+
+            const prodCtx = await prodAuth.$context;
+            const prodStateCookie = prodCtx.createAuthCookie('state');
+
+            expect(prodStateCookie.name).toBe('__Secure-better-auth.state');
+            expect(prodStateCookie.attributes.sameSite).toBe('none');
+            expect(prodStateCookie.attributes.secure).toBe(true);
+            expect(prodStateCookie.attributes.httpOnly).toBe(true);
         });
     });
 });
