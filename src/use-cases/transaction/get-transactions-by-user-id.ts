@@ -1,6 +1,7 @@
 import { UserNotFoundError } from '../../errors/user.js';
 import {
     Transaction,
+    TransactionFilters,
     TransactionRepository,
     UserRepository,
 } from '../../domain/index.js';
@@ -16,8 +17,7 @@ export class GetTransactionByUserIdUseCase {
 
     async execute(
         userId: string,
-        from?: string,
-        to?: string,
+        filters?: TransactionFilters,
     ): Promise<Transaction[]> {
         const user = await this.userRepository.findById(userId);
 
@@ -27,8 +27,7 @@ export class GetTransactionByUserIdUseCase {
 
         const transactions = await this.transactionRepository.findByUserId(
             userId,
-            from,
-            to,
+            filters,
         );
 
         return transactions;

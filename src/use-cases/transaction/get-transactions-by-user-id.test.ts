@@ -74,10 +74,21 @@ describe('Get Transactions By User Id Use Case', () => {
         const id = faker.string.uuid();
         const from = faker.date.past().toISOString();
         const to = faker.date.future().toISOString();
+        const filters = { from, to };
 
-        await sut.execute(id, from, to);
+        await sut.execute(id, filters);
 
-        expect(spy).toHaveBeenCalledWith(id, from, to);
+        expect(spy).toHaveBeenCalledWith(id, filters);
+    });
+
+    it('should call transactionRepository.findByUserId without filters when none provided', async () => {
+        const { sut, transactionRepository } = makeSut();
+        const spy = jest.spyOn(transactionRepository, 'findByUserId');
+        const id = faker.string.uuid();
+
+        await sut.execute(id);
+
+        expect(spy).toHaveBeenCalledWith(id, undefined);
     });
 
     it('should throw if userRepository.findById throws', async () => {

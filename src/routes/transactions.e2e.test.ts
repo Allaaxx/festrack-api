@@ -92,6 +92,50 @@ describe('Transaction Routes E2E Tests (Elysia)', () => {
         expect(response.body[0].id).toEqual(createdTransaction.id);
     });
 
+    it('GET /api/transactions/me should return transactions sorted chronologically descending (newest first)', async () => {
+        const authUser = await createAuthenticatedUser(client);
+
+        const { body: oldest } = await client
+            .post('/api/transactions/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...transaction,
+                name: 'Oldest Transaction',
+                date: '2024-01-15T00:00:00.000Z',
+                id: undefined,
+            });
+
+        const { body: newest } = await client
+            .post('/api/transactions/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...transaction,
+                name: 'Newest Transaction',
+                date: '2024-12-20T00:00:00.000Z',
+                id: undefined,
+            });
+
+        const { body: middle } = await client
+            .post('/api/transactions/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...transaction,
+                name: 'Middle Transaction',
+                date: '2024-06-10T00:00:00.000Z',
+                id: undefined,
+            });
+
+        const response = await client
+            .get('/api/transactions/me')
+            .set('Authorization', authUser.bearerHeader);
+
+        expect(response.status).toBe(200);
+        expect(response.body.length).toBe(3);
+        expect(response.body[0].id).toBe(newest.id);
+        expect(response.body[1].id).toBe(middle.id);
+        expect(response.body[2].id).toBe(oldest.id);
+    });
+
     it('PATCH /api/transactions/me/:transactionId should return 200 when updating a transaction successfully', async () => {
         const authUser = await createAuthenticatedUser(client);
 

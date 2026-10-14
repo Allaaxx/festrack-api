@@ -130,8 +130,7 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
             try {
                 const transactions = await useCase.execute(
                     userId!,
-                    query?.from,
-                    query?.to,
+                    query ? { from: query.from, to: query.to } : undefined,
                 );
                 set.status = 200;
                 return transactions;
