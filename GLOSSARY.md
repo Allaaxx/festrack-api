@@ -9,7 +9,7 @@ A scheduled occasion or financial project (e.g. wedding, trip, party) owned by a
 _Avoid_: Occasion, project, gathering
 
 **Transaction**:
-An individual financial movement of money (earning, expense, or investment) belonging to a user, optionally associated with an event.
+An individual financial movement of money (earning, expense, or investment) belonging to a user, optionally associated with an event. Transactions associated with an event are temporally decoupled, meaning their occurrence date is independent of the event's start date and end date.
 _Avoid_: Movement, entry, record
 
 **User**:
