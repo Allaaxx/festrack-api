@@ -35,7 +35,18 @@ export const auth = betterAuth({
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins,
     secret: env.BETTER_AUTH_SECRET,
-    advanced: getCookieConfig(env.NODE_ENV),
+    advanced: {
+        ...getCookieConfig(env.NODE_ENV),
+        ipAddress: {
+            ipAddressHeaders: ['x-render-client-ip', 'x-forwarded-for'],
+            trustedProxies: [
+                '10.0.0.0/8',
+                '172.16.0.0/12',
+                '192.168.0.0/16',
+                '127.0.0.1',
+            ],
+        },
+    },
     database: drizzleAdapter(db, {
         provider: 'pg',
         schema: {
@@ -76,6 +87,7 @@ export const auth = betterAuth({
             trustedProviders: ['google'],
             requireLocalEmailVerified: false,
         },
+        skipStateCookieCheck: true,
     },
     hooks: {
         before: createAuthMiddleware(async (ctx) => {
