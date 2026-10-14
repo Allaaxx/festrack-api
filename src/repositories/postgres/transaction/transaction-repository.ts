@@ -86,12 +86,18 @@ export class PostgresTransactionRepository implements TransactionRepository {
 
         if (filters?.from) {
             const fromDate = new Date(filters.from).toISOString().slice(0, 10);
-            conditions.push(sql`${transactionsTable.date} >= ${fromDate}::date`);
+            conditions.push(
+                sql`${transactionsTable.date} >= ${fromDate}::date`,
+            );
         }
 
         if (filters?.to) {
             const toDate = new Date(filters.to).toISOString().slice(0, 10);
             conditions.push(sql`${transactionsTable.date} <= ${toDate}::date`);
+        }
+
+        if (filters?.event_id) {
+            conditions.push(eq(transactionsTable.event_id, filters.event_id));
         }
 
         const rows = await this.database

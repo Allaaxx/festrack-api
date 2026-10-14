@@ -7,6 +7,7 @@ import {
 export interface TransactionFilters {
     from?: string;
     to?: string;
+    event_id?: string;
 }
 
 export interface TransactionRepository {

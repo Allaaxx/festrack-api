@@ -352,4 +352,226 @@ describe('Transaction Routes E2E Tests (Elysia)', () => {
 
         expect(response.status).toBe(400);
     });
+
+    it('GET /api/transactions/me?event_id=:eventId should return 200 with associated transactions', async () => {
+        const authUser = await createAuthenticatedUser(client);
+
+        const { body: createdEvent } = await client
+            .post('/api/events/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...event,
+                id: undefined,
+            });
+
+        const { body: eventTx } = await client
+            .post('/api/transactions/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...transaction,
+                id: undefined,
+                event_id: createdEvent.id,
+            });
+
+        await client
+            .post('/api/transactions/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...transaction,
+                id: undefined,
+                event_id: null,
+            });
+
+        const response = await client
+            .get('/api/transactions/me')
+            .query({ event_id: createdEvent.id })
+            .set('Authorization', authUser.bearerHeader);
+
+        expect(response.status).toBe(200);
+        expect(response.body.length).toBe(1);
+        expect(response.body[0].id).toBe(eventTx.id);
+        expect(response.body[0].event_id).toBe(createdEvent.id);
+    });
+
+    it('GET /api/transactions/me?event_id=:eventId should return transactions dated outside event date window (temporal decoupling)', async () => {
+        const authUser = await createAuthenticatedUser(client);
+
+        const { body: createdEvent } = await client
+            .post('/api/events/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...event,
+                id: undefined,
+                start_date: '2026-06-01',
+                end_date: '2026-06-15',
+            });
+
+        const { body: advanceTx } = await client
+            .post('/api/transactions/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...transaction,
+                name: 'Advance Venue Deposit',
+                date: '2026-01-15T00:00:00.000Z',
+                id: undefined,
+                event_id: createdEvent.id,
+            });
+
+        const { body: duringTx } = await client
+            .post('/api/transactions/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...transaction,
+                name: 'Catering During Event',
+                date: '2026-06-10T00:00:00.000Z',
+                id: undefined,
+                event_id: createdEvent.id,
+            });
+
+        const { body: postTx } = await client
+            .post('/api/transactions/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...transaction,
+                name: 'Post-Event Cleanup Settlement',
+                date: '2026-07-20T00:00:00.000Z',
+                id: undefined,
+                event_id: createdEvent.id,
+            });
+
+        const response = await client
+            .get('/api/transactions/me')
+            .query({ event_id: createdEvent.id })
+            .set('Authorization', authUser.bearerHeader);
+
+        expect(response.status).toBe(200);
+        expect(response.body.length).toBe(3);
+        expect(response.body[0].id).toBe(postTx.id);
+        expect(response.body[1].id).toBe(duringTx.id);
+        expect(response.body[2].id).toBe(advanceTx.id);
+    });
+
+    it('GET /api/transactions/me?event_id=:eventId should return 200 with empty array when event has no transactions', async () => {
+        const authUser = await createAuthenticatedUser(client);
+
+        const { body: createdEvent } = await client
+            .post('/api/events/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...event,
+                id: undefined,
+            });
+
+        const response = await client
+            .get('/api/transactions/me')
+            .query({ event_id: createdEvent.id })
+            .set('Authorization', authUser.bearerHeader);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual([]);
+    });
+
+    it('GET /api/transactions/me?event_id=:eventId should return 400 when event_id is not a valid UUID', async () => {
+        const authUser = await createAuthenticatedUser(client);
+
+        const response = await client
+            .get('/api/transactions/me')
+            .query({ event_id: 'not-a-valid-uuid' })
+            .set('Authorization', authUser.bearerHeader);
+
+        expect(response.status).toBe(400);
+    });
+
+    it('GET /api/transactions/me?event_id=:eventId should return 404 when event does not exist', async () => {
+        const authUser = await createAuthenticatedUser(client);
+
+        const response = await client
+            .get('/api/transactions/me')
+            .query({ event_id: crypto.randomUUID() })
+            .set('Authorization', authUser.bearerHeader);
+
+        expect(response.status).toBe(404);
+        expect(response.body).toEqual({ message: 'Event not found.' });
+    });
+
+    it('GET /api/transactions/me?event_id=:eventId should return 403 when event belongs to another user', async () => {
+        const authUser1 = await createAuthenticatedUser(client);
+        const authUser2 = await createAuthenticatedUser(client);
+
+        const { body: user2Event } = await client
+            .post('/api/events/me')
+            .set('Authorization', authUser2.bearerHeader)
+            .send({
+                ...event,
+                id: undefined,
+            });
+
+        const response = await client
+            .get('/api/transactions/me')
+            .query({ event_id: user2Event.id })
+            .set('Authorization', authUser1.bearerHeader);
+
+        expect(response.status).toBe(403);
+        expect(response.body).toEqual({ message: 'Forbidden' });
+    });
+
+    it('GET /api/transactions/me should support combining event_id with from and to date filters', async () => {
+        const authUser = await createAuthenticatedUser(client);
+
+        const { body: createdEvent } = await client
+            .post('/api/events/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...event,
+                id: undefined,
+                start_date: '2026-06-01',
+                end_date: '2026-06-15',
+            });
+
+        await client
+            .post('/api/transactions/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...transaction,
+                name: 'January Transaction',
+                date: '2026-01-15T00:00:00.000Z',
+                id: undefined,
+                event_id: createdEvent.id,
+            });
+
+        const { body: juneTx } = await client
+            .post('/api/transactions/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...transaction,
+                name: 'June Transaction',
+                date: '2026-06-10T00:00:00.000Z',
+                id: undefined,
+                event_id: createdEvent.id,
+            });
+
+        await client
+            .post('/api/transactions/me')
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                ...transaction,
+                name: 'August Transaction',
+                date: '2026-08-20T00:00:00.000Z',
+                id: undefined,
+                event_id: createdEvent.id,
+            });
+
+        const response = await client
+            .get('/api/transactions/me')
+            .query({
+                event_id: createdEvent.id,
+                from: '2026-05-01',
+                to: '2026-07-01',
+            })
+            .set('Authorization', authUser.bearerHeader);
+
+        expect(response.status).toBe(200);
+        expect(response.body.length).toBe(1);
+        expect(response.body[0].id).toBe(juneTx.id);
+    });
 });

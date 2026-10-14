@@ -185,6 +185,44 @@ describe('Postgres Transaction Repository', () => {
             expect(result.length).toBe(1);
             expect(dayjs(result[0].date).year()).toBe(2023);
         });
+
+        it('should filter transactions by event_id', async () => {
+            const eventId = faker.string.uuid();
+            await db.insert(usersTable).values(user);
+            await db.insert(eventsTable).values({
+                id: eventId,
+                name: 'Vacation',
+                start_date: new Date('2026-06-01'),
+                end_date: new Date('2026-06-15'),
+                user_id: user.id,
+            });
+
+            await db.insert(transactionsTable).values([
+                {
+                    ...transaction,
+                    id: faker.string.uuid(),
+                    date: new Date(transaction.date),
+                    user_id: user.id,
+                    amount: '10.00',
+                    event_id: eventId,
+                },
+                {
+                    ...transaction,
+                    id: faker.string.uuid(),
+                    date: new Date(transaction.date),
+                    user_id: user.id,
+                    amount: '20.00',
+                    event_id: null,
+                },
+            ]);
+
+            const result = await sut.findByUserId(user.id, {
+                event_id: eventId,
+            });
+
+            expect(result.length).toBe(1);
+            expect(result[0].event_id).toBe(eventId);
+        });
     });
 
     describe('update', () => {
