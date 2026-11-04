@@ -1,8 +1,11 @@
+import { ShopNotFoundError } from '../../errors/shop.js';
+import { ForbiddenError } from '../../errors/auth.js';
 import { EventNotFoundError } from '../../errors/event.js';
-import { ForbiddenError } from '../../errors/index.js';
 import { TransactionNotFoundError } from '../../errors/transaction.js';
 import {
     EventRepository,
+    ShopMemberRepository,
+    ShopRepository,
     Transaction,
     TransactionRepository,
     UpdateTransactionParams,
@@ -14,36 +17,43 @@ export class UpdateTransactionUseCase {
             TransactionRepository,
             'findById' | 'update'
         >,
+        private readonly shopRepository: Pick<ShopRepository, 'findById'>,
+        private readonly shopMemberRepository: Pick<
+            ShopMemberRepository,
+            'findByShopAndUserId'
+        >,
         private readonly eventRepository: Pick<EventRepository, 'findById'>,
     ) {}
 
     async execute(
+        shopId: string,
         transactionId: string,
+        userId: string,
         params: UpdateTransactionParams,
     ): Promise<Transaction> {
-        const transaction =
-            await this.transactionRepository.findById(transactionId);
-
-        if (!transaction) {
-            throw new TransactionNotFoundError(transactionId);
+        const shop = await this.shopRepository.findById(shopId);
+        if (!shop) {
+            throw new ShopNotFoundError(shopId);
         }
 
-        if (params.user_id && transaction.user_id !== params.user_id) {
+        const member = await this.shopMemberRepository.findByShopAndUserId(
+            shopId,
+            userId,
+        );
+        if (!member) {
             throw new ForbiddenError();
+        }
+
+        const transaction =
+            await this.transactionRepository.findById(transactionId);
+        if (!transaction || transaction.shop_id !== shopId) {
+            throw new TransactionNotFoundError(transactionId);
         }
 
         if (params.event_id) {
             const event = await this.eventRepository.findById(params.event_id);
-
-            if (!event) {
+            if (!event || event.shop_id !== shopId) {
                 throw new EventNotFoundError(params.event_id);
-            }
-
-            if (
-                (event.created_by_user_id ?? event.user_id) !==
-                transaction.user_id
-            ) {
-                throw new ForbiddenError();
             }
         }
 

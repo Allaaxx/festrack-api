@@ -11,7 +11,9 @@ export type TransactionType =
 
 export interface Transaction {
     id: string;
-    user_id: string;
+    shop_id: string;
+    created_by_user_id: string;
+    user_id?: string;
     name: string;
     date: Date | string;
     amount: DecimalLike;
@@ -20,7 +22,8 @@ export interface Transaction {
 }
 
 export interface CreateTransactionParams {
-    user_id: string;
+    shop_id: string;
+    created_by_user_id: string;
     name: string;
     date: Date | string;
     amount: number | DecimalLike;
@@ -34,5 +37,4 @@ export interface UpdateTransactionParams {
     amount?: number | DecimalLike;
     type?: TransactionType;
     event_id?: string | null;
-    user_id?: string;
 }

@@ -4,9 +4,10 @@ import { db } from '../../../db/postgres/index.js';
 import {
     usersTable,
     transactionsTable,
+    shopsTable,
     account,
 } from '../../../db/postgres/schemas/index.js';
-import { user as fakeUser } from '../../../tests/index.js';
+import { user as fakeUser, shop as fakeShop } from '../../../tests/index.js';
 import { PostgresUserRepository } from './user-repository.js';
 import { UserNotFoundError } from '../../../errors/user.js';
 
@@ -128,6 +129,11 @@ describe('Postgres User Repository', () => {
 
         it('should get user balance on db', async () => {
             const user = await sut.create(fakeUser);
+            await db.insert(shopsTable).values({
+                id: fakeShop.id,
+                name: fakeShop.name,
+                description: fakeShop.description,
+            });
 
             await db.insert(transactionsTable).values([
                 {
@@ -135,21 +141,24 @@ describe('Postgres User Repository', () => {
                     amount: '5000',
                     date: new Date(from),
                     type: 'EARNING',
-                    user_id: user.id,
+                    shop_id: fakeShop.id,
+                    created_by_user_id: user.id,
                 },
                 {
                     name: faker.string.sample(),
                     amount: '2000',
                     date: new Date(from),
                     type: 'EXPENSE',
-                    user_id: user.id,
+                    shop_id: fakeShop.id,
+                    created_by_user_id: user.id,
                 },
                 {
                     name: faker.string.sample(),
                     amount: '1000',
                     date: new Date(from),
                     type: 'INVESTMENT',
-                    user_id: user.id,
+                    shop_id: fakeShop.id,
+                    created_by_user_id: user.id,
                 },
             ]);
 

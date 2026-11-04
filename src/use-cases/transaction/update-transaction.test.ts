@@ -1,133 +1,166 @@
-import { faker } from '@faker-js/faker';
-import { transaction } from '../../tests/index.js';
-import { EventNotFoundError } from '../../errors/event.js';
+import { describe, it, expect, mock } from 'bun:test';
+import { ShopNotFoundError } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
+import { TransactionNotFoundError } from '../../errors/transaction.js';
+import { EventNotFoundError } from '../../errors/event.js';
+import { transaction, user, shop } from '../../tests/index.js';
 import { UpdateTransactionUseCase } from './update-transaction.js';
 import {
-    Event,
     EventRepository,
-    Transaction,
+    ShopMember,
+    ShopMemberRepository,
+    ShopRepository,
     TransactionRepository,
 } from '../../domain/index.js';
 
 describe('Update Transaction Use Case', () => {
-    class TransactionRepositoryStub implements Pick<
-        TransactionRepository,
-        'findById' | 'update'
-    > {
-        async findById(): Promise<Transaction | null> {
-            return transaction;
-        }
-
-        async update(): Promise<Transaction> {
-            return transaction;
-        }
-    }
-
-    class EventRepositoryStub implements Pick<EventRepository, 'findById'> {
-        async findById(): Promise<Event | null> {
-            return {
-                id: 'valid_event_id',
-                shop_id: 'shop-id',
-                name: 'valid_event_name',
-                description: null,
-                start_date: '2026-09-15',
-                end_date: '2026-09-16',
-                created_by_user_id: transaction.user_id,
-                user_id: transaction.user_id,
-            };
-        }
-    }
+    const makeMember = (role: 'OWNER' | 'MEMBER' = 'OWNER'): ShopMember => ({
+        id: 'member-id',
+        shop_id: shop.id,
+        user_id: user.id,
+        role,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    });
 
     const makeSut = () => {
-        const transactionRepository = new TransactionRepositoryStub();
-        const eventRepository = new EventRepositoryStub();
+        const transactionRepository: Pick<
+            TransactionRepository,
+            'findById' | 'update'
+        > = {
+            findById: mock(async () => ({
+                ...transaction,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+            })),
+            update: mock(async (_id, params) => ({
+                ...transaction,
+                ...params,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+            })),
+        };
+
+        const shopRepository: Pick<ShopRepository, 'findById'> = {
+            findById: mock(async () => shop),
+        };
+
+        const shopMemberRepository: Pick<
+            ShopMemberRepository,
+            'findByShopAndUserId'
+        > = {
+            findByShopAndUserId: mock(async () => makeMember()),
+        };
+
+        const eventRepository: Pick<EventRepository, 'findById'> = {
+            findById: mock(async () => ({
+                id: 'event-id',
+                shop_id: shop.id,
+                name: 'Event 1',
+                description: null,
+                start_date: '2026-06-01',
+                end_date: '2026-06-02',
+                created_by_user_id: user.id,
+            })),
+        };
+
         const sut = new UpdateTransactionUseCase(
             transactionRepository,
+            shopRepository,
+            shopMemberRepository,
             eventRepository,
         );
 
         return {
             sut,
             transactionRepository,
+            shopRepository,
+            shopMemberRepository,
             eventRepository,
         };
     };
 
-    it('should update a transaction successfully', async () => {
-        const { sut } = makeSut();
-        const result = await sut.execute(transaction.id, {
-            amount: Number(faker.finance.amount()),
-        });
+    it('should throw ShopNotFoundError if shop does not exist', async () => {
+        const { sut, shopRepository } = makeSut();
+        shopRepository.findById = mock(async () => null);
 
-        expect(result).toEqual(transaction);
+        await expect(
+            sut.execute(shop.id, transaction.id, user.id, { name: 'Updated' }),
+        ).rejects.toThrow(new ShopNotFoundError(shop.id));
     });
 
-    it('should call transactionRepository.update with correct params', async () => {
+    it('should throw ForbiddenError if user is not a member', async () => {
+        const { sut, shopMemberRepository } = makeSut();
+        shopMemberRepository.findByShopAndUserId = mock(async () => null);
+
+        await expect(
+            sut.execute(shop.id, transaction.id, user.id, { name: 'Updated' }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('should throw TransactionNotFoundError if transaction does not exist', async () => {
         const { sut, transactionRepository } = makeSut();
-        const updateSpy = jest.spyOn(transactionRepository, 'update');
+        transactionRepository.findById = mock(async () => null);
 
-        await sut.execute(transaction.id, {
-            amount: transaction.amount,
-        });
-
-        expect(updateSpy).toHaveBeenCalledWith(transaction.id, {
-            amount: transaction.amount,
-        });
+        await expect(
+            sut.execute(shop.id, transaction.id, user.id, { name: 'Updated' }),
+        ).rejects.toThrow(new TransactionNotFoundError(transaction.id));
     });
 
-    it('should throw if transactionRepository.update throws', async () => {
+    it('should throw TransactionNotFoundError if transaction belongs to another shop', async () => {
         const { sut, transactionRepository } = makeSut();
-        jest.spyOn(transactionRepository, 'update').mockRejectedValueOnce(
-            new Error(),
-        );
+        transactionRepository.findById = mock(async () => ({
+            ...transaction,
+            shop_id: 'other-shop-id',
+            created_by_user_id: user.id,
+        }));
 
-        const promise = sut.execute(transaction.id, {
-            amount: transaction.amount,
-        });
-
-        await expect(promise).rejects.toThrow();
+        await expect(
+            sut.execute(shop.id, transaction.id, user.id, { name: 'Updated' }),
+        ).rejects.toThrow(new TransactionNotFoundError(transaction.id));
     });
 
-    it('should throw 403 if user_id is different from transaction owner', async () => {
-        const { sut } = makeSut();
-        const promise = sut.execute(transaction.id, {
-            user_id: faker.string.uuid(),
-        });
-
-        await expect(promise).rejects.toThrow();
-    });
-
-    it('should throw EventNotFoundError if event does not exist', async () => {
+    it('should throw EventNotFoundError if new event_id does not exist', async () => {
         const { sut, eventRepository } = makeSut();
-        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce(null);
+        eventRepository.findById = mock(async () => null);
 
-        const promise = sut.execute(transaction.id, {
-            event_id: 'non-existing-event',
-        });
-
-        await expect(promise).rejects.toThrow(
-            new EventNotFoundError('non-existing-event'),
-        );
+        await expect(
+            sut.execute(shop.id, transaction.id, user.id, {
+                event_id: 'non-existent',
+            }),
+        ).rejects.toThrow(new EventNotFoundError('non-existent'));
     });
 
-    it('should throw ForbiddenError if event belongs to another user', async () => {
+    it('should throw EventNotFoundError if new event_id belongs to another shop', async () => {
         const { sut, eventRepository } = makeSut();
-        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+        eventRepository.findById = mock(async () => ({
             id: 'event-id',
-            shop_id: 'shop-id',
-            name: 'event_name',
+            shop_id: 'other-shop-id',
+            name: 'Other Event',
             description: null,
-            start_date: '2026-09-15',
-            end_date: '2026-09-16',
-            created_by_user_id: 'different-user-id',
-            user_id: 'different-user-id',
+            start_date: '2026-06-01',
+            end_date: '2026-06-02',
+            created_by_user_id: user.id,
+        }));
+
+        await expect(
+            sut.execute(shop.id, transaction.id, user.id, {
+                event_id: 'event-id',
+            }),
+        ).rejects.toThrow(new EventNotFoundError('event-id'));
+    });
+
+    it('should update transaction when all validations pass', async () => {
+        const { sut, transactionRepository } = makeSut();
+
+        const result = await sut.execute(shop.id, transaction.id, user.id, {
+            name: 'New Name',
         });
 
-        const promise = sut.execute(transaction.id, {
-            event_id: 'event-id',
-        });
-
-        await expect(promise).rejects.toThrow(new ForbiddenError());
+        expect(result.name).toBe('New Name');
+        expect(transactionRepository.update).toHaveBeenCalledWith(
+            transaction.id,
+            { name: 'New Name' },
+        );
     });
 });

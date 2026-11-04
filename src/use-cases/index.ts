@@ -9,6 +9,8 @@ export * from './user/unlink-user-account.js';
 export * from './transaction/create-transaction.js';
 export * from './transaction/delete-transaction.js';
 export * from './transaction/get-transactions-by-user-id.js';
+export * from './transaction/get-transactions-by-shop-id.js';
+export * from './transaction/get-transaction-by-id.js';
 export * from './transaction/update-transaction.js';
 
 export * from './event/create-event.js';
