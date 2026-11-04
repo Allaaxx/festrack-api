@@ -19,6 +19,13 @@ export class ShopInvitationNotFoundError extends Error {
     }
 }
 
+export class InvalidInvitationStateError extends Error {
+    constructor(message: string = 'Only pending invitations can be revoked.') {
+        super(message);
+        this.name = 'InvalidInvitationStateError';
+    }
+}
+
 export class ShopInvitationExpiredError extends Error {
     constructor(message: string = 'Invitation has expired.') {
         super(message);

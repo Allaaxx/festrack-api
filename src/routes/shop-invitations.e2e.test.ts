@@ -331,6 +331,46 @@ describe('Shop Invitations Routes (Elysia E2E)', () => {
             expect([400, 404]).toContain(acceptRes.status);
         });
 
+        it('should return 409 when user is already a member of the shop', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shopRes = await client
+                .post('/api/shops')
+                .set('Authorization', owner.bearerHeader)
+                .send({ name: 'Already Member Shop' });
+            const shopId = shopRes.body.id;
+
+            const email = `already_member_${Date.now()}@example.com`;
+            const invitee = await createAuthenticatedUser(client, { email });
+
+            const inviteRes = await client
+                .post(`/api/shops/${shopId}/invitations`)
+                .set('Authorization', owner.bearerHeader)
+                .send({ email });
+            const { token } = inviteRes.body;
+
+            // First accept succeeds
+            const firstAccept = await client
+                .post(`/api/shops/invitations/${token}/accept`)
+                .set('Authorization', invitee.bearerHeader);
+            expect(firstAccept.status).toBe(200);
+
+            // Re-invite same email generates a new token
+            const secondInvite = await client
+                .post(`/api/shops/${shopId}/invitations`)
+                .set('Authorization', owner.bearerHeader)
+                .send({ email });
+            expect(secondInvite.status).toBe(201);
+
+            // Trying to accept while already a member throws 409
+            const secondAccept = await client
+                .post(
+                    `/api/shops/invitations/${secondInvite.body.token}/accept`,
+                )
+                .set('Authorization', invitee.bearerHeader);
+            expect(secondAccept.status).toBe(409);
+            expect(secondAccept.body.message).toContain('already a member');
+        });
+
         it('should return 404 when token does not exist', async () => {
             const user = await createAuthenticatedUser(client);
             const res = await client

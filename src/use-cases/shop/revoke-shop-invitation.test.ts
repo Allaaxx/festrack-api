@@ -3,6 +3,7 @@ import { RevokeShopInvitationUseCase } from './revoke-shop-invitation.js';
 import {
     ShopNotFoundError,
     ShopInvitationNotFoundError,
+    InvalidInvitationStateError,
 } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import { Shop, ShopMember, ShopInvitation } from '../../domain/index.js';
@@ -57,6 +58,27 @@ describe('Revoke Shop Invitation Use Case', () => {
         });
 
         expect(result.status).toBe('REVOKED');
+    });
+
+    it('should throw InvalidInvitationStateError if invitation is not PENDING', async () => {
+        const sut = new RevokeShopInvitationUseCase(
+            { findById: mock(async () => fakeShop) } as any,
+            { findByShopAndUserId: mock(async () => ownerMember) } as any,
+            {
+                findById: mock(async () => ({
+                    ...fakeInvite,
+                    status: 'ACCEPTED',
+                })),
+            } as any,
+        );
+
+        await expect(
+            sut.execute({
+                shopId: 'shop-1',
+                invitationId: 'inv-1',
+                userId: 'u-1',
+            }),
+        ).rejects.toThrow(InvalidInvitationStateError);
     });
 
     it('should throw ShopInvitationNotFoundError if invitation does not exist or wrong shop', async () => {

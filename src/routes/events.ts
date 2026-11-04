@@ -17,11 +17,7 @@ import { DefaultGoogleCalendarAdapter } from '../adapters/index.js';
 import { EventNotFoundError } from '../errors/event.js';
 import { ShopNotFoundError } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/index.js';
-
-const isIsoDateValid = (dateStr: string): boolean => {
-    const d = new Date(dateStr);
-    return !isNaN(d.getTime());
-};
+import { isIsoDateValid } from './helpers.js';
 
 export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
     .use(authPlugin)
@@ -84,12 +80,15 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
         },
         {
             isAuth: true,
-            params: t.Object({
-                shopId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             body: t.Object(
                 {
                     name: t.String({
@@ -154,12 +153,15 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
         },
         {
             isAuth: true,
-            params: t.Object({
-                shopId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             detail: {
                 tags: ['Events'],
                 summary: 'Get all shop events',
@@ -206,16 +208,19 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
         },
         {
             isAuth: true,
-            params: t.Object({
-                shopId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-                id: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             detail: {
                 tags: ['Events'],
                 summary: 'Get shop event by id',
@@ -285,16 +290,19 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
         },
         {
             isAuth: true,
-            params: t.Object({
-                shopId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-                id: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             body: t.Object(
                 {
                     name: t.Optional(
@@ -367,16 +375,19 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
         },
         {
             isAuth: true,
-            params: t.Object({
-                shopId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-                id: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             detail: {
                 tags: ['Events'],
                 summary: 'Delete shop event by id',

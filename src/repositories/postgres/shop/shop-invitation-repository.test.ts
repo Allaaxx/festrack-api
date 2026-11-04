@@ -124,12 +124,13 @@ describe('Postgres Shop Invitation Repository', () => {
                 .values({ name: 'Pending List Shop' })
                 .returning();
 
+            const futureDate = new Date(Date.now() + 1000 * 60 * 60);
             await sut.create({
                 shop_id: shop.id,
                 email: 'p1@example.com',
                 role: 'MEMBER',
                 token: crypto.randomUUID(),
-                expires_at: new Date(),
+                expires_at: futureDate,
             });
 
             await sut.create({
@@ -137,11 +138,23 @@ describe('Postgres Shop Invitation Repository', () => {
                 email: 'p2@example.com',
                 role: 'MEMBER',
                 token: crypto.randomUUID(),
-                expires_at: new Date(),
+                expires_at: futureDate,
+            });
+
+            // Also create an expired pending invite which should NOT be returned
+            await sut.create({
+                shop_id: shop.id,
+                email: 'expired@example.com',
+                role: 'MEMBER',
+                token: crypto.randomUUID(),
+                expires_at: new Date(Date.now() - 1000 * 60),
             });
 
             const list = await sut.findPendingByShopId(shop.id);
             expect(list.length).toBe(2);
+            expect(list.some((i) => i.email === 'expired@example.com')).toBe(
+                false,
+            );
         });
     });
 

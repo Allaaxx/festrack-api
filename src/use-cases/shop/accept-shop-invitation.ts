@@ -7,6 +7,7 @@ import {
     ShopInvitationNotFoundError,
     ShopInvitationExpiredError,
     ShopInvitationEmailMismatchError,
+    UserAlreadyShopMemberError,
 } from '../../errors/shop.js';
 
 export interface AcceptShopInvitationInput {
@@ -54,10 +55,10 @@ export class AcceptShopInvitationUseCase {
             );
 
         if (existingMember) {
-            await this.shopInvitationRepository.update(invitation.id, {
-                status: 'ACCEPTED',
-            });
-            return existingMember;
+            throw new UserAlreadyShopMemberError(
+                input.user.email,
+                invitation.shop_id,
+            );
         }
 
         const member = await this.shopMemberRepository.create({

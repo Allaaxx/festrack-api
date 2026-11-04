@@ -12,8 +12,8 @@ export type TransactionType =
 export interface Transaction {
     id: string;
     shop_id: string;
-    created_by_user_id: string;
-    user_id?: string;
+    created_by_user_id: string | null;
+    user_id?: string | null;
     name: string;
     date: Date | string;
     amount: DecimalLike;

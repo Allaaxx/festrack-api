@@ -4,6 +4,7 @@ import {
     ShopInvitationNotFoundError,
     ShopInvitationExpiredError,
     ShopInvitationEmailMismatchError,
+    UserAlreadyShopMemberError,
 } from '../../errors/shop.js';
 import { ShopMember, ShopInvitation } from '../../domain/index.js';
 
@@ -97,5 +98,21 @@ describe('Accept Shop Invitation Use Case', () => {
                 user: { id: 'u-2', email: 'intruder@example.com' },
             }),
         ).rejects.toThrow(ShopInvitationEmailMismatchError);
+    });
+
+    it('should throw UserAlreadyShopMemberError if user is already a member', async () => {
+        const sut = new AcceptShopInvitationUseCase(
+            { findByToken: mock(async () => validInvite) } as any,
+            {
+                findByShopAndUserId: mock(async () => createdMember),
+            } as any,
+        );
+
+        await expect(
+            sut.execute({
+                token: 'valid-token',
+                user: { id: 'u-1', email: 'collaborator@example.com' },
+            }),
+        ).rejects.toThrow(UserAlreadyShopMemberError);
     });
 });

@@ -334,15 +334,18 @@ describe('Users Routes (Elysia E2E)', () => {
                 .returning();
 
             // Create a transaction for this user
-            await db.insert(transactionsTable).values({
-                name: 'Cascade Transaction',
-                amount: '50.00',
-                date: new Date(),
-                type: 'EXPENSE',
-                shop_id: createdShop.id,
-                created_by_user_id: userId,
-                event_id: createdEvent.id,
-            });
+            const [createdTransaction] = await db
+                .insert(transactionsTable)
+                .values({
+                    name: 'Cascade Transaction',
+                    amount: '50.00',
+                    date: new Date(),
+                    type: 'EXPENSE',
+                    shop_id: createdShop.id,
+                    created_by_user_id: userId,
+                    event_id: createdEvent.id,
+                })
+                .returning();
 
             // Verify before delete
             const eventsBefore = await db
@@ -380,7 +383,7 @@ describe('Users Routes (Elysia E2E)', () => {
             expect(response.status).toBe(200);
             expect(response.body.id).toBe(userId);
 
-            // Verify cascade deletion
+            // Verify cascade deletion and set-null auditability
             const usersAfter = await db
                 .select()
                 .from(usersTable)
@@ -390,14 +393,16 @@ describe('Users Routes (Elysia E2E)', () => {
             const eventsAfter = await db
                 .select()
                 .from(eventsTable)
-                .where(eq(eventsTable.created_by_user_id, userId));
-            expect(eventsAfter.length).toBe(0);
+                .where(eq(eventsTable.id, createdEvent.id));
+            expect(eventsAfter.length).toBe(1);
+            expect(eventsAfter[0].created_by_user_id).toBeNull();
 
             const transactionsAfter = await db
                 .select()
                 .from(transactionsTable)
-                .where(eq(transactionsTable.created_by_user_id, userId));
-            expect(transactionsAfter.length).toBe(0);
+                .where(eq(transactionsTable.id, createdTransaction.id));
+            expect(transactionsAfter.length).toBe(1);
+            expect(transactionsAfter[0].created_by_user_id).toBeNull();
 
             const accountsAfter = await db
                 .select()

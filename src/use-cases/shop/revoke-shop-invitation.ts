@@ -7,6 +7,7 @@ import {
 import {
     ShopNotFoundError,
     ShopInvitationNotFoundError,
+    InvalidInvitationStateError,
 } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
 
@@ -48,6 +49,12 @@ export class RevokeShopInvitationUseCase {
         if (!invitation || invitation.shop_id !== input.shopId) {
             throw new ShopInvitationNotFoundError(
                 `Invitation with id ${input.invitationId} not found.`,
+            );
+        }
+
+        if (invitation.status !== 'PENDING') {
+            throw new InvalidInvitationStateError(
+                `Cannot revoke an invitation that is already ${invitation.status.toLowerCase()}.`,
             );
         }
 

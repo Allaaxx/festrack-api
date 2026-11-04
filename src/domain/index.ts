@@ -3,7 +3,6 @@ export * from './repositories/user-repository.js';
 export * from './entities/event.js';
 export * from './repositories/event-repository.js';
 export * from './entities/balance.js';
-export * from './repositories/balance-repository.js';
 export * from './entities/transaction.js';
 export * from './repositories/transaction-repository.js';
 export * from './entities/shop-member.js';
