@@ -1,77 +1,116 @@
-import { faker } from '@faker-js/faker';
-import { transaction } from '../../tests/index.js';
-import { DeleteTransactionUseCase } from './delete-transaction.js';
+import { describe, it, expect, mock } from 'bun:test';
+import { ShopNotFoundError } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
-import { Transaction, TransactionRepository } from '../../domain/index.js';
+import { TransactionNotFoundError } from '../../errors/transaction.js';
+import { transaction, user, shop } from '../../tests/index.js';
+import { DeleteTransactionUseCase } from './delete-transaction.js';
+import {
+    ShopMember,
+    ShopMemberRepository,
+    ShopRepository,
+    TransactionRepository,
+} from '../../domain/index.js';
 
 describe('Delete Transaction Use Case', () => {
-    const user_id = faker.string.uuid();
-    class TransactionRepositoryStub implements Pick<
-        TransactionRepository,
-        'findById' | 'delete'
-    > {
-        async findById(): Promise<Transaction | null> {
-            return {
-                ...transaction,
-                user_id,
-            };
-        }
-
-        async delete(): Promise<Transaction> {
-            return {
-                ...transaction,
-                user_id,
-            };
-        }
-    }
+    const makeMember = (role: 'OWNER' | 'MEMBER' = 'OWNER'): ShopMember => ({
+        id: 'member-id',
+        shop_id: shop.id,
+        user_id: user.id,
+        role,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    });
 
     const makeSut = () => {
-        const transactionRepository = new TransactionRepositoryStub();
-        const sut = new DeleteTransactionUseCase(transactionRepository);
+        const transactionRepository: Pick<
+            TransactionRepository,
+            'findById' | 'delete'
+        > = {
+            findById: mock(async () => ({
+                ...transaction,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+            })),
+            delete: mock(async () => ({
+                ...transaction,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+            })),
+        };
+
+        const shopRepository: Pick<ShopRepository, 'findById'> = {
+            findById: mock(async () => shop),
+        };
+
+        const shopMemberRepository: Pick<
+            ShopMemberRepository,
+            'findByShopAndUserId'
+        > = {
+            findByShopAndUserId: mock(async () => makeMember()),
+        };
+
+        const sut = new DeleteTransactionUseCase(
+            transactionRepository,
+            shopRepository,
+            shopMemberRepository,
+        );
 
         return {
             sut,
             transactionRepository,
+            shopRepository,
+            shopMemberRepository,
         };
     };
 
-    it('should delete a transaction successfully', async () => {
-        const { sut } = makeSut();
-        const id = faker.string.uuid();
+    it('should throw ShopNotFoundError if shop does not exist', async () => {
+        const { sut, shopRepository } = makeSut();
+        shopRepository.findById = mock(async () => null);
 
-        const result = await sut.execute(id, user_id);
-
-        expect(result).toEqual({ ...transaction, user_id });
+        await expect(
+            sut.execute(shop.id, transaction.id, user.id),
+        ).rejects.toThrow(new ShopNotFoundError(shop.id));
     });
 
-    it('should call transactionRepository.delete with correct params', async () => {
-        const { sut, transactionRepository } = makeSut();
-        const deleteSpy = jest.spyOn(transactionRepository, 'delete');
-        const id = faker.string.uuid();
+    it('should throw ForbiddenError if user is not a shop member', async () => {
+        const { sut, shopMemberRepository } = makeSut();
+        shopMemberRepository.findByShopAndUserId = mock(async () => null);
 
-        await sut.execute(id, user_id);
-
-        expect(deleteSpy).toHaveBeenCalledWith(id);
+        await expect(
+            sut.execute(shop.id, transaction.id, user.id),
+        ).rejects.toThrow(ForbiddenError);
     });
 
-    it('should throw if transactionRepository.delete throws', async () => {
+    it('should throw TransactionNotFoundError if transaction does not exist', async () => {
         const { sut, transactionRepository } = makeSut();
-        jest.spyOn(transactionRepository, 'delete').mockRejectedValueOnce(
-            new Error(),
+        transactionRepository.findById = mock(async () => null);
+
+        await expect(
+            sut.execute(shop.id, transaction.id, user.id),
+        ).rejects.toThrow(new TransactionNotFoundError(transaction.id));
+    });
+
+    it('should throw TransactionNotFoundError if transaction belongs to another shop', async () => {
+        const { sut, transactionRepository } = makeSut();
+        transactionRepository.findById = mock(async () => ({
+            ...transaction,
+            shop_id: 'other-shop-id',
+            created_by_user_id: user.id,
+        }));
+
+        await expect(
+            sut.execute(shop.id, transaction.id, user.id),
+        ).rejects.toThrow(new TransactionNotFoundError(transaction.id));
+    });
+
+    it('should delete transaction when all validations pass', async () => {
+        const { sut, transactionRepository } = makeSut();
+
+        const result = await sut.execute(shop.id, transaction.id, user.id);
+
+        expect(result.id).toBe(transaction.id);
+        expect(transactionRepository.delete).toHaveBeenCalledWith(
+            transaction.id,
         );
-        const id = faker.string.uuid();
-
-        const promise = sut.execute(id, user_id);
-
-        await expect(promise).rejects.toThrow();
-    });
-
-    it('should throw ForbiddenError if user_id from transaction is different from user_id from params', async () => {
-        const { sut } = makeSut();
-        const id = faker.string.uuid();
-
-        const promise = sut.execute(id, faker.string.uuid());
-
-        await expect(promise).rejects.toThrow(ForbiddenError);
     });
 });

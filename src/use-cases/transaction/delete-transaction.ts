@@ -1,8 +1,12 @@
+import { ShopNotFoundError } from '../../errors/shop.js';
+import { ForbiddenError } from '../../errors/auth.js';
+import { TransactionNotFoundError } from '../../errors/transaction.js';
 import {
-    TransactionNotFoundError,
-    ForbiddenError,
-} from '../../errors/index.js';
-import { Transaction, TransactionRepository } from '../../domain/index.js';
+    ShopMemberRepository,
+    ShopRepository,
+    Transaction,
+    TransactionRepository,
+} from '../../domain/index.js';
 
 export class DeleteTransactionUseCase {
     constructor(
@@ -10,23 +14,37 @@ export class DeleteTransactionUseCase {
             TransactionRepository,
             'findById' | 'delete'
         >,
+        private readonly shopRepository: Pick<ShopRepository, 'findById'>,
+        private readonly shopMemberRepository: Pick<
+            ShopMemberRepository,
+            'findByShopAndUserId'
+        >,
     ) {}
 
-    async execute(transactionId: string, userId: string): Promise<Transaction> {
-        const transaction =
-            await this.transactionRepository.findById(transactionId);
-
-        if (!transaction) {
-            throw new TransactionNotFoundError(transactionId);
+    async execute(
+        shopId: string,
+        transactionId: string,
+        userId: string,
+    ): Promise<Transaction> {
+        const shop = await this.shopRepository.findById(shopId);
+        if (!shop) {
+            throw new ShopNotFoundError(shopId);
         }
 
-        if (transaction.user_id !== userId) {
+        const member = await this.shopMemberRepository.findByShopAndUserId(
+            shopId,
+            userId,
+        );
+        if (!member) {
             throw new ForbiddenError();
         }
 
-        const deletedTransaction =
-            await this.transactionRepository.delete(transactionId);
+        const transaction =
+            await this.transactionRepository.findById(transactionId);
+        if (!transaction || transaction.shop_id !== shopId) {
+            throw new TransactionNotFoundError(transactionId);
+        }
 
-        return deletedTransaction;
+        return await this.transactionRepository.delete(transactionId);
     }
 }

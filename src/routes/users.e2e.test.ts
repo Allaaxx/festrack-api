@@ -10,6 +10,7 @@ import {
     transactionsTable,
     session,
     usersTable,
+    shopsTable,
 } from '../db/postgres/schemas/index.js';
 import { eq } from 'drizzle-orm';
 
@@ -314,39 +315,49 @@ describe('Users Routes (Elysia E2E)', () => {
             });
             const userId = authUser.user.id;
 
-            // Create an event for this user
+            // Create a shop and event for this user
+            const [createdShop] = await db
+                .insert(shopsTable)
+                .values({ name: 'User Cascade Shop' })
+                .returning();
+
             const [createdEvent] = await db
                 .insert(eventsTable)
                 .values({
+                    shop_id: createdShop.id,
                     name: 'Cascade Event',
                     description: 'Event to test cascade delete',
                     start_date: new Date(),
                     end_date: new Date(),
-                    user_id: userId,
+                    created_by_user_id: userId,
                 })
                 .returning();
 
             // Create a transaction for this user
-            await db.insert(transactionsTable).values({
-                name: 'Cascade Transaction',
-                amount: '50.00',
-                date: new Date(),
-                type: 'EXPENSE',
-                user_id: userId,
-                event_id: createdEvent.id,
-            });
+            const [createdTransaction] = await db
+                .insert(transactionsTable)
+                .values({
+                    name: 'Cascade Transaction',
+                    amount: '50.00',
+                    date: new Date(),
+                    type: 'EXPENSE',
+                    shop_id: createdShop.id,
+                    created_by_user_id: userId,
+                    event_id: createdEvent.id,
+                })
+                .returning();
 
             // Verify before delete
             const eventsBefore = await db
                 .select()
                 .from(eventsTable)
-                .where(eq(eventsTable.user_id, userId));
+                .where(eq(eventsTable.created_by_user_id, userId));
             expect(eventsBefore.length).toBe(1);
 
             const transactionsBefore = await db
                 .select()
                 .from(transactionsTable)
-                .where(eq(transactionsTable.user_id, userId));
+                .where(eq(transactionsTable.created_by_user_id, userId));
             expect(transactionsBefore.length).toBe(1);
 
             const accountsBefore = await db
@@ -372,7 +383,7 @@ describe('Users Routes (Elysia E2E)', () => {
             expect(response.status).toBe(200);
             expect(response.body.id).toBe(userId);
 
-            // Verify cascade deletion
+            // Verify cascade deletion and set-null auditability
             const usersAfter = await db
                 .select()
                 .from(usersTable)
@@ -382,14 +393,16 @@ describe('Users Routes (Elysia E2E)', () => {
             const eventsAfter = await db
                 .select()
                 .from(eventsTable)
-                .where(eq(eventsTable.user_id, userId));
-            expect(eventsAfter.length).toBe(0);
+                .where(eq(eventsTable.id, createdEvent.id));
+            expect(eventsAfter.length).toBe(1);
+            expect(eventsAfter[0].created_by_user_id).toBeNull();
 
             const transactionsAfter = await db
                 .select()
                 .from(transactionsTable)
-                .where(eq(transactionsTable.user_id, userId));
-            expect(transactionsAfter.length).toBe(0);
+                .where(eq(transactionsTable.id, createdTransaction.id));
+            expect(transactionsAfter.length).toBe(1);
+            expect(transactionsAfter[0].created_by_user_id).toBeNull();
 
             const accountsAfter = await db
                 .select()
@@ -433,49 +446,15 @@ describe('Users Routes (Elysia E2E)', () => {
         });
     });
 
-    describe('GET /api/users/me/balance', () => {
-        it('should return 200 with Bearer token', async () => {
+    describe('GET /api/users/me/balance (deprecated)', () => {
+        it('should return 404 as legacy endpoint has been decommissioned', async () => {
             const authUser = await createAuthenticatedUser(client);
 
             const response = await client
                 .get('/api/users/me/balance?from=2026-01-01&to=2026-12-31')
                 .set('Authorization', authUser.bearerHeader);
 
-            expect(response.status).toBe(200);
-            expect(response.body).toHaveProperty('earnings');
-            expect(response.body).toHaveProperty('expenses');
-            expect(response.body).toHaveProperty('investments');
-            expect(response.body).toHaveProperty('balance');
-        });
-
-        it('should return 200 with Cookie', async () => {
-            const authUser = await createAuthenticatedUser(client);
-
-            const response = await client
-                .get('/api/users/me/balance?from=2026-01-01&to=2026-12-31')
-                .set('Cookie', authUser.cookieHeader);
-
-            expect(response.status).toBe(200);
-            expect(response.body).toHaveProperty('balance');
-        });
-
-        it('should return 400 when query dates are invalid', async () => {
-            const authUser = await createAuthenticatedUser(client);
-
-            const response = await client
-                .get('/api/users/me/balance?from=invalid-date&to=2026-12-31')
-                .set('Authorization', authUser.bearerHeader);
-
-            expect(response.status).toBe(400);
-        });
-
-        it('should return 401 when fetching balance without auth', async () => {
-            const response = await client.get(
-                '/api/users/me/balance?from=2026-01-01&to=2026-12-31',
-            );
-
-            expect(response.status).toBe(401);
-            expect(response.body).toEqual({ message: 'Unauthorized' });
+            expect(response.status).toBe(404);
         });
     });
 
