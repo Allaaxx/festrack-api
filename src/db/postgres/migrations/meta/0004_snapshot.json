@@ -1,5 +1,5 @@
 {
-    "id": "01f7efe7-b9d4-45fc-901c-79ed8cd6921e",
+    "id": "171580c7-6d12-4056-94f8-39d45bacbf3c",
     "prevId": "dd0304e3-2ebf-44a6-afbe-af191080998a",
     "version": "7",
     "dialect": "postgresql",
@@ -376,12 +376,6 @@
                     "primaryKey": true,
                     "notNull": true
                 },
-                "shop_id": {
-                    "name": "shop_id",
-                    "type": "text",
-                    "primaryKey": false,
-                    "notNull": true
-                },
                 "name": {
                     "name": "name",
                     "type": "varchar(50)",
@@ -406,8 +400,8 @@
                     "primaryKey": false,
                     "notNull": true
                 },
-                "created_by_user_id": {
-                    "name": "created_by_user_id",
+                "user_id": {
+                    "name": "user_id",
                     "type": "text",
                     "primaryKey": false,
                     "notNull": true
@@ -421,20 +415,11 @@
             },
             "indexes": {},
             "foreignKeys": {
-                "Event_shop_id_shops_id_fk": {
-                    "name": "Event_shop_id_shops_id_fk",
-                    "tableFrom": "Event",
-                    "tableTo": "shops",
-                    "columnsFrom": ["shop_id"],
-                    "columnsTo": ["id"],
-                    "onDelete": "cascade",
-                    "onUpdate": "cascade"
-                },
-                "Event_created_by_user_id_user_id_fk": {
-                    "name": "Event_created_by_user_id_user_id_fk",
+                "Event_user_id_user_id_fk": {
+                    "name": "Event_user_id_user_id_fk",
                     "tableFrom": "Event",
                     "tableTo": "user",
-                    "columnsFrom": ["created_by_user_id"],
+                    "columnsFrom": ["user_id"],
                     "columnsTo": ["id"],
                     "onDelete": "cascade",
                     "onUpdate": "cascade"
@@ -688,6 +673,162 @@
             "policies": {},
             "checkConstraints": {},
             "isRLSEnabled": false
+        },
+        "public.shop_invitations": {
+            "name": "shop_invitations",
+            "schema": "",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "text",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "shop_id": {
+                    "name": "shop_id",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "email": {
+                    "name": "email",
+                    "type": "varchar(255)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "role": {
+                    "name": "role",
+                    "type": "shop_role",
+                    "typeSchema": "public",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "'MEMBER'"
+                },
+                "token": {
+                    "name": "token",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "status": {
+                    "name": "status",
+                    "type": "invitation_status",
+                    "typeSchema": "public",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "'PENDING'"
+                },
+                "expires_at": {
+                    "name": "expires_at",
+                    "type": "timestamp (3)",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp (3)",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                },
+                "updated_at": {
+                    "name": "updated_at",
+                    "type": "timestamp (3)",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {
+                "shop_invitations_token_idx": {
+                    "name": "shop_invitations_token_idx",
+                    "columns": [
+                        {
+                            "expression": "token",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": true,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                },
+                "shop_invitations_shop_idx": {
+                    "name": "shop_invitations_shop_idx",
+                    "columns": [
+                        {
+                            "expression": "shop_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                },
+                "shop_invitations_email_idx": {
+                    "name": "shop_invitations_email_idx",
+                    "columns": [
+                        {
+                            "expression": "email",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                },
+                "shop_invitations_shop_email_idx": {
+                    "name": "shop_invitations_shop_email_idx",
+                    "columns": [
+                        {
+                            "expression": "shop_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        },
+                        {
+                            "expression": "email",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "concurrently": false,
+                    "method": "btree",
+                    "with": {}
+                }
+            },
+            "foreignKeys": {
+                "shop_invitations_shop_id_shops_id_fk": {
+                    "name": "shop_invitations_shop_id_shops_id_fk",
+                    "tableFrom": "shop_invitations",
+                    "tableTo": "shops",
+                    "columnsFrom": ["shop_id"],
+                    "columnsTo": ["id"],
+                    "onDelete": "cascade",
+                    "onUpdate": "cascade"
+                }
+            },
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {
+                "shop_invitations_token_unique": {
+                    "name": "shop_invitations_token_unique",
+                    "nullsNotDistinct": false,
+                    "columns": ["token"]
+                }
+            },
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
         }
     },
     "enums": {
@@ -700,6 +841,11 @@
             "name": "shop_role",
             "schema": "public",
             "values": ["OWNER", "MEMBER"]
+        },
+        "public.invitation_status": {
+            "name": "invitation_status",
+            "schema": "public",
+            "values": ["PENDING", "ACCEPTED", "REVOKED"]
         }
     },
     "schemas": {},

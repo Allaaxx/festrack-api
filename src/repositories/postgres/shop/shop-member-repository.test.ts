@@ -92,4 +92,79 @@ describe('Postgres Shop Member Repository', () => {
             ).rejects.toThrow(ShopMemberNotFoundError);
         });
     });
+
+    describe('findByShopIdWithUsers', () => {
+        it('should return shop members with user details', async () => {
+            await db.insert(usersTable).values(user);
+            const [shop] = await db
+                .insert(shopsTable)
+                .values({ name: 'Member Shop' })
+                .returning();
+
+            await sut.create({
+                shop_id: shop.id,
+                user_id: user.id,
+                role: 'OWNER',
+            });
+
+            const members = await sut.findByShopIdWithUsers(shop.id);
+            expect(members.length).toBe(1);
+            expect(members[0].shop_id).toBe(shop.id);
+            expect(members[0].user_id).toBe(user.id);
+            expect(members[0].user.email).toBe(user.email);
+            expect(members[0].user.first_name).toBe(user.first_name);
+        });
+    });
+
+    describe('updateRole', () => {
+        it('should update member role', async () => {
+            await db.insert(usersTable).values(user);
+            const [shop] = await db
+                .insert(shopsTable)
+                .values({ name: 'Member Shop' })
+                .returning();
+
+            await sut.create({
+                shop_id: shop.id,
+                user_id: user.id,
+                role: 'MEMBER',
+            });
+
+            const updated = await sut.updateRole(shop.id, user.id, 'OWNER');
+            expect(updated.role).toBe('OWNER');
+
+            const found = await sut.findByShopAndUserId(shop.id, user.id);
+            expect(found?.role).toBe('OWNER');
+        });
+
+        it('should throw ShopMemberNotFoundError if member does not exist', async () => {
+            await expect(
+                sut.updateRole(
+                    crypto.randomUUID(),
+                    crypto.randomUUID(),
+                    'OWNER',
+                ),
+            ).rejects.toThrow(ShopMemberNotFoundError);
+        });
+    });
+
+    describe('countOwners', () => {
+        it('should return the number of owners for a shop', async () => {
+            await db.insert(usersTable).values(user);
+            const [shop] = await db
+                .insert(shopsTable)
+                .values({ name: 'Member Shop' })
+                .returning();
+
+            expect(await sut.countOwners(shop.id)).toBe(0);
+
+            await sut.create({
+                shop_id: shop.id,
+                user_id: user.id,
+                role: 'OWNER',
+            });
+
+            expect(await sut.countOwners(shop.id)).toBe(1);
+        });
+    });
 });
