@@ -3,6 +3,8 @@ import { Transaction } from '../../domain/index.js';
 
 export const transaction: Transaction = {
     id: faker.string.uuid(),
+    shop_id: faker.string.uuid(),
+    created_by_user_id: faker.string.uuid(),
     user_id: faker.string.uuid(),
     name: faker.commerce.productName(),
     date: faker.date.anytime().toISOString(),

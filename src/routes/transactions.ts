@@ -2,32 +2,32 @@ import { Elysia, t } from 'elysia';
 import { authPlugin } from '../plugins/auth.js';
 import {
     CreateTransactionUseCase,
-    GetTransactionByUserIdUseCase,
+    GetTransactionsByShopIdUseCase,
+    GetTransactionByIdUseCase,
     UpdateTransactionUseCase,
     DeleteTransactionUseCase,
 } from '../use-cases/index.js';
 import {
     PostgresEventRepository,
+    PostgresShopMemberRepository,
+    PostgresShopRepository,
     PostgresTransactionRepository,
-    PostgresUserRepository,
 } from '../repositories/postgres/index.js';
 import {
     EventNotFoundError,
     ForbiddenError,
+    ShopNotFoundError,
     TransactionNotFoundError,
-    UserNotFoundError,
 } from '../errors/index.js';
+import { isIsoDateValid } from './helpers.js';
 
-const isIsoDateValid = (dateStr: string): boolean => {
-    const d = new Date(dateStr);
-    return !isNaN(d.getTime());
-};
-
-export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
+export const transactionsRoutes = new Elysia({
+    prefix: '/api/shops/:shopId/transactions',
+})
     .use(authPlugin)
     .post(
-        '/me',
-        async ({ userId, body, set }) => {
+        '',
+        async ({ userId, params, body, set }) => {
             if (body.name.trim().length === 0) {
                 set.status = 400;
                 return { message: 'Name is required.' };
@@ -42,25 +42,33 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
             }
 
             const transactionRepository = new PostgresTransactionRepository();
-            const userRepository = new PostgresUserRepository();
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
             const eventRepository = new PostgresEventRepository();
+
             const useCase = new CreateTransactionUseCase(
                 transactionRepository,
-                userRepository,
+                shopRepository,
+                shopMemberRepository,
                 eventRepository,
             );
 
             try {
                 const transaction = await useCase.execute({
-                    ...body,
-                    user_id: userId!,
+                    shopId: params.shopId,
+                    userId: userId!,
+                    name: body.name,
+                    date: body.date,
+                    amount: body.amount,
+                    type: body.type,
+                    event_id: body.event_id ?? null,
                 });
                 set.status = 201;
                 return transaction;
             } catch (error) {
-                if (error instanceof UserNotFoundError) {
+                if (error instanceof ShopNotFoundError) {
                     set.status = 404;
-                    return { message: 'User not found.' };
+                    return { message: 'Shop not found.' };
                 }
                 if (error instanceof EventNotFoundError) {
                     set.status = 404;
@@ -76,9 +84,17 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
         },
         {
             isAuth: true,
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             body: t.Object(
                 {
-                    user_id: t.Optional(t.String()),
                     name: t.String({
                         minLength: 1,
                         error: 'Name is required.',
@@ -113,24 +129,28 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
             ),
             detail: {
                 tags: ['Transactions'],
-                summary: 'Create a new transaction',
+                summary: 'Create a new transaction in shop',
             },
         },
     )
     .get(
-        '/me',
-        async ({ userId, query, set }) => {
+        '',
+        async ({ userId, params, query, set }) => {
             const transactionRepository = new PostgresTransactionRepository();
-            const userRepository = new PostgresUserRepository();
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
             const eventRepository = new PostgresEventRepository();
-            const useCase = new GetTransactionByUserIdUseCase(
+
+            const useCase = new GetTransactionsByShopIdUseCase(
                 transactionRepository,
-                userRepository,
+                shopRepository,
+                shopMemberRepository,
                 eventRepository,
             );
 
             try {
                 const transactions = await useCase.execute(
+                    params.shopId,
                     userId!,
                     query
                         ? {
@@ -143,9 +163,9 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
                 set.status = 200;
                 return transactions;
             } catch (error) {
-                if (error instanceof UserNotFoundError) {
+                if (error instanceof ShopNotFoundError) {
                     set.status = 404;
-                    return { message: 'User not found.' };
+                    return { message: 'Shop not found.' };
                 }
                 if (error instanceof EventNotFoundError) {
                     set.status = 404;
@@ -161,6 +181,15 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
         },
         {
             isAuth: true,
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             query: t.Object(
                 {
                     from: t.Optional(t.String()),
@@ -176,14 +205,73 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
             ),
             detail: {
                 tags: ['Transactions'],
-                summary: 'Get all user transactions',
+                summary: 'Get all shop transactions',
                 description:
-                    'Retrieve transactions for the authenticated user, optionally filtered by date range or associated event.',
+                    'Retrieve transactions for a shop, optionally filtered by date range or associated event.',
+            },
+        },
+    )
+    .get(
+        '/:id',
+        async ({ userId, params, set }) => {
+            const transactionRepository = new PostgresTransactionRepository();
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
+
+            const useCase = new GetTransactionByIdUseCase(
+                transactionRepository,
+                shopRepository,
+                shopMemberRepository,
+            );
+
+            try {
+                const transaction = await useCase.execute(
+                    params.shopId,
+                    params.id,
+                    userId!,
+                );
+                set.status = 200;
+                return transaction;
+            } catch (error) {
+                if (error instanceof ShopNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Shop not found.' };
+                }
+                if (error instanceof TransactionNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Transaction not found.' };
+                }
+                if (error instanceof ForbiddenError) {
+                    set.status = 403;
+                    return { message: 'Forbidden' };
+                }
+                set.status = 500;
+                return { message: 'Internal server error' };
+            }
+        },
+        {
+            isAuth: true,
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
+            detail: {
+                tags: ['Transactions'],
+                summary: 'Get shop transaction by id',
             },
         },
     )
     .patch(
-        '/me/:transactionId',
+        '/:id',
         async ({ userId, params, body, set }) => {
             if (body.name !== undefined && body.name.trim().length === 0) {
                 set.status = 400;
@@ -199,23 +287,31 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
             }
 
             const transactionRepository = new PostgresTransactionRepository();
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
             const eventRepository = new PostgresEventRepository();
+
             const useCase = new UpdateTransactionUseCase(
                 transactionRepository,
+                shopRepository,
+                shopMemberRepository,
                 eventRepository,
             );
 
             try {
                 const transaction = await useCase.execute(
-                    params.transactionId,
-                    {
-                        ...body,
-                        user_id: userId!,
-                    },
+                    params.shopId,
+                    params.id,
+                    userId!,
+                    body,
                 );
                 set.status = 200;
                 return transaction;
             } catch (error) {
+                if (error instanceof ShopNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Shop not found.' };
+                }
                 if (error instanceof TransactionNotFoundError) {
                     set.status = 404;
                     return { message: 'Transaction not found.' };
@@ -234,12 +330,19 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
         },
         {
             isAuth: true,
-            params: t.Object({
-                transactionId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             body: t.Object(
                 {
                     name: t.Optional(
@@ -279,24 +382,36 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
             ),
             detail: {
                 tags: ['Transactions'],
-                summary: 'Update transaction by id',
+                summary: 'Update shop transaction by id',
             },
         },
     )
     .delete(
-        '/me/:transactionId',
+        '/:id',
         async ({ userId, params, set }) => {
             const transactionRepository = new PostgresTransactionRepository();
-            const useCase = new DeleteTransactionUseCase(transactionRepository);
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
+
+            const useCase = new DeleteTransactionUseCase(
+                transactionRepository,
+                shopRepository,
+                shopMemberRepository,
+            );
 
             try {
                 const transaction = await useCase.execute(
-                    params.transactionId,
+                    params.shopId,
+                    params.id,
                     userId!,
                 );
                 set.status = 200;
                 return transaction;
             } catch (error) {
+                if (error instanceof ShopNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Shop not found.' };
+                }
                 if (error instanceof TransactionNotFoundError) {
                     set.status = 404;
                     return { message: 'Transaction not found.' };
@@ -311,15 +426,22 @@ export const transactionsRoutes = new Elysia({ prefix: '/api/transactions' })
         },
         {
             isAuth: true,
-            params: t.Object({
-                transactionId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             detail: {
                 tags: ['Transactions'],
-                summary: 'Delete transaction by id',
+                summary: 'Delete shop transaction by id',
             },
         },
     );

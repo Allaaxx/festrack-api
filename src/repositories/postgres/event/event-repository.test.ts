@@ -1,28 +1,41 @@
 import dayjs from 'dayjs';
 import { eq } from 'drizzle-orm';
 import { db } from '../../../db/postgres/index.js';
-import { eventsTable, usersTable } from '../../../db/postgres/schemas/index.js';
-import { event, user } from '../../../tests/index.js';
+import {
+    eventsTable,
+    usersTable,
+    shopsTable,
+} from '../../../db/postgres/schemas/index.js';
+import { event, user, shop } from '../../../tests/index.js';
 import { PostgresEventRepository } from './event-repository.js';
 import { EventNotFoundError } from '../../../errors/event.js';
 
 describe('Postgres Event Repository', () => {
     let sut: PostgresEventRepository;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         sut = new PostgresEventRepository();
+        await db.insert(usersTable).values(user);
+        await db.insert(shopsTable).values({
+            id: shop.id,
+            name: shop.name,
+            description: shop.description,
+        });
     });
 
     describe('create', () => {
         it('should create an event on db with correct dates', async () => {
-            await db.insert(usersTable).values(user);
-
-            const result = await sut.create({ ...event, user_id: user.id });
+            const result = await sut.create({
+                ...event,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+            });
 
             expect(result.id).toBeDefined();
             expect(result.name).toBe(event.name);
             expect(result.description).toBe(event.description);
-            expect(result.user_id).toBe(user.id);
+            expect(result.shop_id).toBe(shop.id);
+            expect(result.created_by_user_id).toBe(user.id);
             expect(dayjs(result.start_date).toISOString()).toBe(
                 dayjs(event.start_date).toISOString(),
             );
@@ -36,16 +49,22 @@ describe('Postgres Event Repository', () => {
                 throw new Error();
             });
 
-            await expect(sut.create(event)).rejects.toThrow();
+            await expect(
+                sut.create({
+                    ...event,
+                    shop_id: shop.id,
+                    created_by_user_id: user.id,
+                }),
+            ).rejects.toThrow();
         });
     });
 
     describe('findById', () => {
         it('should return event by id', async () => {
-            await db.insert(usersTable).values(user);
             await db.insert(eventsTable).values({
                 ...event,
-                user_id: user.id,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
                 start_date: new Date(event.start_date),
                 end_date: new Date(event.end_date),
             });
@@ -55,7 +74,8 @@ describe('Postgres Event Repository', () => {
             expect(result).not.toBeNull();
             expect(result?.id).toBe(event.id);
             expect(result?.name).toBe(event.name);
-            expect(result?.user_id).toBe(user.id);
+            expect(result?.shop_id).toBe(shop.id);
+            expect(result?.created_by_user_id).toBe(user.id);
         });
 
         it('should return null if event is not found', async () => {
@@ -65,12 +85,37 @@ describe('Postgres Event Repository', () => {
         });
     });
 
-    describe('findByUserId', () => {
-        it('should return all events for a user', async () => {
-            await db.insert(usersTable).values(user);
+    describe('findByShopId', () => {
+        it('should return all events for a shop', async () => {
             await db.insert(eventsTable).values({
                 ...event,
-                user_id: user.id,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                start_date: new Date(event.start_date),
+                end_date: new Date(event.end_date),
+            });
+
+            const result = await sut.findByShopId(shop.id);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].id).toBe(event.id);
+            expect(result[0].shop_id).toBe(shop.id);
+            expect(result[0].created_by_user_id).toBe(user.id);
+        });
+
+        it('should return empty list if shop has no events', async () => {
+            const result = await sut.findByShopId(shop.id);
+
+            expect(result).toEqual([]);
+        });
+    });
+
+    describe('findByUserId', () => {
+        it('should return all events for a user', async () => {
+            await db.insert(eventsTable).values({
+                ...event,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
                 start_date: new Date(event.start_date),
                 end_date: new Date(event.end_date),
             });
@@ -79,7 +124,7 @@ describe('Postgres Event Repository', () => {
 
             expect(result).toHaveLength(1);
             expect(result[0].id).toBe(event.id);
-            expect(result[0].user_id).toBe(user.id);
+            expect(result[0].created_by_user_id).toBe(user.id);
         });
 
         it('should return empty list if user has no events', async () => {
@@ -91,10 +136,10 @@ describe('Postgres Event Repository', () => {
 
     describe('update', () => {
         it('should update event fields and dates on db', async () => {
-            await db.insert(usersTable).values(user);
             await db.insert(eventsTable).values({
                 ...event,
-                user_id: user.id,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
                 start_date: new Date(event.start_date),
                 end_date: new Date(event.end_date),
             });
@@ -125,10 +170,10 @@ describe('Postgres Event Repository', () => {
 
     describe('delete', () => {
         it('should delete event from db and return deleted event', async () => {
-            await db.insert(usersTable).values(user);
             await db.insert(eventsTable).values({
                 ...event,
-                user_id: user.id,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
                 start_date: new Date(event.start_date),
                 end_date: new Date(event.end_date),
             });

@@ -4,7 +4,6 @@ import {
     GetUserByIdUseCase,
     UpdateUserUseCase,
     DeleteUserUseCase,
-    GetUserBalanceUseCase,
     UploadUserAvatarUseCase,
     ListUserAccountsUseCase,
     UnlinkUserAccountUseCase,
@@ -23,13 +22,6 @@ import {
     AccountNotFoundError,
     InvalidPasswordError,
 } from '../errors/user.js';
-
-const isIsoDateOnly = (dateStr: string): boolean => {
-    return (
-        /^\d{4}-\d{2}-\d{2}$/.test(dateStr) &&
-        !isNaN(new Date(dateStr).getTime())
-    );
-};
 
 export const usersRoutes = new Elysia({ prefix: '/api/users' })
     .use(authPlugin)
@@ -211,51 +203,7 @@ export const usersRoutes = new Elysia({ prefix: '/api/users' })
             },
         },
     )
-    .get(
-        '/me/balance',
-        async ({ userId, query, set }) => {
-            if (
-                !query?.from ||
-                !query?.to ||
-                !isIsoDateOnly(query.from) ||
-                !isIsoDateOnly(query.to)
-            ) {
-                set.status = 400;
-                return { message: 'Invalid query parameters' };
-            }
 
-            const userRepository = new PostgresUserRepository();
-            const useCase = new GetUserBalanceUseCase(userRepository);
-
-            try {
-                const balance = await useCase.execute(
-                    userId!,
-                    query.from,
-                    query.to,
-                );
-                set.status = 200;
-                return balance;
-            } catch (error) {
-                if (error instanceof UserNotFoundError) {
-                    set.status = 404;
-                    return { message: 'User not found.' };
-                }
-                set.status = 500;
-                return { message: 'Internal server error' };
-            }
-        },
-        {
-            isAuth: true,
-            query: t.Object({
-                from: t.Optional(t.String()),
-                to: t.Optional(t.String()),
-            }),
-            detail: {
-                tags: ['Users'],
-                summary: 'Get user balance over time period',
-            },
-        },
-    )
     .get(
         '/me/accounts',
         async ({ userId, set }) => {

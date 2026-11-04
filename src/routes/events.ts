@@ -2,29 +2,28 @@ import { Elysia, t } from 'elysia';
 import { authPlugin } from '../plugins/auth.js';
 import {
     CreateEventUseCase,
-    GetEventsByUserIdUseCase,
+    GetEventsByShopIdUseCase,
     GetEventByIdUseCase,
     UpdateEventUseCase,
     DeleteEventUseCase,
 } from '../use-cases/index.js';
 import {
     PostgresEventRepository,
+    PostgresShopRepository,
+    PostgresShopMemberRepository,
     PostgresUserRepository,
 } from '../repositories/postgres/index.js';
 import { DefaultGoogleCalendarAdapter } from '../adapters/index.js';
 import { EventNotFoundError } from '../errors/event.js';
+import { ShopNotFoundError } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/index.js';
+import { isIsoDateValid } from './helpers.js';
 
-const isIsoDateValid = (dateStr: string): boolean => {
-    const d = new Date(dateStr);
-    return !isNaN(d.getTime());
-};
-
-export const eventsRoutes = new Elysia({ prefix: '/api/events' })
+export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
     .use(authPlugin)
     .post(
-        '/me',
-        async ({ userId, body, set }) => {
+        '',
+        async ({ userId, params, body, set }) => {
             if (!isIsoDateValid(body.start_date)) {
                 set.status = 400;
                 return { message: 'Start date must be a valid date.' };
@@ -42,31 +41,56 @@ export const eventsRoutes = new Elysia({ prefix: '/api/events' })
             }
 
             const eventRepository = new PostgresEventRepository();
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
             const userRepository = new PostgresUserRepository();
             const calendarAdapter = new DefaultGoogleCalendarAdapter();
+
             const useCase = new CreateEventUseCase(
                 eventRepository,
+                shopRepository,
+                shopMemberRepository,
                 userRepository,
                 calendarAdapter,
             );
 
             try {
                 const event = await useCase.execute({
-                    ...body,
-                    user_id: userId!,
+                    shopId: params.shopId,
+                    userId: userId!,
+                    name: body.name,
+                    description: body.description ?? null,
+                    start_date: body.start_date,
+                    end_date: body.end_date,
                 });
                 set.status = 201;
                 return event;
-            } catch {
+            } catch (error) {
+                if (error instanceof ShopNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Shop not found.' };
+                }
+                if (error instanceof ForbiddenError) {
+                    set.status = 403;
+                    return { message: 'Forbidden' };
+                }
                 set.status = 500;
                 return { message: 'Internal server error' };
             }
         },
         {
             isAuth: true,
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             body: t.Object(
                 {
-                    user_id: t.Optional(t.String()),
                     name: t.String({
                         minLength: 1,
                         maxLength: 50,
@@ -93,51 +117,31 @@ export const eventsRoutes = new Elysia({ prefix: '/api/events' })
             ),
             detail: {
                 tags: ['Events'],
-                summary: 'Create a new event',
+                summary: 'Create a new shop event',
             },
         },
     )
     .get(
-        '/me',
-        async ({ userId, set }) => {
+        '',
+        async ({ userId, params, set }) => {
             const eventRepository = new PostgresEventRepository();
-            const userRepository = new PostgresUserRepository();
-            const useCase = new GetEventsByUserIdUseCase(
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
+
+            const useCase = new GetEventsByShopIdUseCase(
                 eventRepository,
-                userRepository,
+                shopRepository,
+                shopMemberRepository,
             );
 
             try {
-                const events = await useCase.execute(userId!);
+                const events = await useCase.execute(params.shopId, userId!);
                 set.status = 200;
                 return events;
-            } catch {
-                set.status = 500;
-                return { message: 'Internal server error' };
-            }
-        },
-        {
-            isAuth: true,
-            detail: {
-                tags: ['Events'],
-                summary: 'Get all user events',
-            },
-        },
-    )
-    .get(
-        '/me/:eventId',
-        async ({ userId, params, set }) => {
-            const repository = new PostgresEventRepository();
-            const useCase = new GetEventByIdUseCase(repository);
-
-            try {
-                const event = await useCase.execute(params.eventId, userId!);
-                set.status = 200;
-                return event;
             } catch (error) {
-                if (error instanceof EventNotFoundError) {
+                if (error instanceof ShopNotFoundError) {
                     set.status = 404;
-                    return { message: 'Event not found.' };
+                    return { message: 'Shop not found.' };
                 }
                 if (error instanceof ForbiddenError) {
                     set.status = 403;
@@ -149,20 +153,82 @@ export const eventsRoutes = new Elysia({ prefix: '/api/events' })
         },
         {
             isAuth: true,
-            params: t.Object({
-                eventId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             detail: {
                 tags: ['Events'],
-                summary: 'Get event by id',
+                summary: 'Get all shop events',
+            },
+        },
+    )
+    .get(
+        '/:id',
+        async ({ userId, params, set }) => {
+            const eventRepository = new PostgresEventRepository();
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
+
+            const useCase = new GetEventByIdUseCase(
+                eventRepository,
+                shopRepository,
+                shopMemberRepository,
+            );
+
+            try {
+                const event = await useCase.execute(
+                    params.shopId,
+                    params.id,
+                    userId!,
+                );
+                set.status = 200;
+                return event;
+            } catch (error) {
+                if (error instanceof EventNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Event not found.' };
+                }
+                if (error instanceof ShopNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Shop not found.' };
+                }
+                if (error instanceof ForbiddenError) {
+                    set.status = 403;
+                    return { message: 'Forbidden' };
+                }
+                set.status = 500;
+                return { message: 'Internal server error' };
+            }
+        },
+        {
+            isAuth: true,
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
+            detail: {
+                tags: ['Events'],
+                summary: 'Get shop event by id',
             },
         },
     )
     .patch(
-        '/me/:eventId',
+        '/:id',
         async ({ userId, params, body, set }) => {
             if (body.start_date && !isIsoDateValid(body.start_date)) {
                 set.status = 400;
@@ -182,18 +248,24 @@ export const eventsRoutes = new Elysia({ prefix: '/api/events' })
                 }
             }
 
-            const repository = new PostgresEventRepository();
+            const eventRepository = new PostgresEventRepository();
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
             const userRepository = new PostgresUserRepository();
             const calendarAdapter = new DefaultGoogleCalendarAdapter();
+
             const useCase = new UpdateEventUseCase(
-                repository,
+                eventRepository,
+                shopRepository,
+                shopMemberRepository,
                 userRepository,
                 calendarAdapter,
             );
 
             try {
                 const event = await useCase.execute(
-                    params.eventId,
+                    params.shopId,
+                    params.id,
                     userId!,
                     body,
                 );
@@ -203,6 +275,10 @@ export const eventsRoutes = new Elysia({ prefix: '/api/events' })
                 if (error instanceof EventNotFoundError) {
                     set.status = 404;
                     return { message: 'Event not found.' };
+                }
+                if (error instanceof ShopNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Shop not found.' };
                 }
                 if (error instanceof ForbiddenError) {
                     set.status = 403;
@@ -214,12 +290,19 @@ export const eventsRoutes = new Elysia({ prefix: '/api/events' })
         },
         {
             isAuth: true,
-            params: t.Object({
-                eventId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             body: t.Object(
                 {
                     name: t.Optional(
@@ -244,30 +327,43 @@ export const eventsRoutes = new Elysia({ prefix: '/api/events' })
             ),
             detail: {
                 tags: ['Events'],
-                summary: 'Update event by id',
+                summary: 'Update shop event by id',
             },
         },
     )
     .delete(
-        '/me/:eventId',
+        '/:id',
         async ({ userId, params, set }) => {
-            const repository = new PostgresEventRepository();
+            const eventRepository = new PostgresEventRepository();
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
             const userRepository = new PostgresUserRepository();
             const calendarAdapter = new DefaultGoogleCalendarAdapter();
+
             const useCase = new DeleteEventUseCase(
-                repository,
+                eventRepository,
+                shopRepository,
+                shopMemberRepository,
                 userRepository,
                 calendarAdapter,
             );
 
             try {
-                const event = await useCase.execute(params.eventId, userId!);
+                const event = await useCase.execute(
+                    params.shopId,
+                    params.id,
+                    userId!,
+                );
                 set.status = 200;
                 return event;
             } catch (error) {
                 if (error instanceof EventNotFoundError) {
                     set.status = 404;
                     return { message: 'Event not found.' };
+                }
+                if (error instanceof ShopNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Shop not found.' };
                 }
                 if (error instanceof ForbiddenError) {
                     set.status = 403;
@@ -279,15 +375,22 @@ export const eventsRoutes = new Elysia({ prefix: '/api/events' })
         },
         {
             isAuth: true,
-            params: t.Object({
-                eventId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             detail: {
                 tags: ['Events'],
-                summary: 'Delete event by id',
+                summary: 'Delete shop event by id',
             },
         },
     );
