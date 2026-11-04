@@ -13,12 +13,15 @@ import {
     GetShopMembersUseCase,
     RemoveShopMemberUseCase,
     TransferShopOwnershipUseCase,
+    GetShopBalanceUseCase,
 } from '../use-cases/index.js';
 import {
     PostgresShopRepository,
     PostgresShopMemberRepository,
     PostgresShopInvitationRepository,
     PostgresUserRepository,
+    PostgresTransactionRepository,
+    PostgresEventRepository,
 } from '../repositories/postgres/index.js';
 import { ConsoleEmailService } from '../adapters/index.js';
 import {
@@ -31,6 +34,12 @@ import {
     TargetUserNotMemberError,
 } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/auth.js';
+import { EventNotFoundError } from '../errors/event.js';
+
+const isIsoDateValid = (dateStr: string): boolean => {
+    const d = new Date(dateStr);
+    return !isNaN(d.getTime());
+};
 
 export const shopsRoutes = new Elysia({ prefix: '/api/shops' })
     .use(authPlugin)
@@ -510,6 +519,90 @@ export const shopsRoutes = new Elysia({ prefix: '/api/shops' })
             detail: {
                 tags: ['Shops'],
                 summary: 'Revoke an invitation',
+            },
+        },
+    )
+    .get(
+        '/:shopId/balance',
+        async ({ userId, params, query, set }) => {
+            if (query?.from && !isIsoDateValid(query.from)) {
+                set.status = 400;
+                return { message: 'Invalid query parameters' };
+            }
+            if (query?.to && !isIsoDateValid(query.to)) {
+                set.status = 400;
+                return { message: 'Invalid query parameters' };
+            }
+
+            const transactionRepository = new PostgresTransactionRepository();
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
+            const eventRepository = new PostgresEventRepository();
+
+            const useCase = new GetShopBalanceUseCase(
+                transactionRepository,
+                shopRepository,
+                shopMemberRepository,
+                eventRepository,
+            );
+
+            try {
+                const balance = await useCase.execute(
+                    params.shopId,
+                    userId!,
+                    query
+                        ? {
+                              from: query.from,
+                              to: query.to,
+                              event_id: query.event_id,
+                          }
+                        : undefined,
+                );
+                set.status = 200;
+                return balance;
+            } catch (error) {
+                if (error instanceof ShopNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Shop not found.' };
+                }
+                if (error instanceof EventNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Event not found.' };
+                }
+                if (error instanceof ForbiddenError) {
+                    set.status = 403;
+                    return { message: 'Forbidden' };
+                }
+                set.status = 500;
+                return { message: 'Internal server error' };
+            }
+        },
+        {
+            isAuth: true,
+            params: t.Object({
+                shopId: t.String({
+                    format: 'uuid',
+                    error: 'The provided id is not valid.',
+                }),
+            }),
+            query: t.Object(
+                {
+                    from: t.Optional(t.String()),
+                    to: t.Optional(t.String()),
+                    event_id: t.Optional(
+                        t.String({
+                            format: 'uuid',
+                            error: 'Event ID must be a valid UUID.',
+                        }),
+                    ),
+                },
+                { additionalProperties: false },
+            ),
+            detail: {
+                tags: ['Shops'],
+                summary: 'Get consolidated shop balance',
+                description:
+                    'Retrieve consolidated balance for a shop, optionally filtered by date range or associated event.',
             },
         },
     )

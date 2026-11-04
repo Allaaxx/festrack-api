@@ -367,4 +367,125 @@ describe('Postgres Transaction Repository', () => {
             expect(found?.event_id).toBeNull();
         });
     });
+
+    describe('getBalanceByShopId', () => {
+        const from = '2026-01-01';
+        const to = '2026-12-31';
+
+        it('should get consolidated balance for a shop', async () => {
+            await db.insert(transactionsTable).values([
+                {
+                    name: 'Ticket Sales',
+                    amount: '5000',
+                    date: new Date('2026-06-01'),
+                    type: 'EARNING',
+                    shop_id: shop.id,
+                    created_by_user_id: user.id,
+                },
+                {
+                    name: 'Sound Equipment',
+                    amount: '2000',
+                    date: new Date('2026-06-02'),
+                    type: 'EXPENSE',
+                    shop_id: shop.id,
+                    created_by_user_id: user.id,
+                },
+                {
+                    name: 'Stage Lighting',
+                    amount: '1000',
+                    date: new Date('2026-06-03'),
+                    type: 'INVESTMENT',
+                    shop_id: shop.id,
+                    created_by_user_id: user.id,
+                },
+            ]);
+
+            const result = await sut.getBalanceByShopId(shop.id, { from, to });
+
+            expect(Number(result.balance)).toBe(2000);
+            expect(Number(result.earnings)).toBe(5000);
+            expect(Number(result.expenses)).toBe(2000);
+            expect(Number(result.investments)).toBe(1000);
+            expect(result.earningsPercentage).toBe(62);
+            expect(result.expensePercentage).toBe(25);
+            expect(result.investmentsPercentage).toBe(12);
+        });
+
+        it('should return 0 when no transactions exist in the shop', async () => {
+            const result = await sut.getBalanceByShopId(shop.id, { from, to });
+
+            expect(result.balance).toBe('0');
+            expect(result.earnings).toBe('0');
+            expect(result.expenses).toBe('0');
+            expect(result.investments).toBe('0');
+            expect(result.earningsPercentage).toBe(0);
+            expect(result.expensePercentage).toBe(0);
+            expect(result.investmentsPercentage).toBe(0);
+        });
+
+        it('should filter balance by event_id', async () => {
+            const eventId = faker.string.uuid();
+            await db.insert(eventsTable).values({
+                id: eventId,
+                name: 'Main Festival',
+                start_date: new Date('2026-06-01'),
+                end_date: new Date('2026-06-15'),
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+            });
+
+            await db.insert(transactionsTable).values([
+                {
+                    name: 'Event Ticket Sales',
+                    amount: '3000',
+                    date: new Date('2026-06-01'),
+                    type: 'EARNING',
+                    shop_id: shop.id,
+                    created_by_user_id: user.id,
+                    event_id: eventId,
+                },
+                {
+                    name: 'Non Event Earning',
+                    amount: '2000',
+                    date: new Date('2026-06-02'),
+                    type: 'EARNING',
+                    shop_id: shop.id,
+                    created_by_user_id: user.id,
+                    event_id: null,
+                },
+            ]);
+
+            const result = await sut.getBalanceByShopId(shop.id, {
+                event_id: eventId,
+            });
+
+            expect(Number(result.earnings)).toBe(3000);
+            expect(Number(result.balance)).toBe(3000);
+        });
+
+        it('should not include transactions from other shops', async () => {
+            const otherShopId = faker.string.uuid();
+            await db.insert(shopsTable).values({
+                id: otherShopId,
+                name: 'Other Shop',
+                description: 'Another shop',
+            });
+
+            await db.insert(transactionsTable).values([
+                {
+                    name: 'Other Shop Earning',
+                    amount: '9999',
+                    date: new Date('2026-06-01'),
+                    type: 'EARNING',
+                    shop_id: otherShopId,
+                    created_by_user_id: user.id,
+                },
+            ]);
+
+            const result = await sut.getBalanceByShopId(shop.id);
+
+            expect(result.balance).toBe('0');
+            expect(result.earnings).toBe('0');
+        });
+    });
 });

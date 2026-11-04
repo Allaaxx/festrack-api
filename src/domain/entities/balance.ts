@@ -11,3 +11,4 @@ export interface Balance {
 }
 
 export type UserBalance = Balance;
+export type ShopBalance = Balance;
