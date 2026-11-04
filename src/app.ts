@@ -8,6 +8,7 @@ import {
     usersRoutes,
     eventsRoutes,
     transactionsRoutes,
+    shopsRoutes,
 } from './routes/index.js';
 
 const getValidationErrorMessage = (error: {
@@ -81,6 +82,10 @@ export const app = new Elysia({ normalize: false })
                         name: 'Transactions',
                         description: 'Financial movements and transactions',
                     },
+                    {
+                        name: 'Shops',
+                        description: 'Collaborative shop management',
+                    },
                 ],
             },
         }),
@@ -89,4 +94,5 @@ export const app = new Elysia({ normalize: false })
     .use(authRoutes)
     .use(usersRoutes)
     .use(eventsRoutes)
-    .use(transactionsRoutes);
+    .use(transactionsRoutes)
+    .use(shopsRoutes);
