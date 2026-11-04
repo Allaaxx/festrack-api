@@ -107,21 +107,23 @@ describe('Better Auth Core Configuration & Database Integration', () => {
         expect(createdEvent).toBeDefined();
         expect(createdEvent.created_by_user_id).toBe(userId);
 
-        // Insert transaction pointing to user.id and event_id
+        // Insert transaction pointing to user.id via created_by_user_id, shop.id, and event_id
         const [createdTransaction] = await db
             .insert(transactionsTable)
             .values({
+                shop_id: createdShop.id,
+                created_by_user_id: userId,
                 name: 'Catering',
                 date: new Date('2026-06-01'),
                 amount: '350.00',
                 type: 'EXPENSE',
-                user_id: userId,
                 event_id: createdEvent.id,
             })
             .returning();
 
         expect(createdTransaction).toBeDefined();
-        expect(createdTransaction.user_id).toBe(userId);
+        expect(createdTransaction.created_by_user_id).toBe(userId);
+        expect(createdTransaction.shop_id).toBe(createdShop.id);
         expect(createdTransaction.event_id).toBe(createdEvent.id);
     });
 

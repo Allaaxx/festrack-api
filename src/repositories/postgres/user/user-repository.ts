@@ -125,7 +125,7 @@ export class PostgresUserRepository implements UserRepository {
             .from(transactionsTable)
             .where(
                 and(
-                    eq(transactionsTable.user_id, userId),
+                    eq(transactionsTable.created_by_user_id, userId),
                     sql`${transactionsTable.date} >= ${fromDate}::date`,
                     sql`${transactionsTable.date} <= ${toDate}::date`,
                 ),

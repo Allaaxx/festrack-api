@@ -339,7 +339,8 @@ describe('Users Routes (Elysia E2E)', () => {
                 amount: '50.00',
                 date: new Date(),
                 type: 'EXPENSE',
-                user_id: userId,
+                shop_id: createdShop.id,
+                created_by_user_id: userId,
                 event_id: createdEvent.id,
             });
 
@@ -353,7 +354,7 @@ describe('Users Routes (Elysia E2E)', () => {
             const transactionsBefore = await db
                 .select()
                 .from(transactionsTable)
-                .where(eq(transactionsTable.user_id, userId));
+                .where(eq(transactionsTable.created_by_user_id, userId));
             expect(transactionsBefore.length).toBe(1);
 
             const accountsBefore = await db
@@ -395,7 +396,7 @@ describe('Users Routes (Elysia E2E)', () => {
             const transactionsAfter = await db
                 .select()
                 .from(transactionsTable)
-                .where(eq(transactionsTable.user_id, userId));
+                .where(eq(transactionsTable.created_by_user_id, userId));
             expect(transactionsAfter.length).toBe(0);
 
             const accountsAfter = await db

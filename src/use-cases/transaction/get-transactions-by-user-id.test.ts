@@ -174,6 +174,8 @@ describe('Get Transactions By User Id Use Case', () => {
         const expectedTransactions: Transaction[] = [
             {
                 id: faker.string.uuid(),
+                shop_id: 'shop-id',
+                created_by_user_id: user.id,
                 user_id: user.id,
                 name: 'Event Ticket',
                 date: '2026-09-15',

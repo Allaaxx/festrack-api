@@ -42,7 +42,9 @@ function fromCents(cents: bigint): string {
 function mapTransaction(row: TransactionTableSelect): Transaction {
     return {
         id: row.id,
-        user_id: row.user_id,
+        shop_id: row.shop_id,
+        created_by_user_id: row.created_by_user_id,
+        user_id: row.created_by_user_id,
         name: row.name,
         date: row.date,
         amount: fromCents(toCents(row.amount)),
@@ -78,11 +80,50 @@ export class PostgresTransactionRepository implements TransactionRepository {
         return row ? mapTransaction(row) : null;
     }
 
+    async findByShopId(
+        shopId: string,
+        filters?: TransactionFilters,
+    ): Promise<Transaction[]> {
+        const conditions = [eq(transactionsTable.shop_id, shopId)];
+
+        if (filters?.from) {
+            const parsedFrom = new Date(filters.from);
+            if (!isNaN(parsedFrom.getTime())) {
+                const fromDate = parsedFrom.toISOString().slice(0, 10);
+                conditions.push(
+                    sql`${transactionsTable.date} >= ${fromDate}::date`,
+                );
+            }
+        }
+
+        if (filters?.to) {
+            const parsedTo = new Date(filters.to);
+            if (!isNaN(parsedTo.getTime())) {
+                const toDate = parsedTo.toISOString().slice(0, 10);
+                conditions.push(
+                    sql`${transactionsTable.date} <= ${toDate}::date`,
+                );
+            }
+        }
+
+        if (filters?.event_id) {
+            conditions.push(eq(transactionsTable.event_id, filters.event_id));
+        }
+
+        const rows = await this.database
+            .select()
+            .from(transactionsTable)
+            .where(and(...conditions))
+            .orderBy(desc(transactionsTable.date));
+
+        return rows.map(mapTransaction);
+    }
+
     async findByUserId(
         userId: string,
         filters?: TransactionFilters,
     ): Promise<Transaction[]> {
-        const conditions = [eq(transactionsTable.user_id, userId)];
+        const conditions = [eq(transactionsTable.created_by_user_id, userId)];
 
         if (filters?.from) {
             const parsedFrom = new Date(filters.from);
