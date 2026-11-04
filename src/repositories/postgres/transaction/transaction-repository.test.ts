@@ -6,9 +6,10 @@ import {
     usersTable,
     eventsTable,
     transactionsTable,
+    shopsTable,
 } from '../../../db/postgres/schemas/index.js';
 import { TransactionType } from '../../../domain/index.js';
-import { transaction, user } from '../../../tests/index.js';
+import { transaction, user, shop } from '../../../tests/index.js';
 import { PostgresTransactionRepository } from './transaction-repository.js';
 import { TransactionNotFoundError } from '../../../errors/transaction.js';
 
@@ -189,12 +190,18 @@ describe('Postgres Transaction Repository', () => {
         it('should filter transactions by event_id', async () => {
             const eventId = faker.string.uuid();
             await db.insert(usersTable).values(user);
+            await db.insert(shopsTable).values({
+                id: shop.id,
+                name: shop.name,
+                description: shop.description,
+            });
             await db.insert(eventsTable).values({
                 id: eventId,
                 name: 'Vacation',
                 start_date: new Date('2026-06-01'),
                 end_date: new Date('2026-06-15'),
-                user_id: user.id,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
             });
 
             await db.insert(transactionsTable).values([
@@ -305,12 +312,18 @@ describe('Postgres Transaction Repository', () => {
         it('should nullify event_id when associated event is deleted', async () => {
             const eventId = faker.string.uuid();
             await db.insert(usersTable).values(user);
+            await db.insert(shopsTable).values({
+                id: shop.id,
+                name: shop.name,
+                description: shop.description,
+            });
             await db.insert(eventsTable).values({
                 id: eventId,
                 name: 'Vacation',
                 start_date: new Date('2026-06-01'),
                 end_date: new Date('2026-06-15'),
-                user_id: user.id,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
             });
 
             const created = await sut.create({

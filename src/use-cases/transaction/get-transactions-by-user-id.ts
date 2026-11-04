@@ -38,7 +38,7 @@ export class GetTransactionByUserIdUseCase {
                 throw new EventNotFoundError(filters.event_id);
             }
 
-            if (event.user_id !== userId) {
+            if ((event.created_by_user_id ?? event.user_id) !== userId) {
                 throw new ForbiddenError();
             }
         }

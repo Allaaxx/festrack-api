@@ -39,7 +39,10 @@ export class UpdateTransactionUseCase {
                 throw new EventNotFoundError(params.event_id);
             }
 
-            if (event.user_id !== transaction.user_id) {
+            if (
+                (event.created_by_user_id ?? event.user_id) !==
+                transaction.user_id
+            ) {
                 throw new ForbiddenError();
             }
         }

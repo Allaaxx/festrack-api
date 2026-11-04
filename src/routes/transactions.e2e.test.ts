@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 import { app } from '../app.js';
 import { testClient } from '../test-helper.js';
-import { event, transaction } from '../tests/index.js';
+import { transaction } from '../tests/index.js';
 import { TransactionType } from '../domain/index.js';
 import { createAuthenticatedUser } from '../tests/auth-helper.js';
 
@@ -9,6 +9,29 @@ describe('Transaction Routes E2E Tests (Elysia)', () => {
     const client = testClient(app);
     const from = '2020-01-01';
     const to = '2027-12-31';
+
+    const createEventForUser = async (
+        authUser: Awaited<ReturnType<typeof createAuthenticatedUser>>,
+        customEvent: Record<string, any> = {},
+    ) => {
+        const shopRes = await client
+            .post('/api/shops')
+            .set('Authorization', authUser.bearerHeader)
+            .send({ name: 'Default Shop' });
+        const shopId = shopRes.body.id;
+
+        const eventRes = await client
+            .post(`/api/shops/${shopId}/events`)
+            .set('Authorization', authUser.bearerHeader)
+            .send({
+                name: 'Test Event',
+                description: 'Test event description',
+                start_date: '2026-06-01T00:00:00.000Z',
+                end_date: '2026-06-15T00:00:00.000Z',
+                ...customEvent,
+            });
+        return eventRes.body;
+    };
 
     it('POST /api/transactions/me should return 201 when creating a transaction successfully with Bearer token', async () => {
         const authUser = await createAuthenticatedUser(client);
@@ -216,13 +239,7 @@ describe('Transaction Routes E2E Tests (Elysia)', () => {
     it('POST /api/transactions/me should return 201 when creating transaction linked to an event', async () => {
         const authUser = await createAuthenticatedUser(client);
 
-        const { body: createdEvent } = await client
-            .post('/api/events/me')
-            .set('Authorization', authUser.bearerHeader)
-            .send({
-                ...event,
-                id: undefined,
-            });
+        const createdEvent = await createEventForUser(authUser);
 
         const response = await client
             .post('/api/transactions/me')
@@ -356,13 +373,7 @@ describe('Transaction Routes E2E Tests (Elysia)', () => {
     it('GET /api/transactions/me?event_id=:eventId should return 200 with associated transactions', async () => {
         const authUser = await createAuthenticatedUser(client);
 
-        const { body: createdEvent } = await client
-            .post('/api/events/me')
-            .set('Authorization', authUser.bearerHeader)
-            .send({
-                ...event,
-                id: undefined,
-            });
+        const createdEvent = await createEventForUser(authUser);
 
         const { body: eventTx } = await client
             .post('/api/transactions/me')
@@ -396,15 +407,10 @@ describe('Transaction Routes E2E Tests (Elysia)', () => {
     it('GET /api/transactions/me?event_id=:eventId should return transactions dated outside event date window (temporal decoupling)', async () => {
         const authUser = await createAuthenticatedUser(client);
 
-        const { body: createdEvent } = await client
-            .post('/api/events/me')
-            .set('Authorization', authUser.bearerHeader)
-            .send({
-                ...event,
-                id: undefined,
-                start_date: '2026-06-01',
-                end_date: '2026-06-15',
-            });
+        const createdEvent = await createEventForUser(authUser, {
+            start_date: '2026-06-01T00:00:00.000Z',
+            end_date: '2026-06-15T00:00:00.000Z',
+        });
 
         const { body: advanceTx } = await client
             .post('/api/transactions/me')
@@ -454,13 +460,7 @@ describe('Transaction Routes E2E Tests (Elysia)', () => {
     it('GET /api/transactions/me?event_id=:eventId should return 200 with empty array when event has no transactions', async () => {
         const authUser = await createAuthenticatedUser(client);
 
-        const { body: createdEvent } = await client
-            .post('/api/events/me')
-            .set('Authorization', authUser.bearerHeader)
-            .send({
-                ...event,
-                id: undefined,
-            });
+        const createdEvent = await createEventForUser(authUser);
 
         const response = await client
             .get('/api/transactions/me')
@@ -498,13 +498,7 @@ describe('Transaction Routes E2E Tests (Elysia)', () => {
         const authUser1 = await createAuthenticatedUser(client);
         const authUser2 = await createAuthenticatedUser(client);
 
-        const { body: user2Event } = await client
-            .post('/api/events/me')
-            .set('Authorization', authUser2.bearerHeader)
-            .send({
-                ...event,
-                id: undefined,
-            });
+        const user2Event = await createEventForUser(authUser2);
 
         const response = await client
             .get('/api/transactions/me')
@@ -518,15 +512,10 @@ describe('Transaction Routes E2E Tests (Elysia)', () => {
     it('GET /api/transactions/me should support combining event_id with from and to date filters', async () => {
         const authUser = await createAuthenticatedUser(client);
 
-        const { body: createdEvent } = await client
-            .post('/api/events/me')
-            .set('Authorization', authUser.bearerHeader)
-            .send({
-                ...event,
-                id: undefined,
-                start_date: '2026-06-01',
-                end_date: '2026-06-15',
-            });
+        const createdEvent = await createEventForUser(authUser, {
+            start_date: '2026-06-01T00:00:00.000Z',
+            end_date: '2026-06-15T00:00:00.000Z',
+        });
 
         await client
             .post('/api/transactions/me')

@@ -9,6 +9,7 @@ import {
     varchar,
 } from 'drizzle-orm/pg-core';
 import { user } from './users.js';
+import { eventsTable } from './events.js';
 
 export const shopRoleEnum = pgEnum('shop_role', ['OWNER', 'MEMBER']);
 
@@ -66,6 +67,7 @@ export const shopMembers = pgTable(
 
 export const shopsRelations = relations(shops, ({ many }) => ({
     members: many(shopMembers),
+    events: many(eventsTable),
 }));
 
 export const shopMembersRelations = relations(shopMembers, ({ one }) => ({
