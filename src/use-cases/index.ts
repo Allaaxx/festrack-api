@@ -16,3 +16,9 @@ export * from './event/get-events-by-user-id.js';
 export * from './event/get-event-by-id.js';
 export * from './event/update-event.js';
 export * from './event/delete-event.js';
+
+export * from './shop/create-shop.js';
+export * from './shop/get-shops-by-user-id.js';
+export * from './shop/get-shop-by-id.js';
+export * from './shop/update-shop.js';
+export * from './shop/delete-shop.js';
