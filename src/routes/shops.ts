@@ -113,6 +113,55 @@ export const shopsRoutes = new Elysia({ prefix: '/api/shops' })
             },
         },
     )
+    .get(
+        '/invitations/:token',
+        async ({ params, set }) => {
+            const shopInvitationRepository =
+                new PostgresShopInvitationRepository();
+            const shopRepository = new PostgresShopRepository();
+
+            try {
+                const invitation = await shopInvitationRepository.findByToken(
+                    params.token,
+                );
+                if (!invitation) {
+                    set.status = 404;
+                    return { message: 'Invitation not found.' };
+                }
+
+                const shop = await shopRepository.findById(invitation.shop_id);
+                set.status = 200;
+                return {
+                    ...invitation,
+                    shop: shop
+                        ? {
+                              id: shop.id,
+                              name: shop.name,
+                              description: shop.description,
+                          }
+                        : null,
+                };
+            } catch {
+                set.status = 500;
+                return { message: 'Internal server error' };
+            }
+        },
+        {
+            params: t.Object(
+                {
+                    token: t.String({
+                        minLength: 1,
+                        error: 'Token is required.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
+            detail: {
+                tags: ['Shops'],
+                summary: 'Get shop invitation details by token',
+            },
+        },
+    )
     .post(
         '/invitations/:token/accept',
         async ({ userId, user, params, set }) => {

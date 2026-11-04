@@ -97,6 +97,9 @@ describe('Postgres Transaction Repository', () => {
             expect(result.length).toBe(1);
             expect(result[0].name).toBe(transaction.name);
             expect(result[0].shop_id).toBe(shop.id);
+            expect((result[0] as any).author).toBeDefined();
+            expect((result[0] as any).author.id).toBe(user.id);
+            expect((result[0] as any).author.email).toBe(user.email);
         });
 
         it('should return empty list if shop has no transactions', async () => {

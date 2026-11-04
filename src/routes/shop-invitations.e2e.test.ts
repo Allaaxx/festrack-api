@@ -236,6 +236,42 @@ describe('Shop Invitations Routes (Elysia E2E)', () => {
         });
     });
 
+    describe('GET /api/shops/invitations/:token', () => {
+        it('should return 200 with invitation and shop details for valid token', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shopRes = await client
+                .post('/api/shops')
+                .set('Authorization', owner.bearerHeader)
+                .send({ name: 'Token Details Shop', description: 'Test Shop' });
+            const shopId = shopRes.body.id;
+
+            const inviteEmail = `token_details_${Date.now()}@example.com`;
+            const inviteRes = await client
+                .post(`/api/shops/${shopId}/invitations`)
+                .set('Authorization', owner.bearerHeader)
+                .send({ email: inviteEmail, role: 'MEMBER' });
+            expect(inviteRes.status).toBe(201);
+            const token = inviteRes.body.token;
+
+            const res = await client.get(`/api/shops/invitations/${token}`);
+            expect(res.status).toBe(200);
+            expect(res.body.token).toBe(token);
+            expect(res.body.email).toBe(inviteEmail.toLowerCase());
+            expect(res.body.shop).toBeDefined();
+            expect(res.body.shop.id).toBe(shopId);
+            expect(res.body.shop.name).toBe('Token Details Shop');
+            expect(res.body.shop.description).toBe('Test Shop');
+        });
+
+        it('should return 404 when invitation token does not exist', async () => {
+            const res = await client.get(
+                '/api/shops/invitations/non-existent-token',
+            );
+            expect(res.status).toBe(404);
+            expect(res.body.message).toBe('Invitation not found.');
+        });
+    });
+
     describe('POST /api/shops/invitations/:token/accept', () => {
         it('should allow authenticated user to accept invitation when email strictly matches', async () => {
             const owner = await createAuthenticatedUser(client);

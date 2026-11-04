@@ -3,6 +3,8 @@ import { db, Database } from '../../../db/postgres/index.js';
 import {
     transactionsTable,
     TransactionTableSelect,
+    usersTable,
+    UserTableSelect,
 } from '../../../db/postgres/schemas/index.js';
 import { TransactionNotFoundError } from '../../../errors/transaction.js';
 import {
@@ -17,8 +19,20 @@ import { toCents, fromCents } from '../helpers/currency.js';
 
 export type { TransactionRepository, TransactionFilters };
 
-function mapTransaction(row: TransactionTableSelect): Transaction {
-    return {
+function mapTransaction(
+    row: TransactionTableSelect,
+    author?: UserTableSelect | null,
+): Transaction {
+    const mapped: Transaction & {
+        author?: {
+            id: string;
+            name: string;
+            first_name: string;
+            last_name: string;
+            email: string;
+            image: string | null;
+        };
+    } = {
         id: row.id,
         shop_id: row.shop_id,
         created_by_user_id: row.created_by_user_id,
@@ -29,6 +43,19 @@ function mapTransaction(row: TransactionTableSelect): Transaction {
         type: row.type,
         event_id: row.event_id,
     };
+
+    if (author) {
+        mapped.author = {
+            id: author.id,
+            name: author.name,
+            first_name: author.first_name,
+            last_name: author.last_name,
+            email: author.email,
+            image: author.image ?? null,
+        };
+    }
+
+    return mapped;
 }
 
 export class PostgresTransactionRepository implements TransactionRepository {
@@ -89,12 +116,19 @@ export class PostgresTransactionRepository implements TransactionRepository {
         }
 
         const rows = await this.database
-            .select()
+            .select({
+                transaction: transactionsTable,
+                author: usersTable,
+            })
             .from(transactionsTable)
+            .leftJoin(
+                usersTable,
+                eq(transactionsTable.created_by_user_id, usersTable.id),
+            )
             .where(and(...conditions))
             .orderBy(desc(transactionsTable.date));
 
-        return rows.map(mapTransaction);
+        return rows.map((row) => mapTransaction(row.transaction, row.author));
     }
 
     async findByUserId(
@@ -128,12 +162,19 @@ export class PostgresTransactionRepository implements TransactionRepository {
         }
 
         const rows = await this.database
-            .select()
+            .select({
+                transaction: transactionsTable,
+                author: usersTable,
+            })
             .from(transactionsTable)
+            .leftJoin(
+                usersTable,
+                eq(transactionsTable.created_by_user_id, usersTable.id),
+            )
             .where(and(...conditions))
             .orderBy(desc(transactionsTable.date));
 
-        return rows.map(mapTransaction);
+        return rows.map((row) => mapTransaction(row.transaction, row.author));
     }
 
     async getBalanceByShopId(
