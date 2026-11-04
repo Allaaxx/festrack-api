@@ -27,12 +27,10 @@ export const transactionsTable = pgTable('Transaction', {
             onDelete: 'cascade',
             onUpdate: 'cascade',
         }),
-    created_by_user_id: text('created_by_user_id')
-        .notNull()
-        .references(() => user.id, {
-            onDelete: 'cascade',
-            onUpdate: 'cascade',
-        }),
+    created_by_user_id: text('created_by_user_id').references(() => user.id, {
+        onDelete: 'set null',
+        onUpdate: 'cascade',
+    }),
     name: varchar('name', { length: 50 }).notNull(),
     date: date('date', { mode: 'date' }).notNull(),
     amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),

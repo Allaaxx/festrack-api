@@ -8,6 +8,7 @@ import {
     ForbiddenError,
     CannotUnlinkLastProviderError,
     AccountNotFoundError,
+    InvalidInvitationStateError,
 } from './index.js';
 
 describe('Domain Errors', () => {
@@ -75,6 +76,13 @@ describe('Domain Errors', () => {
         const error = new AccountNotFoundError('google');
         expect(error.name).toBe('AccountNotFoundError');
         expect(error.message).toBe('Account with provider google not found.');
+        expect(error).toBeInstanceOf(Error);
+    });
+
+    it('InvalidInvitationStateError should have correct message and name', () => {
+        const error = new InvalidInvitationStateError();
+        expect(error.name).toBe('InvalidInvitationStateError');
+        expect(error.message).toBe('Only pending invitations can be revoked.');
         expect(error).toBeInstanceOf(Error);
     });
 });

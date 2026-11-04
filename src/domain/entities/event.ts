@@ -5,8 +5,8 @@ export interface Event {
     description: string | null;
     start_date: Date | string;
     end_date: Date | string;
-    created_by_user_id: string;
-    user_id?: string;
+    created_by_user_id: string | null;
+    user_id?: string | null;
     google_event_id?: string | null;
 }
 

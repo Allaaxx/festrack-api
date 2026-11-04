@@ -19,11 +19,7 @@ import {
     ShopNotFoundError,
     TransactionNotFoundError,
 } from '../errors/index.js';
-
-const isIsoDateValid = (dateStr: string): boolean => {
-    const d = new Date(dateStr);
-    return !isNaN(d.getTime());
-};
+import { isIsoDateValid } from './helpers.js';
 
 export const transactionsRoutes = new Elysia({
     prefix: '/api/shops/:shopId/transactions',
@@ -88,12 +84,15 @@ export const transactionsRoutes = new Elysia({
         },
         {
             isAuth: true,
-            params: t.Object({
-                shopId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             body: t.Object(
                 {
                     name: t.String({
@@ -182,12 +181,15 @@ export const transactionsRoutes = new Elysia({
         },
         {
             isAuth: true,
-            params: t.Object({
-                shopId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             query: t.Object(
                 {
                     from: t.Optional(t.String()),
@@ -249,16 +251,19 @@ export const transactionsRoutes = new Elysia({
         },
         {
             isAuth: true,
-            params: t.Object({
-                shopId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-                id: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             detail: {
                 tags: ['Transactions'],
                 summary: 'Get shop transaction by id',
@@ -325,16 +330,19 @@ export const transactionsRoutes = new Elysia({
         },
         {
             isAuth: true,
-            params: t.Object({
-                shopId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-                id: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             body: t.Object(
                 {
                     name: t.Optional(
@@ -418,16 +426,19 @@ export const transactionsRoutes = new Elysia({
         },
         {
             isAuth: true,
-            params: t.Object({
-                shopId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-                id: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             detail: {
                 tags: ['Transactions'],
                 summary: 'Delete shop transaction by id',

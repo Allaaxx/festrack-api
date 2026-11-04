@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gt } from 'drizzle-orm';
 import { db, Database } from '../../../db/postgres/index.js';
 import { shopInvitationsTable } from '../../../db/postgres/schemas/index.js';
 import { ShopInvitationNotFoundError } from '../../../errors/shop.js';
@@ -74,6 +74,7 @@ export class PostgresShopInvitationRepository implements ShopInvitationRepositor
                 and(
                     eq(shopInvitationsTable.shop_id, shopId),
                     eq(shopInvitationsTable.status, 'PENDING'),
+                    gt(shopInvitationsTable.expires_at, new Date()),
                 ),
             );
     }

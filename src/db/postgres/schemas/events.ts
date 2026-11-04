@@ -21,12 +21,10 @@ export const eventsTable = pgTable('Event', {
         mode: 'date',
     }).notNull(),
     end_date: timestamp('end_date', { precision: 3, mode: 'date' }).notNull(),
-    created_by_user_id: text('created_by_user_id')
-        .notNull()
-        .references(() => user.id, {
-            onDelete: 'cascade',
-            onUpdate: 'cascade',
-        }),
+    created_by_user_id: text('created_by_user_id').references(() => user.id, {
+        onDelete: 'set null',
+        onUpdate: 'cascade',
+    }),
     google_event_id: text('google_event_id'),
 });
 

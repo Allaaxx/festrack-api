@@ -30,16 +30,14 @@ import {
     ShopInvitationNotFoundError,
     ShopInvitationExpiredError,
     ShopInvitationEmailMismatchError,
+    InvalidInvitationStateError,
     ShopSoleOwnerCannotLeaveError,
     TargetUserNotMemberError,
+    UserAlreadyShopMemberError,
 } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/auth.js';
 import { EventNotFoundError } from '../errors/event.js';
-
-const isIsoDateValid = (dateStr: string): boolean => {
-    const d = new Date(dateStr);
-    return !isNaN(d.getTime());
-};
+import { isIsoDateValid } from './helpers.js';
 
 export const shopsRoutes = new Elysia({ prefix: '/api/shops' })
     .use(authPlugin)
@@ -154,6 +152,10 @@ export const shopsRoutes = new Elysia({ prefix: '/api/shops' })
                 }
                 if (error instanceof ShopInvitationEmailMismatchError) {
                     set.status = 403;
+                    return { message: error.message };
+                }
+                if (error instanceof UserAlreadyShopMemberError) {
+                    set.status = 409;
                     return { message: error.message };
                 }
                 set.status = 500;
@@ -493,6 +495,10 @@ export const shopsRoutes = new Elysia({ prefix: '/api/shops' })
                     set.status = 404;
                     return { message: error.message };
                 }
+                if (error instanceof InvalidInvitationStateError) {
+                    set.status = 400;
+                    return { message: error.message };
+                }
                 if (error instanceof ForbiddenError) {
                     set.status = 403;
                     return { message: error.message };
@@ -579,12 +585,15 @@ export const shopsRoutes = new Elysia({ prefix: '/api/shops' })
         },
         {
             isAuth: true,
-            params: t.Object({
-                shopId: t.String({
-                    format: 'uuid',
-                    error: 'The provided id is not valid.',
-                }),
-            }),
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
             query: t.Object(
                 {
                     from: t.Optional(t.String()),
