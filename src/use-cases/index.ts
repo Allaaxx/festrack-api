@@ -32,3 +32,4 @@ export * from './shop/accept-shop-invitation.js';
 export * from './shop/get-shop-members.js';
 export * from './shop/remove-shop-member.js';
 export * from './shop/transfer-shop-ownership.js';
+export * from './shop/get-shop-balance.js';

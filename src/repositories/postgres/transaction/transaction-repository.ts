@@ -11,6 +11,7 @@ import {
     CreateTransactionParams,
     UpdateTransactionParams,
     TransactionRepository,
+    Balance,
 } from '../../../domain/index.js';
 
 export type { TransactionRepository, TransactionFilters };
@@ -156,6 +157,74 @@ export class PostgresTransactionRepository implements TransactionRepository {
             .orderBy(desc(transactionsTable.date));
 
         return rows.map(mapTransaction);
+    }
+
+    async getBalanceByShopId(
+        shopId: string,
+        filters?: TransactionFilters,
+    ): Promise<Balance> {
+        const conditions = [eq(transactionsTable.shop_id, shopId)];
+
+        if (filters?.from) {
+            const parsedFrom = new Date(filters.from);
+            if (!isNaN(parsedFrom.getTime())) {
+                const fromDate = parsedFrom.toISOString().slice(0, 10);
+                conditions.push(
+                    sql`${transactionsTable.date} >= ${fromDate}::date`,
+                );
+            }
+        }
+
+        if (filters?.to) {
+            const parsedTo = new Date(filters.to);
+            if (!isNaN(parsedTo.getTime())) {
+                const toDate = parsedTo.toISOString().slice(0, 10);
+                conditions.push(
+                    sql`${transactionsTable.date} <= ${toDate}::date`,
+                );
+            }
+        }
+
+        if (filters?.event_id) {
+            conditions.push(eq(transactionsTable.event_id, filters.event_id));
+        }
+
+        const [aggregation] = await this.database
+            .select({
+                totalEarnings: sql<string>`coalesce(sum(case when ${transactionsTable.type} = 'EARNING' then ${transactionsTable.amount} else 0 end), 0)::text`,
+                totalExpenses: sql<string>`coalesce(sum(case when ${transactionsTable.type} = 'EXPENSE' then ${transactionsTable.amount} else 0 end), 0)::text`,
+                totalInvestments: sql<string>`coalesce(sum(case when ${transactionsTable.type} = 'INVESTMENT' then ${transactionsTable.amount} else 0 end), 0)::text`,
+            })
+            .from(transactionsTable)
+            .where(and(...conditions));
+
+        const earningsCents = toCents(aggregation?.totalEarnings);
+        const expensesCents = toCents(aggregation?.totalExpenses);
+        const investmentsCents = toCents(aggregation?.totalInvestments);
+
+        const totalCents = earningsCents + expensesCents + investmentsCents;
+        const balanceCents = earningsCents - expensesCents - investmentsCents;
+
+        const earningsPercentage =
+            totalCents === 0n ? 0 : Number((earningsCents * 100n) / totalCents);
+
+        const expensePercentage =
+            totalCents === 0n ? 0 : Number((expensesCents * 100n) / totalCents);
+
+        const investmentsPercentage =
+            totalCents === 0n
+                ? 0
+                : Number((investmentsCents * 100n) / totalCents);
+
+        return {
+            earnings: fromCents(earningsCents),
+            expenses: fromCents(expensesCents),
+            investments: fromCents(investmentsCents),
+            earningsPercentage,
+            expensePercentage,
+            investmentsPercentage,
+            balance: fromCents(balanceCents),
+        };
     }
 
     async update(

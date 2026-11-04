@@ -3,6 +3,7 @@ import {
     CreateTransactionParams,
     UpdateTransactionParams,
 } from '../entities/transaction.js';
+import { Balance } from '../entities/balance.js';
 
 export interface TransactionFilters {
     from?: string;
@@ -23,6 +24,10 @@ export interface TransactionRepository {
         userId: string,
         filters?: TransactionFilters,
     ): Promise<Transaction[]>;
+    getBalanceByShopId(
+        shopId: string,
+        filters?: TransactionFilters,
+    ): Promise<Balance>;
     update(
         transactionId: string,
         updateTransactionParams: UpdateTransactionParams,
