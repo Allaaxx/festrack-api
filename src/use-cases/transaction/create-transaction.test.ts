@@ -37,10 +37,12 @@ describe('Create Transaction Use Case', () => {
         async findById(): Promise<Event | null> {
             return {
                 id: 'valid_event_id',
+                shop_id: 'shop-id',
                 name: 'valid_name',
                 description: null,
                 start_date: '2026-09-15',
                 end_date: '2026-09-16',
+                created_by_user_id: user.id,
                 user_id: user.id,
             };
         }
@@ -143,10 +145,12 @@ describe('Create Transaction Use Case', () => {
         const { sut, eventRepository } = makeSut();
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             id: 'event-id',
+            shop_id: 'shop-id',
             name: 'event_name',
             description: null,
             start_date: '2026-09-15',
             end_date: '2026-09-16',
+            created_by_user_id: 'different-user-id',
             user_id: 'different-user-id',
         });
 

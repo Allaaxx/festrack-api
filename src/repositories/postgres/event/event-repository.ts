@@ -25,7 +25,7 @@ export class PostgresEventRepository implements EventRepository {
             })
             .returning();
 
-        return createdEvent;
+        return { ...createdEvent, user_id: createdEvent.created_by_user_id };
     }
 
     async findById(eventId: string): Promise<Event | null> {
@@ -34,14 +34,25 @@ export class PostgresEventRepository implements EventRepository {
             .from(eventsTable)
             .where(eq(eventsTable.id, eventId));
 
-        return event || null;
+        return event ? { ...event, user_id: event.created_by_user_id } : null;
+    }
+
+    async findByShopId(shopId: string): Promise<Event[]> {
+        const events = await this.database
+            .select()
+            .from(eventsTable)
+            .where(eq(eventsTable.shop_id, shopId));
+
+        return events.map((e) => ({ ...e, user_id: e.created_by_user_id }));
     }
 
     async findByUserId(userId: string): Promise<Event[]> {
-        return await this.database
+        const events = await this.database
             .select()
             .from(eventsTable)
-            .where(eq(eventsTable.user_id, userId));
+            .where(eq(eventsTable.created_by_user_id, userId));
+
+        return events.map((e) => ({ ...e, user_id: e.created_by_user_id }));
     }
 
     async update(
@@ -66,7 +77,7 @@ export class PostgresEventRepository implements EventRepository {
             throw new EventNotFoundError(eventId);
         }
 
-        return updatedEvent;
+        return { ...updatedEvent, user_id: updatedEvent.created_by_user_id };
     }
 
     async delete(eventId: string): Promise<Event> {
@@ -79,6 +90,6 @@ export class PostgresEventRepository implements EventRepository {
             throw new EventNotFoundError(eventId);
         }
 
-        return deletedEvent;
+        return { ...deletedEvent, user_id: deletedEvent.created_by_user_id };
     }
 }

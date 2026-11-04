@@ -7,6 +7,7 @@ import {
 export interface EventRepository {
     create(createEventParams: CreateEventParams): Promise<Event>;
     findById(eventId: string): Promise<Event | null>;
+    findByShopId(shopId: string): Promise<Event[]>;
     findByUserId(userId: string): Promise<Event[]>;
     update(
         eventId: string,

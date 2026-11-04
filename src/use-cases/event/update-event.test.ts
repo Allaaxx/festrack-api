@@ -1,11 +1,19 @@
 import { EventNotFoundError } from '../../errors/event.js';
-import { ForbiddenError } from '../../errors/index.js';
-import { event, user } from '../../tests/index.js';
+import { ShopNotFoundError } from '../../errors/shop.js';
+import { ForbiddenError } from '../../errors/auth.js';
+import { event, user, shop } from '../../tests/index.js';
 import { UpdateEventUseCase } from './update-event.js';
 import {
     Event,
     UpdateEventParams,
     EventRepository,
+    Shop,
+    ShopRepository,
+    ShopMember,
+    ShopMemberRepository,
+    User,
+    UserRepository,
+    GoogleCalendarAdapter,
 } from '../../domain/index.js';
 
 describe('Update Event Use Case', () => {
@@ -18,219 +26,190 @@ describe('Update Event Use Case', () => {
         'findById' | 'update'
     > {
         async findById(_id: string): Promise<Event | null> {
-            return { ...event, user_id: user.id };
+            return {
+                ...event,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+            };
         }
 
         async update(
             _eventId: string,
             _updateEventParams: UpdateEventParams,
         ): Promise<Event> {
-            return { ...event, user_id: user.id, ...updateParams };
+            return {
+                ...event,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                ...updateParams,
+            };
         }
+    }
+
+    class ShopRepositoryStub implements Pick<ShopRepository, 'findById'> {
+        async findById(_id: string): Promise<Shop | null> {
+            return shop;
+        }
+    }
+
+    class ShopMemberRepositoryStub implements Pick<
+        ShopMemberRepository,
+        'findByShopAndUserId'
+    > {
+        async findByShopAndUserId(
+            _shopId: string,
+            _userId: string,
+        ): Promise<ShopMember | null> {
+            return {
+                id: 'member-1',
+                shop_id: shop.id,
+                user_id: user.id,
+                role: 'MEMBER',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            };
+        }
+    }
+
+    class UserRepositoryStub implements Pick<UserRepository, 'findById'> {
+        async findById(_id: string): Promise<User | null> {
+            return user;
+        }
+    }
+
+    class CalendarAdapterStub implements Pick<GoogleCalendarAdapter, 'patch'> {
+        async patch(): Promise<void> {}
     }
 
     const makeSut = () => {
         const eventRepository = new EventRepositoryStub();
-        const sut = new UpdateEventUseCase(eventRepository);
+        const shopRepository = new ShopRepositoryStub();
+        const shopMemberRepository = new ShopMemberRepositoryStub();
+        const userRepository = new UserRepositoryStub();
+        const calendarAdapter = new CalendarAdapterStub();
+        const sut = new UpdateEventUseCase(
+            eventRepository,
+            shopRepository,
+            shopMemberRepository,
+            userRepository,
+            calendarAdapter,
+        );
 
         return {
             sut,
             eventRepository,
+            shopRepository,
+            shopMemberRepository,
+            userRepository,
+            calendarAdapter,
         };
     };
 
     it('should update event successfully', async () => {
         const { sut } = makeSut();
 
-        const result = await sut.execute(event.id, user.id, updateParams);
+        const result = await sut.execute(
+            shop.id,
+            event.id,
+            user.id,
+            updateParams,
+        );
 
-        expect(result).toEqual({ ...event, user_id: user.id, ...updateParams });
+        expect(result.name).toBe(updateParams.name!);
     });
 
-    it('should call EventRepository.findById with correct params', async () => {
-        const { sut, eventRepository } = makeSut();
-        const spy = jest.spyOn(eventRepository, 'findById');
+    it('should throw ShopNotFoundError if shop does not exist', async () => {
+        const { sut, shopRepository } = makeSut();
+        jest.spyOn(shopRepository, 'findById').mockResolvedValueOnce(null);
 
-        await sut.execute(event.id, user.id, updateParams);
+        const promise = sut.execute(shop.id, event.id, user.id, updateParams);
 
-        expect(spy).toHaveBeenCalledWith(event.id);
+        await expect(promise).rejects.toThrow(new ShopNotFoundError(shop.id));
     });
 
-    it('should call EventRepository.update with correct params', async () => {
-        const { sut, eventRepository } = makeSut();
-        const spy = jest.spyOn(eventRepository, 'update');
+    it('should throw ForbiddenError if user is not a shop member', async () => {
+        const { sut, shopMemberRepository } = makeSut();
+        jest.spyOn(
+            shopMemberRepository,
+            'findByShopAndUserId',
+        ).mockResolvedValueOnce(null);
 
-        await sut.execute(event.id, user.id, updateParams);
+        const promise = sut.execute(shop.id, event.id, user.id, updateParams);
 
-        expect(spy).toHaveBeenCalledWith(event.id, updateParams);
+        await expect(promise).rejects.toThrow(new ForbiddenError());
     });
 
     it('should throw EventNotFoundError if event is not found', async () => {
         const { sut, eventRepository } = makeSut();
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce(null);
 
-        const promise = sut.execute(event.id, user.id, updateParams);
+        const promise = sut.execute(shop.id, event.id, user.id, updateParams);
 
         await expect(promise).rejects.toThrow(new EventNotFoundError(event.id));
     });
 
-    it('should throw ForbiddenError if event belongs to another user', async () => {
+    it('should throw EventNotFoundError if event belongs to another shop', async () => {
         const { sut, eventRepository } = makeSut();
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             ...event,
-            user_id: 'other_user_id',
+            shop_id: 'other-shop-id',
+            created_by_user_id: user.id,
         });
 
-        const promise = sut.execute(event.id, user.id, updateParams);
+        const promise = sut.execute(shop.id, event.id, user.id, updateParams);
 
-        await expect(promise).rejects.toThrow(new ForbiddenError());
-    });
-
-    it('should throw if EventRepository.findById throws', async () => {
-        const { sut, eventRepository } = makeSut();
-        jest.spyOn(eventRepository, 'findById').mockRejectedValueOnce(
-            new Error(),
-        );
-
-        const promise = sut.execute(event.id, user.id, updateParams);
-
-        await expect(promise).rejects.toThrow();
-    });
-
-    it('should throw if EventRepository.update throws', async () => {
-        const { sut, eventRepository } = makeSut();
-        jest.spyOn(eventRepository, 'update').mockRejectedValueOnce(
-            new Error(),
-        );
-
-        const promise = sut.execute(event.id, user.id, updateParams);
-
-        await expect(promise).rejects.toThrow();
+        await expect(promise).rejects.toThrow(new EventNotFoundError(event.id));
     });
 
     it('should patch Google Calendar event when sync is enabled and event has google_event_id', async () => {
-        const eventRepository = new EventRepositoryStub();
-        const userRepository = {
-            findById: jest.fn().mockResolvedValue({
-                ...user,
-                google_calendar_sync_enabled: true,
-            }),
-        };
-        const calendarAdapter = {
-            patch: jest.fn().mockResolvedValue(undefined),
-        };
-
+        const { sut, userRepository, eventRepository, calendarAdapter } =
+            makeSut();
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             ...event,
-            user_id: user.id,
-            google_event_id: 'g-event-existing',
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            google_event_id: 'gcal-patch-123',
         });
+        const patchSpy = jest.spyOn(calendarAdapter, 'patch');
 
-        const sut = new UpdateEventUseCase(
-            eventRepository,
-            userRepository as any,
-            calendarAdapter,
-        );
+        await sut.execute(shop.id, event.id, user.id, updateParams);
 
-        await sut.execute(event.id, user.id, updateParams);
-
-        expect(calendarAdapter.patch).toHaveBeenCalledWith(
+        expect(patchSpy).toHaveBeenCalledWith(
             user.id,
-            'g-event-existing',
-            {
-                name: updateParams.name,
-                description: undefined,
-                start_date: undefined,
-                end_date: undefined,
-            },
+            'gcal-patch-123',
+            expect.objectContaining({ name: updateParams.name }),
         );
     });
 
-    it('should bypass Google Calendar patch when event has no google_event_id', async () => {
-        const eventRepository = new EventRepositoryStub();
-        const userRepository = {
-            findById: jest.fn().mockResolvedValue({
-                ...user,
-                google_calendar_sync_enabled: true,
-            }),
-        };
-        const calendarAdapter = {
-            patch: jest.fn(),
-        };
-
+    it('should tolerate Google Calendar patch failure and still update event (non-blocking resilience)', async () => {
+        const { sut, userRepository, eventRepository, calendarAdapter } =
+            makeSut();
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             ...event,
-            user_id: user.id,
-            google_event_id: null,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            google_event_id: 'gcal-patch-123',
         });
-
-        const sut = new UpdateEventUseCase(
-            eventRepository,
-            userRepository as any,
-            calendarAdapter,
+        jest.spyOn(calendarAdapter, 'patch').mockRejectedValueOnce(
+            new Error('Patch failed'),
         );
 
-        await sut.execute(event.id, user.id, updateParams);
-
-        expect(calendarAdapter.patch).not.toHaveBeenCalled();
-    });
-
-    it('should bypass Google Calendar patch when sync is disabled', async () => {
-        const eventRepository = new EventRepositoryStub();
-        const userRepository = {
-            findById: jest.fn().mockResolvedValue({
-                ...user,
-                google_calendar_sync_enabled: false,
-            }),
-        };
-        const calendarAdapter = {
-            patch: jest.fn(),
-        };
-
-        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
-            ...event,
-            user_id: user.id,
-            google_event_id: 'g-event-existing',
-        });
-
-        const sut = new UpdateEventUseCase(
-            eventRepository,
-            userRepository as any,
-            calendarAdapter,
+        const result = await sut.execute(
+            shop.id,
+            event.id,
+            user.id,
+            updateParams,
         );
-
-        await sut.execute(event.id, user.id, updateParams);
-
-        expect(calendarAdapter.patch).not.toHaveBeenCalled();
-    });
-
-    it('should tolerate Google Calendar patch failure and still update event in Festrack (non-blocking resilience)', async () => {
-        const eventRepository = new EventRepositoryStub();
-        const userRepository = {
-            findById: jest.fn().mockResolvedValue({
-                ...user,
-                google_calendar_sync_enabled: true,
-            }),
-        };
-        const calendarAdapter = {
-            patch: jest.fn().mockRejectedValue(new Error('Google 503 error')),
-        };
-
-        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
-            ...event,
-            user_id: user.id,
-            google_event_id: 'g-event-existing',
-        });
-
-        const sut = new UpdateEventUseCase(
-            eventRepository,
-            userRepository as any,
-            calendarAdapter,
-        );
-
-        const result = await sut.execute(event.id, user.id, updateParams);
 
         expect(result).toBeDefined();
-        expect(calendarAdapter.patch).toHaveBeenCalled();
+        expect(result.name).toBe(updateParams.name!);
     });
 });

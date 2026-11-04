@@ -10,6 +10,7 @@ import {
     transactionsTable,
     session,
     usersTable,
+    shopsTable,
 } from '../db/postgres/schemas/index.js';
 import { eq } from 'drizzle-orm';
 
@@ -314,15 +315,21 @@ describe('Users Routes (Elysia E2E)', () => {
             });
             const userId = authUser.user.id;
 
-            // Create an event for this user
+            // Create a shop and event for this user
+            const [createdShop] = await db
+                .insert(shopsTable)
+                .values({ name: 'User Cascade Shop' })
+                .returning();
+
             const [createdEvent] = await db
                 .insert(eventsTable)
                 .values({
+                    shop_id: createdShop.id,
                     name: 'Cascade Event',
                     description: 'Event to test cascade delete',
                     start_date: new Date(),
                     end_date: new Date(),
-                    user_id: userId,
+                    created_by_user_id: userId,
                 })
                 .returning();
 
@@ -340,7 +347,7 @@ describe('Users Routes (Elysia E2E)', () => {
             const eventsBefore = await db
                 .select()
                 .from(eventsTable)
-                .where(eq(eventsTable.user_id, userId));
+                .where(eq(eventsTable.created_by_user_id, userId));
             expect(eventsBefore.length).toBe(1);
 
             const transactionsBefore = await db
@@ -382,7 +389,7 @@ describe('Users Routes (Elysia E2E)', () => {
             const eventsAfter = await db
                 .select()
                 .from(eventsTable)
-                .where(eq(eventsTable.user_id, userId));
+                .where(eq(eventsTable.created_by_user_id, userId));
             expect(eventsAfter.length).toBe(0);
 
             const transactionsAfter = await db

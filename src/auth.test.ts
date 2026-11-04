@@ -7,6 +7,7 @@ import {
     account,
     eventsTable,
     transactionsTable,
+    shopsTable,
 } from './db/postgres/schemas/index.js';
 import { eq } from 'drizzle-orm';
 
@@ -82,20 +83,29 @@ describe('Better Auth Core Configuration & Database Integration', () => {
 
         const userId = signUpResponse.user.id;
 
-        // Insert event pointing to user.id
+        // Insert shop first
+        const [createdShop] = await db
+            .insert(shopsTable)
+            .values({
+                name: 'Test Shop',
+            })
+            .returning();
+
+        // Insert event pointing to user.id via created_by_user_id and shop.id
         const [createdEvent] = await db
             .insert(eventsTable)
             .values({
+                shop_id: createdShop.id,
                 name: 'Birthday Party',
                 description: 'Party celebration',
                 start_date: new Date('2026-06-01'),
                 end_date: new Date('2026-06-02'),
-                user_id: userId,
+                created_by_user_id: userId,
             })
             .returning();
 
         expect(createdEvent).toBeDefined();
-        expect(createdEvent.user_id).toBe(userId);
+        expect(createdEvent.created_by_user_id).toBe(userId);
 
         // Insert transaction pointing to user.id and event_id
         const [createdTransaction] = await db

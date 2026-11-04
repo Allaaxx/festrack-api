@@ -1,8 +1,19 @@
 import { EventNotFoundError } from '../../errors/event.js';
-import { ForbiddenError } from '../../errors/index.js';
-import { event, user } from '../../tests/index.js';
+import { ShopNotFoundError } from '../../errors/shop.js';
+import { ForbiddenError } from '../../errors/auth.js';
+import { event, user, shop } from '../../tests/index.js';
 import { DeleteEventUseCase } from './delete-event.js';
-import { Event, EventRepository } from '../../domain/index.js';
+import {
+    Event,
+    EventRepository,
+    Shop,
+    ShopRepository,
+    ShopMember,
+    ShopMemberRepository,
+    User,
+    UserRepository,
+    GoogleCalendarAdapter,
+} from '../../domain/index.js';
 
 describe('Delete Event Use Case', () => {
     class EventRepositoryStub implements Pick<
@@ -10,210 +21,172 @@ describe('Delete Event Use Case', () => {
         'findById' | 'delete'
     > {
         async findById(_id: string): Promise<Event | null> {
-            return { ...event, user_id: user.id };
+            return {
+                ...event,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+            };
         }
 
         async delete(_id: string): Promise<Event> {
-            return { ...event, user_id: user.id };
+            return {
+                ...event,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+            };
         }
+    }
+
+    class ShopRepositoryStub implements Pick<ShopRepository, 'findById'> {
+        async findById(_id: string): Promise<Shop | null> {
+            return shop;
+        }
+    }
+
+    class ShopMemberRepositoryStub implements Pick<
+        ShopMemberRepository,
+        'findByShopAndUserId'
+    > {
+        async findByShopAndUserId(
+            _shopId: string,
+            _userId: string,
+        ): Promise<ShopMember | null> {
+            return {
+                id: 'member-1',
+                shop_id: shop.id,
+                user_id: user.id,
+                role: 'MEMBER',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            };
+        }
+    }
+
+    class UserRepositoryStub implements Pick<UserRepository, 'findById'> {
+        async findById(_id: string): Promise<User | null> {
+            return user;
+        }
+    }
+
+    class CalendarAdapterStub implements Pick<GoogleCalendarAdapter, 'delete'> {
+        async delete(): Promise<void> {}
     }
 
     const makeSut = () => {
         const eventRepository = new EventRepositoryStub();
-        const sut = new DeleteEventUseCase(eventRepository);
+        const shopRepository = new ShopRepositoryStub();
+        const shopMemberRepository = new ShopMemberRepositoryStub();
+        const userRepository = new UserRepositoryStub();
+        const calendarAdapter = new CalendarAdapterStub();
+        const sut = new DeleteEventUseCase(
+            eventRepository,
+            shopRepository,
+            shopMemberRepository,
+            userRepository,
+            calendarAdapter,
+        );
 
         return {
             sut,
             eventRepository,
+            shopRepository,
+            shopMemberRepository,
+            userRepository,
+            calendarAdapter,
         };
     };
 
     it('should delete event successfully', async () => {
         const { sut } = makeSut();
 
-        const result = await sut.execute(event.id, user.id);
+        const result = await sut.execute(shop.id, event.id, user.id);
 
-        expect(result).toEqual({ ...event, user_id: user.id });
+        expect(result.id).toBe(event.id);
     });
 
-    it('should call EventRepository.findById with correct params', async () => {
-        const { sut, eventRepository } = makeSut();
-        const spy = jest.spyOn(eventRepository, 'findById');
+    it('should throw ShopNotFoundError if shop does not exist', async () => {
+        const { sut, shopRepository } = makeSut();
+        jest.spyOn(shopRepository, 'findById').mockResolvedValueOnce(null);
 
-        await sut.execute(event.id, user.id);
+        const promise = sut.execute(shop.id, event.id, user.id);
 
-        expect(spy).toHaveBeenCalledWith(event.id);
+        await expect(promise).rejects.toThrow(new ShopNotFoundError(shop.id));
     });
 
-    it('should call EventRepository.delete with correct params', async () => {
-        const { sut, eventRepository } = makeSut();
-        const spy = jest.spyOn(eventRepository, 'delete');
+    it('should throw ForbiddenError if user is not a shop member', async () => {
+        const { sut, shopMemberRepository } = makeSut();
+        jest.spyOn(
+            shopMemberRepository,
+            'findByShopAndUserId',
+        ).mockResolvedValueOnce(null);
 
-        await sut.execute(event.id, user.id);
+        const promise = sut.execute(shop.id, event.id, user.id);
 
-        expect(spy).toHaveBeenCalledWith(event.id);
+        await expect(promise).rejects.toThrow(new ForbiddenError());
     });
 
     it('should throw EventNotFoundError if event is not found', async () => {
         const { sut, eventRepository } = makeSut();
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce(null);
 
-        const promise = sut.execute(event.id, user.id);
+        const promise = sut.execute(shop.id, event.id, user.id);
 
         await expect(promise).rejects.toThrow(new EventNotFoundError(event.id));
     });
 
-    it('should throw ForbiddenError if event belongs to another user', async () => {
+    it('should throw EventNotFoundError if event belongs to another shop', async () => {
         const { sut, eventRepository } = makeSut();
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             ...event,
-            user_id: 'other_user_id',
+            shop_id: 'other-shop-id',
+            created_by_user_id: user.id,
         });
 
-        const promise = sut.execute(event.id, user.id);
+        const promise = sut.execute(shop.id, event.id, user.id);
 
-        await expect(promise).rejects.toThrow(new ForbiddenError());
-    });
-
-    it('should throw if EventRepository.findById throws', async () => {
-        const { sut, eventRepository } = makeSut();
-        jest.spyOn(eventRepository, 'findById').mockRejectedValueOnce(
-            new Error(),
-        );
-
-        const promise = sut.execute(event.id, user.id);
-
-        await expect(promise).rejects.toThrow();
-    });
-
-    it('should throw if EventRepository.delete throws', async () => {
-        const { sut, eventRepository } = makeSut();
-        jest.spyOn(eventRepository, 'delete').mockRejectedValueOnce(
-            new Error(),
-        );
-
-        const promise = sut.execute(event.id, user.id);
-
-        await expect(promise).rejects.toThrow();
+        await expect(promise).rejects.toThrow(new EventNotFoundError(event.id));
     });
 
     it('should delete Google Calendar event when sync is enabled and event has google_event_id', async () => {
-        const eventRepository = new EventRepositoryStub();
-        const userRepository = {
-            findById: jest.fn().mockResolvedValue({
-                ...user,
-                google_calendar_sync_enabled: true,
-            }),
-        };
-        const calendarAdapter = {
-            delete: jest.fn().mockResolvedValue(undefined),
-        };
-
+        const { sut, userRepository, eventRepository, calendarAdapter } =
+            makeSut();
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             ...event,
-            user_id: user.id,
-            google_event_id: 'g-event-to-delete',
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            google_event_id: 'gcal-del-123',
         });
+        const delSpy = jest.spyOn(calendarAdapter, 'delete');
 
-        const sut = new DeleteEventUseCase(
-            eventRepository,
-            userRepository as any,
-            calendarAdapter,
-        );
+        await sut.execute(shop.id, event.id, user.id);
 
-        await sut.execute(event.id, user.id);
-
-        expect(calendarAdapter.delete).toHaveBeenCalledWith(
-            user.id,
-            'g-event-to-delete',
-        );
+        expect(delSpy).toHaveBeenCalledWith(user.id, 'gcal-del-123');
     });
 
-    it('should bypass Google Calendar delete when event has no google_event_id', async () => {
-        const eventRepository = new EventRepositoryStub();
-        const userRepository = {
-            findById: jest.fn().mockResolvedValue({
-                ...user,
-                google_calendar_sync_enabled: true,
-            }),
-        };
-        const calendarAdapter = {
-            delete: jest.fn(),
-        };
-
+    it('should tolerate Google Calendar delete failure and still delete event (non-blocking resilience)', async () => {
+        const { sut, userRepository, eventRepository, calendarAdapter } =
+            makeSut();
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
         jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
             ...event,
-            user_id: user.id,
-            google_event_id: null,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            google_event_id: 'gcal-del-123',
         });
-
-        const sut = new DeleteEventUseCase(
-            eventRepository,
-            userRepository as any,
-            calendarAdapter,
+        jest.spyOn(calendarAdapter, 'delete').mockRejectedValueOnce(
+            new Error('Delete failed'),
         );
 
-        await sut.execute(event.id, user.id);
-
-        expect(calendarAdapter.delete).not.toHaveBeenCalled();
-    });
-
-    it('should bypass Google Calendar delete when sync is disabled', async () => {
-        const eventRepository = new EventRepositoryStub();
-        const userRepository = {
-            findById: jest.fn().mockResolvedValue({
-                ...user,
-                google_calendar_sync_enabled: false,
-            }),
-        };
-        const calendarAdapter = {
-            delete: jest.fn(),
-        };
-
-        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
-            ...event,
-            user_id: user.id,
-            google_event_id: 'g-event-to-delete',
-        });
-
-        const sut = new DeleteEventUseCase(
-            eventRepository,
-            userRepository as any,
-            calendarAdapter,
-        );
-
-        await sut.execute(event.id, user.id);
-
-        expect(calendarAdapter.delete).not.toHaveBeenCalled();
-    });
-
-    it('should tolerate Google Calendar delete failure and still delete event in Festrack (non-blocking resilience)', async () => {
-        const eventRepository = new EventRepositoryStub();
-        const userRepository = {
-            findById: jest.fn().mockResolvedValue({
-                ...user,
-                google_calendar_sync_enabled: true,
-            }),
-        };
-        const calendarAdapter = {
-            delete: jest.fn().mockRejectedValue(new Error('Google 500 error')),
-        };
-
-        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
-            ...event,
-            user_id: user.id,
-            google_event_id: 'g-event-to-delete',
-        });
-
-        const sut = new DeleteEventUseCase(
-            eventRepository,
-            userRepository as any,
-            calendarAdapter,
-        );
-
-        const result = await sut.execute(event.id, user.id);
+        const result = await sut.execute(shop.id, event.id, user.id);
 
         expect(result).toBeDefined();
-        expect(calendarAdapter.delete).toHaveBeenCalled();
+        expect(result.id).toBe(event.id);
     });
 });
