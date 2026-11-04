@@ -441,49 +441,15 @@ describe('Users Routes (Elysia E2E)', () => {
         });
     });
 
-    describe('GET /api/users/me/balance', () => {
-        it('should return 200 with Bearer token', async () => {
+    describe('GET /api/users/me/balance (deprecated)', () => {
+        it('should return 404 as legacy endpoint has been decommissioned', async () => {
             const authUser = await createAuthenticatedUser(client);
 
             const response = await client
                 .get('/api/users/me/balance?from=2026-01-01&to=2026-12-31')
                 .set('Authorization', authUser.bearerHeader);
 
-            expect(response.status).toBe(200);
-            expect(response.body).toHaveProperty('earnings');
-            expect(response.body).toHaveProperty('expenses');
-            expect(response.body).toHaveProperty('investments');
-            expect(response.body).toHaveProperty('balance');
-        });
-
-        it('should return 200 with Cookie', async () => {
-            const authUser = await createAuthenticatedUser(client);
-
-            const response = await client
-                .get('/api/users/me/balance?from=2026-01-01&to=2026-12-31')
-                .set('Cookie', authUser.cookieHeader);
-
-            expect(response.status).toBe(200);
-            expect(response.body).toHaveProperty('balance');
-        });
-
-        it('should return 400 when query dates are invalid', async () => {
-            const authUser = await createAuthenticatedUser(client);
-
-            const response = await client
-                .get('/api/users/me/balance?from=invalid-date&to=2026-12-31')
-                .set('Authorization', authUser.bearerHeader);
-
-            expect(response.status).toBe(400);
-        });
-
-        it('should return 401 when fetching balance without auth', async () => {
-            const response = await client.get(
-                '/api/users/me/balance?from=2026-01-01&to=2026-12-31',
-            );
-
-            expect(response.status).toBe(401);
-            expect(response.body).toEqual({ message: 'Unauthorized' });
+            expect(response.status).toBe(404);
         });
     });
 

@@ -72,7 +72,7 @@ export const app = new Elysia({ normalize: false })
                     { name: 'Auth', description: 'Authentication endpoints' },
                     {
                         name: 'Users',
-                        description: 'User profile and balance management',
+                        description: 'User profile management',
                     },
                     {
                         name: 'Events',
