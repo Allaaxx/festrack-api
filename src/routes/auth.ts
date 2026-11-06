@@ -21,16 +21,23 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
                     error?.code === 'PASSWORD_ALREADY_SET' ||
                     error?.body?.code === 'PASSWORD_ALREADY_SET'
                 ) {
-                    const isUnauthorized =
-                        error?.status === 'UNAUTHORIZED' ||
-                        error?.statusCode === 401;
+                    const statusCode =
+                        typeof error?.statusCode === 'number'
+                            ? error.statusCode
+                            : error?.status === 'UNAUTHORIZED'
+                              ? 401
+                              : error?.status === 'BAD_REQUEST' ||
+                                  error?.code === 'PASSWORD_ALREADY_SET' ||
+                                  error?.body?.code === 'PASSWORD_ALREADY_SET'
+                                ? 400
+                                : 500;
 
-                    set.status = isUnauthorized ? 401 : 400;
+                    set.status = statusCode;
 
                     return (
                         error?.body ?? {
                             message: error?.message || 'Error',
-                            ...(error?.body?.code || error?.code
+                            ...(error?.code || error?.body?.code
                                 ? { code: error?.body?.code || error?.code }
                                 : {}),
                         }
@@ -42,9 +49,15 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
             }
         },
         {
-            body: t.Object({
-                newPassword: t.String({ minLength: 6 }),
-            }),
+            detail: {
+                tags: ['Auth'],
+                summary:
+                    'Set password for users without an existing credential',
+            },
+            body: t.Object(
+                { newPassword: t.String({ minLength: 6 }) },
+                { additionalProperties: false },
+            ),
         },
     )
     .all('/*', ({ request }) => auth.handler(request))

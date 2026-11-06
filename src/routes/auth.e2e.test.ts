@@ -863,6 +863,56 @@ describe('Better Auth Endpoints (E2E)', () => {
                 expect(signInResEmail.status).toBe(200);
                 expect(signInResEmail.body).toHaveProperty('token');
                 expect(signInResEmail.body.user.email).toBe(googleEmail);
+
+                // Verify Google OAuth sign-in continues to succeed for the same user (dual authentication)
+                const secondSignInRes = await client
+                    .post('/api/auth/sign-in/social')
+                    .send({
+                        provider: 'google',
+                        callbackURL: 'http://localhost:5174/dashboard',
+                    });
+
+                const secondAuthUrl = new URL(secondSignInRes.body.url);
+                const secondState = secondAuthUrl.searchParams.get('state');
+                const secondStateCookie =
+                    secondSignInRes.headers.get('set-cookie')?.split(';')[0] ||
+                    '';
+
+                const secondCallbackRes = await client
+                    .get(
+                        `/api/auth/callback/google?code=mock_code&state=${secondState}`,
+                    )
+                    .set('Cookie', secondStateCookie);
+
+                expect([302, 200]).toContain(secondCallbackRes.status);
+                if (secondCallbackRes.status === 302) {
+                    const location =
+                        secondCallbackRes.headers.get('location') || '';
+                    expect(location).toContain(
+                        'http://localhost:5174/dashboard',
+                    );
+                    expect(location).not.toContain('error=');
+                }
+
+                const secondSetCookieHeader =
+                    secondCallbackRes.headers.get('set-cookie') || '';
+                const secondSessionCookie =
+                    secondSetCookieHeader
+                        .split(',')
+                        .find((c) =>
+                            c.trim().startsWith('better-auth.session_token='),
+                        )
+                        ?.trim()
+                        .split(';')[0] || '';
+
+                expect(secondSessionCookie).not.toBe('');
+
+                const secondSessionRes = await client
+                    .get('/api/auth/get-session')
+                    .set('Cookie', secondSessionCookie);
+
+                expect(secondSessionRes.status).toBe(200);
+                expect(secondSessionRes.body.user.email).toBe(googleEmail);
             });
         });
     });
