@@ -740,5 +740,85 @@ describe('Better Auth Endpoints (E2E)', () => {
                 expect(userInDb.google_calendar_sync_enabled).toBe(false);
             });
         });
+
+        describe('POST /api/auth/set-password', () => {
+            it('should allow user authenticated via Google OAuth to set a password and then sign in with email and password', async () => {
+                const signInRes = await client
+                    .post('/api/auth/sign-in/social')
+                    .send({
+                        provider: 'google',
+                        callbackURL: 'http://localhost:5174/dashboard',
+                    });
+
+                const authUrl = new URL(signInRes.body.url);
+                const state = authUrl.searchParams.get('state');
+                const stateCookie =
+                    signInRes.headers.get('set-cookie')?.split(';')[0] || '';
+
+                const googleSub = `google_setpw_sub_${Date.now()}`;
+                const googleEmail = `google_setpw_${Date.now()}@example.com`;
+                const mockAccessToken = 'ya29.test_google_access_token';
+                const mockRefreshToken = '1//test_google_refresh_token';
+                const mockScope =
+                    'openid email profile https://www.googleapis.com/auth/calendar.events';
+
+                const idToken = createMockGoogleIdToken({
+                    sub: googleSub,
+                    email: googleEmail,
+                    given_name: 'GoogleSetPw',
+                    family_name: 'User',
+                });
+
+                mockTokenResponse = {
+                    access_token: mockAccessToken,
+                    refresh_token: mockRefreshToken,
+                    expires_in: 3600,
+                    token_type: 'Bearer',
+                    scope: mockScope,
+                    id_token: idToken,
+                };
+
+                const callbackRes = await client
+                    .get(
+                        `/api/auth/callback/google?code=mock_code&state=${state}`,
+                    )
+                    .set('Cookie', stateCookie);
+
+                expect([302, 200]).toContain(callbackRes.status);
+
+                const setCookieHeader =
+                    callbackRes.headers.get('set-cookie') || '';
+                const sessionCookie =
+                    setCookieHeader
+                        .split(',')
+                        .find((c) =>
+                            c.trim().startsWith('better-auth.session_token='),
+                        )
+                        ?.trim()
+                        .split(';')[0] || '';
+
+                expect(sessionCookie).not.toBe('');
+
+                const newPassword = 'NewPassword123!';
+                const setPasswordRes = await client
+                    .post('/api/auth/set-password')
+                    .set('Cookie', sessionCookie)
+                    .send({ newPassword });
+
+                expect(setPasswordRes.status).toBe(200);
+                expect(setPasswordRes.body).toEqual({ status: true });
+
+                const signInResEmail = await client
+                    .post('/api/auth/sign-in/email')
+                    .send({
+                        email: googleEmail,
+                        password: newPassword,
+                    });
+
+                expect(signInResEmail.status).toBe(200);
+                expect(signInResEmail.body).toHaveProperty('token');
+                expect(signInResEmail.body.user.email).toBe(googleEmail);
+            });
+        });
     });
 });
