@@ -740,5 +740,180 @@ describe('Better Auth Endpoints (E2E)', () => {
                 expect(userInDb.google_calendar_sync_enabled).toBe(false);
             });
         });
+
+        describe('POST /api/auth/set-password', () => {
+            it('should reject unauthenticated request with 401', async () => {
+                const response = await client
+                    .post('/api/auth/set-password')
+                    .send({ newPassword: 'Password123!' });
+
+                expect(response.status).toBe(401);
+            });
+
+            it('should reject request with invalid payload (missing newPassword or shorter than 6 characters) with 400', async () => {
+                const missingPayloadRes = await client
+                    .post('/api/auth/set-password')
+                    .send({});
+
+                expect(missingPayloadRes.status).toBe(400);
+
+                const shortPasswordRes = await client
+                    .post('/api/auth/set-password')
+                    .send({ newPassword: '123' });
+
+                expect(shortPasswordRes.status).toBe(400);
+            });
+
+            it('should return 400 when user already possesses an active password credential', async () => {
+                const uniqueEmail = `test_setpw_conflict_${Date.now()}@example.com`;
+                const signUpRes = await client
+                    .post('/api/auth/sign-up/email')
+                    .send({
+                        email: uniqueEmail,
+                        password: 'Password123!',
+                        first_name: 'Existing',
+                        last_name: 'User',
+                    });
+
+                const token = signUpRes.body.token;
+
+                const response = await client
+                    .post('/api/auth/set-password')
+                    .set('Authorization', `Bearer ${token}`)
+                    .send({ newPassword: 'NewPassword123!' });
+
+                expect(response.status).toBe(400);
+                expect(response.body.message).toBeDefined();
+                expect(response.body.code).toBe('PASSWORD_ALREADY_SET');
+            });
+
+            it('should allow user authenticated via Google OAuth to set a password and then sign in with email and password', async () => {
+                const signInRes = await client
+                    .post('/api/auth/sign-in/social')
+                    .send({
+                        provider: 'google',
+                        callbackURL: 'http://localhost:5174/dashboard',
+                    });
+
+                const authUrl = new URL(signInRes.body.url);
+                const state = authUrl.searchParams.get('state');
+                const stateCookie =
+                    signInRes.headers.get('set-cookie')?.split(';')[0] || '';
+
+                const googleSub = `google_setpw_sub_${Date.now()}`;
+                const googleEmail = `google_setpw_${Date.now()}@example.com`;
+                const mockAccessToken = 'ya29.test_google_access_token';
+                const mockRefreshToken = '1//test_google_refresh_token';
+                const mockScope =
+                    'openid email profile https://www.googleapis.com/auth/calendar.events';
+
+                const idToken = createMockGoogleIdToken({
+                    sub: googleSub,
+                    email: googleEmail,
+                    given_name: 'GoogleSetPw',
+                    family_name: 'User',
+                });
+
+                mockTokenResponse = {
+                    access_token: mockAccessToken,
+                    refresh_token: mockRefreshToken,
+                    expires_in: 3600,
+                    token_type: 'Bearer',
+                    scope: mockScope,
+                    id_token: idToken,
+                };
+
+                const callbackRes = await client
+                    .get(
+                        `/api/auth/callback/google?code=mock_code&state=${state}`,
+                    )
+                    .set('Cookie', stateCookie);
+
+                expect([302, 200]).toContain(callbackRes.status);
+
+                const setCookieHeader =
+                    callbackRes.headers.get('set-cookie') || '';
+                const sessionCookie =
+                    setCookieHeader
+                        .split(',')
+                        .find((c) =>
+                            c.trim().startsWith('better-auth.session_token='),
+                        )
+                        ?.trim()
+                        .split(';')[0] || '';
+
+                expect(sessionCookie).not.toBe('');
+
+                const newPassword = 'NewPassword123!';
+                const setPasswordRes = await client
+                    .post('/api/auth/set-password')
+                    .set('Cookie', sessionCookie)
+                    .send({ newPassword });
+
+                expect(setPasswordRes.status).toBe(200);
+                expect(setPasswordRes.body).toEqual({ status: true });
+
+                const signInResEmail = await client
+                    .post('/api/auth/sign-in/email')
+                    .send({
+                        email: googleEmail,
+                        password: newPassword,
+                    });
+
+                expect(signInResEmail.status).toBe(200);
+                expect(signInResEmail.body).toHaveProperty('token');
+                expect(signInResEmail.body.user.email).toBe(googleEmail);
+
+                // Verify Google OAuth sign-in continues to succeed for the same user (dual authentication)
+                const secondSignInRes = await client
+                    .post('/api/auth/sign-in/social')
+                    .send({
+                        provider: 'google',
+                        callbackURL: 'http://localhost:5174/dashboard',
+                    });
+
+                const secondAuthUrl = new URL(secondSignInRes.body.url);
+                const secondState = secondAuthUrl.searchParams.get('state');
+                const secondStateCookie =
+                    secondSignInRes.headers.get('set-cookie')?.split(';')[0] ||
+                    '';
+
+                const secondCallbackRes = await client
+                    .get(
+                        `/api/auth/callback/google?code=mock_code&state=${secondState}`,
+                    )
+                    .set('Cookie', secondStateCookie);
+
+                expect([302, 200]).toContain(secondCallbackRes.status);
+                if (secondCallbackRes.status === 302) {
+                    const location =
+                        secondCallbackRes.headers.get('location') || '';
+                    expect(location).toContain(
+                        'http://localhost:5174/dashboard',
+                    );
+                    expect(location).not.toContain('error=');
+                }
+
+                const secondSetCookieHeader =
+                    secondCallbackRes.headers.get('set-cookie') || '';
+                const secondSessionCookie =
+                    secondSetCookieHeader
+                        .split(',')
+                        .find((c) =>
+                            c.trim().startsWith('better-auth.session_token='),
+                        )
+                        ?.trim()
+                        .split(';')[0] || '';
+
+                expect(secondSessionCookie).not.toBe('');
+
+                const secondSessionRes = await client
+                    .get('/api/auth/get-session')
+                    .set('Cookie', secondSessionCookie);
+
+                expect(secondSessionRes.status).toBe(200);
+                expect(secondSessionRes.body.user.email).toBe(googleEmail);
+            });
+        });
     });
 });

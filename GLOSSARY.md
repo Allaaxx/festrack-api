@@ -31,3 +31,11 @@ _Avoid_: Account, client
 **Balance**:
 The net financial calculation (earnings minus expenses minus investments) for a shop over a designated time period.
 _Avoid_: Net worth, total, summary
+
+**Credential Provisioning**:
+Users who register or sign in via an external OAuth identity provider (e.g. Google) initially lack a password credential. Festrack enables on-demand credential provisioning (`setPassword`), allowing users to create a password without needing a previous one and transitioning the account to support dual authentication methods (SSO and password).
+_Avoid_: Password creation, initial password, account conversion
+
+**Credential Rotation**:
+Users with an existing password credential must provide their active password alongside their replacement secret (`changePassword`) to verify account ownership prior to updating credentials.
+_Avoid_: Password reset, credential refresh, password modification
