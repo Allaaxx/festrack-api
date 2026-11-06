@@ -742,6 +742,51 @@ describe('Better Auth Endpoints (E2E)', () => {
         });
 
         describe('POST /api/auth/set-password', () => {
+            it('should reject unauthenticated request with 401', async () => {
+                const response = await client
+                    .post('/api/auth/set-password')
+                    .send({ newPassword: 'Password123!' });
+
+                expect(response.status).toBe(401);
+            });
+
+            it('should reject request with invalid payload (missing newPassword or shorter than 6 characters) with 400', async () => {
+                const missingPayloadRes = await client
+                    .post('/api/auth/set-password')
+                    .send({});
+
+                expect(missingPayloadRes.status).toBe(400);
+
+                const shortPasswordRes = await client
+                    .post('/api/auth/set-password')
+                    .send({ newPassword: '123' });
+
+                expect(shortPasswordRes.status).toBe(400);
+            });
+
+            it('should return 400 when user already possesses an active password credential', async () => {
+                const uniqueEmail = `test_setpw_conflict_${Date.now()}@example.com`;
+                const signUpRes = await client
+                    .post('/api/auth/sign-up/email')
+                    .send({
+                        email: uniqueEmail,
+                        password: 'Password123!',
+                        first_name: 'Existing',
+                        last_name: 'User',
+                    });
+
+                const token = signUpRes.body.token;
+
+                const response = await client
+                    .post('/api/auth/set-password')
+                    .set('Authorization', `Bearer ${token}`)
+                    .send({ newPassword: 'NewPassword123!' });
+
+                expect(response.status).toBe(400);
+                expect(response.body.message).toBeDefined();
+                expect(response.body.code).toBe('PASSWORD_ALREADY_SET');
+            });
+
             it('should allow user authenticated via Google OAuth to set a password and then sign in with email and password', async () => {
                 const signInRes = await client
                     .post('/api/auth/sign-in/social')
