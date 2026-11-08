@@ -2,3 +2,4 @@ export * from './s3-storage-service.js';
 export * from './password-verifier.js';
 export * from './google-calendar-adapter.js';
 export * from './console-email-service.js';
+export * from './sharp-image-processor.js';
