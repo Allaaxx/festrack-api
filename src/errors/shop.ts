@@ -66,3 +66,29 @@ export class UserAlreadyShopMemberError extends Error {
         this.name = 'UserAlreadyShopMemberError';
     }
 }
+
+export class InvalidShopAssetFolderError extends Error {
+    constructor(folder: string) {
+        super(
+            `Invalid asset folder: ${folder}. Allowed folders are: general, products, receipts.`,
+        );
+        this.name = 'InvalidShopAssetFolderError';
+    }
+}
+
+export class ShopAssetInvalidFileTypeError extends Error {
+    constructor(fileType: string, allowedTypes?: string[]) {
+        const allowed = allowedTypes
+            ? allowedTypes.join(', ')
+            : 'image/jpeg, image/png, image/webp, image/avif';
+        super(`Invalid file type: ${fileType}. Allowed types are ${allowed}.`);
+        this.name = 'ShopAssetInvalidFileTypeError';
+    }
+}
+
+export class ShopAssetFileSizeExceededError extends Error {
+    constructor(maxSizeMb: number = 10) {
+        super(`File size exceeds the maximum allowed size of ${maxSizeMb}MB.`);
+        this.name = 'ShopAssetFileSizeExceededError';
+    }
+}

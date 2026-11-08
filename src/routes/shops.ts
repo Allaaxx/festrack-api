@@ -14,6 +14,7 @@ import {
     RemoveShopMemberUseCase,
     TransferShopOwnershipUseCase,
     GetShopBalanceUseCase,
+    UploadShopAssetUseCase,
 } from '../use-cases/index.js';
 import {
     PostgresShopRepository,
@@ -23,7 +24,11 @@ import {
     PostgresTransactionRepository,
     PostgresEventRepository,
 } from '../repositories/postgres/index.js';
-import { ConsoleEmailService } from '../adapters/index.js';
+import {
+    ConsoleEmailService,
+    S3StorageService,
+    SharpImageProcessor,
+} from '../adapters/index.js';
 import {
     ShopNotFoundError,
     ShopMemberNotFoundError,
@@ -34,6 +39,9 @@ import {
     ShopSoleOwnerCannotLeaveError,
     TargetUserNotMemberError,
     UserAlreadyShopMemberError,
+    InvalidShopAssetFolderError,
+    ShopAssetInvalidFileTypeError,
+    ShopAssetFileSizeExceededError,
 } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/auth.js';
 import { EventNotFoundError } from '../errors/event.js';
@@ -817,6 +825,102 @@ export const shopsRoutes = new Elysia({ prefix: '/api/shops' })
             detail: {
                 tags: ['Shops'],
                 summary: 'Delete shop by id',
+            },
+        },
+    )
+    .post(
+        '/:shopId/uploads',
+        async ({ userId, params, body, set }) => {
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
+            const storageService = new S3StorageService();
+            const imageProcessor = new SharpImageProcessor();
+            const useCase = new UploadShopAssetUseCase(
+                shopRepository,
+                shopMemberRepository,
+                storageService,
+                imageProcessor,
+            );
+
+            try {
+                const result = await useCase.execute({
+                    shopId: params.shopId,
+                    userId: userId!,
+                    file: body.file,
+                    folder: body.folder,
+                });
+                set.status = 201;
+                return result;
+            } catch (error) {
+                if (
+                    error instanceof ShopAssetInvalidFileTypeError ||
+                    error instanceof ShopAssetFileSizeExceededError ||
+                    error instanceof InvalidShopAssetFolderError
+                ) {
+                    set.status = 400;
+                    return { message: error.message };
+                }
+                if (error instanceof ShopNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Shop not found.' };
+                }
+                if (error instanceof ForbiddenError) {
+                    set.status = 403;
+                    return { message: error.message };
+                }
+                set.status = 500;
+                return { message: 'Internal server error' };
+            }
+        },
+        {
+            isAuth: true,
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'Shop ID must be a valid UUID',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
+            body: t.Object(
+                {
+                    file: t.File({
+                        type: [
+                            'image/jpeg',
+                            'image/png',
+                            'image/webp',
+                            'image/avif',
+                        ],
+                        maxSize: '10m',
+                        error: 'Please provide a valid image file (JPEG, PNG, WebP, AVIF) under 10MB.',
+                    }),
+                    folder: t.Optional(
+                        t.Union([
+                            t.Literal('general'),
+                            t.Literal('products'),
+                            t.Literal('receipts'),
+                        ]),
+                    ),
+                },
+                { additionalProperties: false },
+            ),
+            response: {
+                201: t.Object({
+                    url: t.String(),
+                    key: t.String(),
+                    content_type: t.Literal('image/webp'),
+                    size: t.Number(),
+                }),
+                400: t.Object({ message: t.String() }),
+                401: t.Object({ message: t.String() }),
+                403: t.Object({ message: t.String() }),
+                404: t.Object({ message: t.String() }),
+                500: t.Object({ message: t.String() }),
+            },
+            detail: {
+                tags: ['Shops'],
+                summary: 'Upload shop asset image',
             },
         },
     );

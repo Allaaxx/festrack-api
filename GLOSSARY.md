@@ -32,6 +32,10 @@ _Avoid_: Account, client
 The net financial calculation (earnings minus expenses minus investments) for a shop over a designated time period.
 _Avoid_: Net worth, total, summary
 
+**Shop Asset**:
+An optimized binary media resource (such as a WebP image, transaction receipt, or product image) owned by a shop, stored in object storage, and referenced by URL across domain records.
+_Avoid_: File, media, attachment, upload
+
 **Credential Provisioning**:
 Users who register or sign in via an external OAuth identity provider (e.g. Google) initially lack a password credential. Festrack enables on-demand credential provisioning (`setPassword`), allowing users to create a password without needing a previous one and transitioning the account to support dual authentication methods (SSO and password).
 _Avoid_: Password creation, initial password, account conversion

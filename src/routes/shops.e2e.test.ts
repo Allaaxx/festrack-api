@@ -1,7 +1,9 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect, spyOn } from 'bun:test';
+import sharp from 'sharp';
 import { app } from '../app.js';
 import { testClient } from '../test-helper.js';
 import { createAuthenticatedUser } from '../tests/auth-helper.js';
+import { S3StorageService } from '../adapters/index.js';
 import { db } from '../db/postgres/index.js';
 import { shopMembersTable } from '../db/postgres/schemas/index.js';
 
@@ -405,6 +407,340 @@ describe('Shops Routes (Elysia E2E)', () => {
                 .set('Authorization', user.bearerHeader);
 
             expect(response.status).toBe(400);
+        });
+    });
+
+    describe('POST /api/shops/:shopId/uploads', () => {
+        const VALID_PNG_BYTES = Buffer.from(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+            'base64',
+        );
+
+        it('should return 201 and upload image to root folder when folder is omitted', async () => {
+            const uploadSpy = spyOn(
+                S3StorageService.prototype,
+                'upload',
+            ).mockImplementation(async ({ fileName }) => {
+                return `https://storage.example.com/${fileName}`;
+            });
+
+            const owner = await createAuthenticatedUser(client);
+
+            const shopRes = await client
+                .post('/api/shops')
+                .set('Authorization', owner.bearerHeader)
+                .send({ name: 'Asset Upload Root Shop' });
+            expect(shopRes.status).toBe(201);
+            const shopId = shopRes.body.id;
+
+            const formData = new FormData();
+            formData.append(
+                'file',
+                new Blob([VALID_PNG_BYTES], { type: 'image/png' }),
+                'logo.png',
+            );
+
+            const response = await client
+                .post(`/api/shops/${shopId}/uploads`)
+                .set('Authorization', owner.bearerHeader)
+                .send(formData);
+
+            expect(response.status).toBe(201);
+            expect(response.body).toHaveProperty('url');
+            expect(response.body.url).toBe(
+                `https://storage.example.com/${response.body.key}`,
+            );
+            expect(response.body.key).toMatch(
+                new RegExp(`^shops/${shopId}/[a-f0-9-]+\\.webp$`),
+            );
+            expect(response.body.content_type).toBe('image/webp');
+            expect(typeof response.body.size).toBe('number');
+            expect(response.body.size).toBeGreaterThan(0);
+
+            uploadSpy.mockRestore();
+        });
+
+        it('should return 201 and upload image to partitioned folder when folder is specified', async () => {
+            const uploadSpy = spyOn(
+                S3StorageService.prototype,
+                'upload',
+            ).mockImplementation(async ({ fileName }) => {
+                return `https://storage.example.com/${fileName}`;
+            });
+
+            const owner = await createAuthenticatedUser(client);
+
+            const shopRes = await client
+                .post('/api/shops')
+                .set('Authorization', owner.bearerHeader)
+                .send({ name: 'Asset Upload Partitioned Shop' });
+            expect(shopRes.status).toBe(201);
+            const shopId = shopRes.body.id;
+
+            for (const folder of ['general', 'products', 'receipts'] as const) {
+                const formData = new FormData();
+                formData.append(
+                    'file',
+                    new Blob([VALID_PNG_BYTES], { type: 'image/png' }),
+                    `${folder}.png`,
+                );
+                formData.append('folder', folder);
+
+                const response = await client
+                    .post(`/api/shops/${shopId}/uploads`)
+                    .set('Authorization', owner.bearerHeader)
+                    .send(formData);
+
+                expect(response.status).toBe(201);
+                expect(response.body.key).toMatch(
+                    new RegExp(`^shops/${shopId}/${folder}/[a-f0-9-]+\\.webp$`),
+                );
+                expect(response.body.url).toBe(
+                    `https://storage.example.com/${response.body.key}`,
+                );
+                expect(response.body.content_type).toBe('image/webp');
+            }
+
+            uploadSpy.mockRestore();
+        });
+
+        it('should downscale images wider than 2048px (2500x1000) down to 2048px WebP upon upload preserving aspect ratio without enlargement', async () => {
+            let uploadedBuffer: Buffer | null = null;
+            const uploadSpy = spyOn(
+                S3StorageService.prototype,
+                'upload',
+            ).mockImplementation(async ({ fileName, data }) => {
+                uploadedBuffer = data as Buffer;
+                return `https://storage.example.com/${fileName}`;
+            });
+
+            const owner = await createAuthenticatedUser(client);
+
+            const shopRes = await client
+                .post('/api/shops')
+                .set('Authorization', owner.bearerHeader)
+                .send({ name: 'Downscaling Shop' });
+            expect(shopRes.status).toBe(201);
+            const shopId = shopRes.body.id;
+
+            const wideImageBuffer = await sharp({
+                create: {
+                    width: 2500,
+                    height: 1000,
+                    channels: 3,
+                    background: { r: 10, g: 20, b: 30 },
+                },
+            })
+                .jpeg()
+                .toBuffer();
+
+            const formData = new FormData();
+            formData.append(
+                'file',
+                new Blob([wideImageBuffer], { type: 'image/jpeg' }),
+                'wide-banner.jpg',
+            );
+            formData.append('folder', 'general');
+
+            const response = await client
+                .post(`/api/shops/${shopId}/uploads`)
+                .set('Authorization', owner.bearerHeader)
+                .send(formData);
+
+            expect(response.status).toBe(201);
+            expect(uploadedBuffer).not.toBeNull();
+
+            const metadata = await sharp(uploadedBuffer!).metadata();
+            expect(metadata.format).toBe('webp');
+            expect(metadata.width).toBe(2048);
+            expect(metadata.height).toBe(819);
+
+            uploadSpy.mockRestore();
+        });
+
+        it('should return 400 when invalid folder value is passed', async () => {
+            const owner = await createAuthenticatedUser(client);
+
+            const shopRes = await client
+                .post('/api/shops')
+                .set('Authorization', owner.bearerHeader)
+                .send({ name: 'Invalid Folder Shop' });
+            expect(shopRes.status).toBe(201);
+            const shopId = shopRes.body.id;
+
+            for (const invalidFolder of [
+                'invalid_folder',
+                '../traversal',
+                'secret',
+            ]) {
+                const formData = new FormData();
+                formData.append(
+                    'file',
+                    new Blob([VALID_PNG_BYTES], { type: 'image/png' }),
+                    'test.png',
+                );
+                formData.append('folder', invalidFolder);
+
+                const response = await client
+                    .post(`/api/shops/${shopId}/uploads`)
+                    .set('Authorization', owner.bearerHeader)
+                    .send(formData);
+
+                expect(response.status).toBe(400);
+            }
+        });
+
+        it('should return 400 when file format is not allowed (application/pdf, text/plain, image/svg+xml)', async () => {
+            const owner = await createAuthenticatedUser(client);
+
+            const shopRes = await client
+                .post('/api/shops')
+                .set('Authorization', owner.bearerHeader)
+                .send({ name: 'Format Test Shop' });
+            expect(shopRes.status).toBe(201);
+            const shopId = shopRes.body.id;
+
+            const unsupportedCases = [
+                {
+                    content: 'not an image content',
+                    type: 'text/plain',
+                    name: 'test.txt',
+                },
+                {
+                    content: '%PDF-1.4 mock content',
+                    type: 'application/pdf',
+                    name: 'document.pdf',
+                },
+                {
+                    content: '<svg></svg>',
+                    type: 'image/svg+xml',
+                    name: 'vector.svg',
+                },
+            ];
+
+            for (const { content, type, name } of unsupportedCases) {
+                const formData = new FormData();
+                formData.append('file', new Blob([content], { type }), name);
+
+                const response = await client
+                    .post(`/api/shops/${shopId}/uploads`)
+                    .set('Authorization', owner.bearerHeader)
+                    .send(formData);
+
+                expect(response.status).toBe(400);
+            }
+        });
+
+        it('should return 400 when file size exceeds 10MB', async () => {
+            const owner = await createAuthenticatedUser(client);
+
+            const shopRes = await client
+                .post('/api/shops')
+                .set('Authorization', owner.bearerHeader)
+                .send({ name: 'Oversized Asset Shop' });
+            expect(shopRes.status).toBe(201);
+            const shopId = shopRes.body.id;
+
+            // 10MB + 1KB
+            const oversizedBytes = new Uint8Array(10 * 1024 * 1024 + 1024);
+            const formData = new FormData();
+            formData.append(
+                'file',
+                new Blob([oversizedBytes], { type: 'image/png' }),
+                'huge.png',
+            );
+
+            const response = await client
+                .post(`/api/shops/${shopId}/uploads`)
+                .set('Authorization', owner.bearerHeader)
+                .send(formData);
+
+            expect(response.status).toBe(400);
+        });
+
+        it('should return 401 when request is not authenticated', async () => {
+            const validUuid = crypto.randomUUID();
+            const formData = new FormData();
+            formData.append(
+                'file',
+                new Blob([VALID_PNG_BYTES], { type: 'image/png' }),
+                'logo.png',
+            );
+
+            const response = await client
+                .post(`/api/shops/${validUuid}/uploads`)
+                .send(formData);
+
+            expect(response.status).toBe(401);
+            expect(response.body).toEqual({ message: 'Unauthorized' });
+        });
+
+        it('should return 403 when authenticated user is not a member of the target shop', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const outsider = await createAuthenticatedUser(client);
+
+            const shopRes = await client
+                .post('/api/shops')
+                .set('Authorization', owner.bearerHeader)
+                .send({ name: 'Private Shop' });
+            expect(shopRes.status).toBe(201);
+            const shopId = shopRes.body.id;
+
+            const formData = new FormData();
+            formData.append(
+                'file',
+                new Blob([VALID_PNG_BYTES], { type: 'image/png' }),
+                'logo.png',
+            );
+
+            const response = await client
+                .post(`/api/shops/${shopId}/uploads`)
+                .set('Authorization', outsider.bearerHeader)
+                .send(formData);
+
+            expect(response.status).toBe(403);
+            expect(response.body.message).toBeDefined();
+        });
+
+        it('should return 404 when shop does not exist', async () => {
+            const user = await createAuthenticatedUser(client);
+            const nonExistentShopId = crypto.randomUUID();
+
+            const formData = new FormData();
+            formData.append(
+                'file',
+                new Blob([VALID_PNG_BYTES], { type: 'image/png' }),
+                'logo.png',
+            );
+
+            const response = await client
+                .post(`/api/shops/${nonExistentShopId}/uploads`)
+                .set('Authorization', user.bearerHeader)
+                .send(formData);
+
+            expect(response.status).toBe(404);
+            expect(response.body).toEqual({ message: 'Shop not found.' });
+        });
+
+        it('should return 400 when shopId is not a valid UUID', async () => {
+            const user = await createAuthenticatedUser(client);
+
+            const formData = new FormData();
+            formData.append(
+                'file',
+                new Blob([VALID_PNG_BYTES], { type: 'image/png' }),
+                'logo.png',
+            );
+
+            const response = await client
+                .post('/api/shops/not-a-valid-uuid/uploads')
+                .set('Authorization', user.bearerHeader)
+                .send(formData);
+
+            expect(response.status).toBe(400);
+            expect(response.body).toEqual({
+                message: 'Shop ID must be a valid UUID',
+            });
         });
     });
 });

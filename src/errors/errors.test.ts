@@ -9,6 +9,9 @@ import {
     CannotUnlinkLastProviderError,
     AccountNotFoundError,
     InvalidInvitationStateError,
+    InvalidShopAssetFolderError,
+    ShopAssetInvalidFileTypeError,
+    ShopAssetFileSizeExceededError,
 } from './index.js';
 
 describe('Domain Errors', () => {
@@ -84,5 +87,45 @@ describe('Domain Errors', () => {
         expect(error.name).toBe('InvalidInvitationStateError');
         expect(error.message).toBe('Only pending invitations can be revoked.');
         expect(error).toBeInstanceOf(Error);
+    });
+
+    it('InvalidShopAssetFolderError should have correct message and name', () => {
+        const error = new InvalidShopAssetFolderError('unknown_dir');
+        expect(error.name).toBe('InvalidShopAssetFolderError');
+        expect(error.message).toBe(
+            'Invalid asset folder: unknown_dir. Allowed folders are: general, products, receipts.',
+        );
+        expect(error).toBeInstanceOf(Error);
+    });
+
+    it('ShopAssetInvalidFileTypeError should have correct message and name', () => {
+        const defaultError = new ShopAssetInvalidFileTypeError('text/plain');
+        expect(defaultError.name).toBe('ShopAssetInvalidFileTypeError');
+        expect(defaultError.message).toBe(
+            'Invalid file type: text/plain. Allowed types are image/jpeg, image/png, image/webp, image/avif.',
+        );
+        expect(defaultError).toBeInstanceOf(Error);
+
+        const customError = new ShopAssetInvalidFileTypeError('text/plain', [
+            'image/jpeg',
+            'image/png',
+        ]);
+        expect(customError.message).toBe(
+            'Invalid file type: text/plain. Allowed types are image/jpeg, image/png.',
+        );
+    });
+
+    it('ShopAssetFileSizeExceededError should have correct message and name', () => {
+        const defaultError = new ShopAssetFileSizeExceededError();
+        expect(defaultError.name).toBe('ShopAssetFileSizeExceededError');
+        expect(defaultError.message).toBe(
+            'File size exceeds the maximum allowed size of 10MB.',
+        );
+        expect(defaultError).toBeInstanceOf(Error);
+
+        const customError = new ShopAssetFileSizeExceededError(5);
+        expect(customError.message).toBe(
+            'File size exceeds the maximum allowed size of 5MB.',
+        );
     });
 });
