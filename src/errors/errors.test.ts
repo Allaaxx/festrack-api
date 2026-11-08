@@ -9,6 +9,7 @@ import {
     CannotUnlinkLastProviderError,
     AccountNotFoundError,
     InvalidInvitationStateError,
+    InvalidShopAssetFolderError,
 } from './index.js';
 
 describe('Domain Errors', () => {
@@ -83,6 +84,15 @@ describe('Domain Errors', () => {
         const error = new InvalidInvitationStateError();
         expect(error.name).toBe('InvalidInvitationStateError');
         expect(error.message).toBe('Only pending invitations can be revoked.');
+        expect(error).toBeInstanceOf(Error);
+    });
+
+    it('InvalidShopAssetFolderError should have correct message and name', () => {
+        const error = new InvalidShopAssetFolderError('unknown_dir');
+        expect(error.name).toBe('InvalidShopAssetFolderError');
+        expect(error.message).toBe(
+            'Invalid asset folder: unknown_dir. Allowed folders are: general, products, receipts.',
+        );
         expect(error).toBeInstanceOf(Error);
     });
 });

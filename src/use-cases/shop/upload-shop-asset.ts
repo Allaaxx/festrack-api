@@ -3,7 +3,10 @@ import {
     InvalidFileTypeError,
     FileSizeExceededError,
 } from '../../errors/user.js';
-import { ShopNotFoundError } from '../../errors/shop.js';
+import {
+    ShopNotFoundError,
+    InvalidShopAssetFolderError,
+} from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import {
     ShopRepository,
@@ -19,7 +22,13 @@ export interface UploadFileInput {
     arrayBuffer: () => Promise<ArrayBuffer>;
 }
 
-export type ShopAssetFolder = 'general' | 'products' | 'receipts';
+export const ALLOWED_SHOP_ASSET_FOLDERS = [
+    'general',
+    'products',
+    'receipts',
+] as const;
+
+export type ShopAssetFolder = (typeof ALLOWED_SHOP_ASSET_FOLDERS)[number];
 
 export interface UploadShopAssetParams {
     shopId: string;
@@ -70,6 +79,16 @@ export class UploadShopAssetUseCase {
             throw new ForbiddenError('You are not a member of this shop.');
         }
 
+        if (params.folder !== undefined && params.folder !== null) {
+            if (
+                !ALLOWED_SHOP_ASSET_FOLDERS.includes(
+                    params.folder as ShopAssetFolder,
+                )
+            ) {
+                throw new InvalidShopAssetFolderError(params.folder);
+            }
+        }
+
         if (!ALLOWED_MIME_TYPES.includes(params.file.type)) {
             throw new InvalidFileTypeError(
                 params.file.type,
@@ -88,7 +107,8 @@ export class UploadShopAssetUseCase {
         );
 
         const assetUuid = crypto.randomUUID();
-        const key = params.folder
+        const hasFolder = params.folder !== undefined && params.folder !== null;
+        const key = hasFolder
             ? `shops/${params.shopId}/${params.folder}/${assetUuid}.webp`
             : `shops/${params.shopId}/${assetUuid}.webp`;
 
