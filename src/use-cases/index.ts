@@ -33,6 +33,7 @@ export * from './shop/transfer-shop-ownership.js';
 export * from './shop/get-shop-balance.js';
 export {
     UploadShopAssetUseCase,
+    ALLOWED_SHOP_ASSET_FOLDERS,
     type ShopAssetFolder,
     type UploadShopAssetParams,
     type UploadShopAssetResult,

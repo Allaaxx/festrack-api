@@ -39,6 +39,7 @@ import {
     ShopSoleOwnerCannotLeaveError,
     TargetUserNotMemberError,
     UserAlreadyShopMemberError,
+    InvalidShopAssetFolderError,
 } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/auth.js';
 import { EventNotFoundError } from '../errors/event.js';
@@ -852,7 +853,8 @@ export const shopsRoutes = new Elysia({ prefix: '/api/shops' })
             } catch (error) {
                 if (
                     error instanceof InvalidFileTypeError ||
-                    error instanceof FileSizeExceededError
+                    error instanceof FileSizeExceededError ||
+                    error instanceof InvalidShopAssetFolderError
                 ) {
                     set.status = 400;
                     return { message: error.message };

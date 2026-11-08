@@ -66,3 +66,12 @@ export class UserAlreadyShopMemberError extends Error {
         this.name = 'UserAlreadyShopMemberError';
     }
 }
+
+export class InvalidShopAssetFolderError extends Error {
+    constructor(folder: string) {
+        super(
+            `Invalid asset folder: ${folder}. Allowed folders are: general, products, receipts.`,
+        );
+        this.name = 'InvalidShopAssetFolderError';
+    }
+}

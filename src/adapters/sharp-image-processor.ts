@@ -1,6 +1,8 @@
 import sharp from 'sharp';
 import { ImageProcessor, ImageProcessorOptions } from '../domain/index.js';
 
+export const DEFAULT_MAX_IMAGE_WIDTH = 2048;
+
 export class SharpImageProcessor implements ImageProcessor {
     async toWebp(
         buffer: Buffer | Uint8Array,
@@ -8,12 +10,11 @@ export class SharpImageProcessor implements ImageProcessor {
     ): Promise<Buffer> {
         let pipeline = sharp(buffer).rotate();
 
-        if (options?.maxWidth) {
-            pipeline = pipeline.resize({
-                width: options.maxWidth,
-                withoutEnlargement: true,
-            });
-        }
+        const maxWidth = options?.maxWidth ?? DEFAULT_MAX_IMAGE_WIDTH;
+        pipeline = pipeline.resize({
+            width: maxWidth,
+            withoutEnlargement: true,
+        });
 
         return pipeline.webp({ quality: options?.quality ?? 80 }).toBuffer();
     }

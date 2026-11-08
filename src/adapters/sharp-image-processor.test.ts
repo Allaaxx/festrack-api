@@ -82,4 +82,68 @@ describe('SharpImageProcessor', () => {
         expect(notEnlargedMeta.width).toBe(500);
         expect(notEnlargedMeta.height).toBe(500);
     });
+
+    it('should downscale images wider than 2048px (2500x1000) down to 2048px preserving aspect ratio without enlargement', async () => {
+        const wideImage = await sharp({
+            create: {
+                width: 2500,
+                height: 1000,
+                channels: 3,
+                background: { r: 128, g: 128, b: 128 },
+            },
+        })
+            .png()
+            .toBuffer();
+
+        const resultWebp = await processor.toWebp(wideImage, {
+            maxWidth: 2048,
+        });
+        const meta = await sharp(resultWebp).metadata();
+
+        expect(meta.format).toBe('webp');
+        expect(meta.width).toBe(2048);
+        expect(meta.height).toBe(819);
+    });
+
+    it('should not enlarge images smaller than 2048px', async () => {
+        const mediumImage = await sharp({
+            create: {
+                width: 1200,
+                height: 600,
+                channels: 3,
+                background: { r: 50, g: 100, b: 150 },
+            },
+        })
+            .jpeg()
+            .toBuffer();
+
+        const resultWebp = await processor.toWebp(mediumImage, {
+            maxWidth: 2048,
+        });
+        const meta = await sharp(resultWebp).metadata();
+
+        expect(meta.format).toBe('webp');
+        expect(meta.width).toBe(1200);
+        expect(meta.height).toBe(600);
+    });
+
+    it('should default to 2048px maxWidth guardrail when options are omitted', async () => {
+        const wideImage = await sharp({
+            create: {
+                width: 2500,
+                height: 1000,
+                channels: 3,
+                background: { r: 200, g: 100, b: 50 },
+            },
+        })
+            .jpeg()
+            .toBuffer();
+
+        const resultWebp = await processor.toWebp(wideImage);
+        const meta = await sharp(resultWebp).metadata();
+
+        expect(meta.format).toBe('webp');
+        expect(meta.width).toBe(2048);
+        expect(meta.height).toBe(819);
+    });
 });

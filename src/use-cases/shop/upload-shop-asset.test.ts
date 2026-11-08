@@ -1,6 +1,9 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { UploadShopAssetUseCase } from './upload-shop-asset.js';
-import { ShopNotFoundError } from '../../errors/shop.js';
+import {
+    ShopNotFoundError,
+    InvalidShopAssetFolderError,
+} from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import {
     InvalidFileTypeError,
@@ -127,23 +130,82 @@ describe('UploadShopAssetUseCase', () => {
             arrayBuffer: async () => validImageBytes.buffer,
         };
 
-        const result = await useCase.execute({
+        for (const folder of ['general', 'products', 'receipts'] as const) {
+            const result = await useCase.execute({
+                shopId: 'shop-uuid-1',
+                userId: 'user-uuid-1',
+                file,
+                folder,
+            });
+
+            expect(storageService.upload).toHaveBeenCalledWith({
+                fileName: expect.stringMatching(
+                    new RegExp(
+                        `^shops/shop-uuid-1/${folder}/[a-f0-9-]+\\.webp$`,
+                    ),
+                ),
+                contentType: 'image/webp',
+                data: mockWebpBuffer,
+            });
+            expect(result.key).toMatch(
+                new RegExp(`^shops/shop-uuid-1/${folder}/[a-f0-9-]+\\.webp$`),
+            );
+        }
+    });
+
+    it('should store at root when folder is undefined or null', async () => {
+        const { useCase } = createUseCase();
+
+        const file = {
+            type: 'image/png',
+            arrayBuffer: async () => validImageBytes.buffer,
+        };
+
+        const resultWithoutFolder = await useCase.execute({
             shopId: 'shop-uuid-1',
             userId: 'user-uuid-1',
             file,
-            folder: 'products',
         });
-
-        expect(storageService.upload).toHaveBeenCalledWith({
-            fileName: expect.stringMatching(
-                /^shops\/shop-uuid-1\/products\/[a-f0-9-]+\.webp$/,
-            ),
-            contentType: 'image/webp',
-            data: mockWebpBuffer,
-        });
-        expect(result.key).toMatch(
-            /^shops\/shop-uuid-1\/products\/[a-f0-9-]+\.webp$/,
+        expect(resultWithoutFolder.key).toMatch(
+            /^shops\/shop-uuid-1\/[a-f0-9-]+\.webp$/,
         );
+
+        const resultWithNullFolder = await useCase.execute({
+            shopId: 'shop-uuid-1',
+            userId: 'user-uuid-1',
+            file,
+            folder: null as any,
+        });
+        expect(resultWithNullFolder.key).toMatch(
+            /^shops\/shop-uuid-1\/[a-f0-9-]+\.webp$/,
+        );
+    });
+
+    it('should throw InvalidShopAssetFolderError when folder is invalid', async () => {
+        const { useCase } = createUseCase();
+
+        const file = {
+            type: 'image/jpeg',
+            arrayBuffer: async () => validImageBytes.buffer,
+        };
+
+        await expect(
+            useCase.execute({
+                shopId: 'shop-uuid-1',
+                userId: 'user-uuid-1',
+                file,
+                folder: 'invalid_folder' as any,
+            }),
+        ).rejects.toThrow(InvalidShopAssetFolderError);
+
+        await expect(
+            useCase.execute({
+                shopId: 'shop-uuid-1',
+                userId: 'user-uuid-1',
+                file,
+                folder: '../traversal' as any,
+            }),
+        ).rejects.toThrow(InvalidShopAssetFolderError);
     });
 
     it('should throw ShopNotFoundError when shop does not exist', async () => {
@@ -183,18 +245,24 @@ describe('UploadShopAssetUseCase', () => {
     it('should throw InvalidFileTypeError when file MIME type is unsupported', async () => {
         const { useCase } = createUseCase();
 
-        const file = {
-            type: 'application/pdf',
-            arrayBuffer: async () => validImageBytes.buffer,
-        };
+        for (const unsupportedType of [
+            'application/pdf',
+            'text/plain',
+            'image/svg+xml',
+        ]) {
+            const file = {
+                type: unsupportedType,
+                arrayBuffer: async () => validImageBytes.buffer,
+            };
 
-        const promise = useCase.execute({
-            shopId: 'shop-uuid-1',
-            userId: 'user-uuid-1',
-            file,
-        });
+            const promise = useCase.execute({
+                shopId: 'shop-uuid-1',
+                userId: 'user-uuid-1',
+                file,
+            });
 
-        await expect(promise).rejects.toThrow(InvalidFileTypeError);
+            await expect(promise).rejects.toThrow(InvalidFileTypeError);
+        }
     });
 
     it('should throw FileSizeExceededError when file exceeds 10MB', async () => {
