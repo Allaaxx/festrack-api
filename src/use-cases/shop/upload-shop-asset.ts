@@ -1,11 +1,9 @@
 import crypto from 'node:crypto';
 import {
-    InvalidFileTypeError,
-    FileSizeExceededError,
-} from '../../errors/user.js';
-import {
     ShopNotFoundError,
     InvalidShopAssetFolderError,
+    ShopAssetInvalidFileTypeError,
+    ShopAssetFileSizeExceededError,
 } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import {
@@ -15,7 +13,7 @@ import {
     ImageProcessor,
 } from '../../domain/index.js';
 
-export interface UploadFileInput {
+export interface ShopAssetFileInput {
     name?: string;
     type: string;
     size?: number;
@@ -33,7 +31,7 @@ export type ShopAssetFolder = (typeof ALLOWED_SHOP_ASSET_FOLDERS)[number];
 export interface UploadShopAssetParams {
     shopId: string;
     userId: string;
-    file: UploadFileInput;
+    file: ShopAssetFileInput;
     folder?: ShopAssetFolder;
 }
 
@@ -90,7 +88,7 @@ export class UploadShopAssetUseCase {
         }
 
         if (!ALLOWED_MIME_TYPES.includes(params.file.type)) {
-            throw new InvalidFileTypeError(
+            throw new ShopAssetInvalidFileTypeError(
                 params.file.type,
                 ALLOWED_MIME_TYPES,
             );
@@ -98,7 +96,7 @@ export class UploadShopAssetUseCase {
 
         const buffer = await params.file.arrayBuffer();
         if (buffer.byteLength > MAX_FILE_SIZE_BYTES) {
-            throw new FileSizeExceededError(10);
+            throw new ShopAssetFileSizeExceededError(10);
         }
 
         const webpBuffer = await this.imageProcessor.toWebp(

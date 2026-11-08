@@ -40,10 +40,11 @@ import {
     TargetUserNotMemberError,
     UserAlreadyShopMemberError,
     InvalidShopAssetFolderError,
+    ShopAssetInvalidFileTypeError,
+    ShopAssetFileSizeExceededError,
 } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/auth.js';
 import { EventNotFoundError } from '../errors/event.js';
-import { InvalidFileTypeError, FileSizeExceededError } from '../errors/user.js';
 import { isIsoDateValid } from './helpers.js';
 
 export const shopsRoutes = new Elysia({ prefix: '/api/shops' })
@@ -852,8 +853,8 @@ export const shopsRoutes = new Elysia({ prefix: '/api/shops' })
                 return result;
             } catch (error) {
                 if (
-                    error instanceof InvalidFileTypeError ||
-                    error instanceof FileSizeExceededError ||
+                    error instanceof ShopAssetInvalidFileTypeError ||
+                    error instanceof ShopAssetFileSizeExceededError ||
                     error instanceof InvalidShopAssetFolderError
                 ) {
                     set.status = 400;
@@ -877,30 +878,46 @@ export const shopsRoutes = new Elysia({ prefix: '/api/shops' })
                 {
                     shopId: t.String({
                         format: 'uuid',
-                        error: 'The provided id is not valid.',
+                        error: 'Shop ID must be a valid UUID',
                     }),
                 },
                 { additionalProperties: false },
             ),
-            body: t.Object({
-                file: t.File({
-                    type: [
-                        'image/jpeg',
-                        'image/png',
-                        'image/webp',
-                        'image/avif',
-                    ],
-                    maxSize: '10m',
-                    error: 'Please provide a valid image file (JPEG, PNG, WebP, AVIF) under 10MB.',
+            body: t.Object(
+                {
+                    file: t.File({
+                        type: [
+                            'image/jpeg',
+                            'image/png',
+                            'image/webp',
+                            'image/avif',
+                        ],
+                        maxSize: '10m',
+                        error: 'Please provide a valid image file (JPEG, PNG, WebP, AVIF) under 10MB.',
+                    }),
+                    folder: t.Optional(
+                        t.Union([
+                            t.Literal('general'),
+                            t.Literal('products'),
+                            t.Literal('receipts'),
+                        ]),
+                    ),
+                },
+                { additionalProperties: false },
+            ),
+            response: {
+                201: t.Object({
+                    url: t.String(),
+                    key: t.String(),
+                    content_type: t.Literal('image/webp'),
+                    size: t.Number(),
                 }),
-                folder: t.Optional(
-                    t.Union([
-                        t.Literal('general'),
-                        t.Literal('products'),
-                        t.Literal('receipts'),
-                    ]),
-                ),
-            }),
+                400: t.Object({ message: t.String() }),
+                401: t.Object({ message: t.String() }),
+                403: t.Object({ message: t.String() }),
+                404: t.Object({ message: t.String() }),
+                500: t.Object({ message: t.String() }),
+            },
             detail: {
                 tags: ['Shops'],
                 summary: 'Upload shop asset image',

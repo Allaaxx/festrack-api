@@ -35,6 +35,7 @@ export {
     UploadShopAssetUseCase,
     ALLOWED_SHOP_ASSET_FOLDERS,
     type ShopAssetFolder,
+    type ShopAssetFileInput,
     type UploadShopAssetParams,
     type UploadShopAssetResult,
 } from './shop/upload-shop-asset.js';

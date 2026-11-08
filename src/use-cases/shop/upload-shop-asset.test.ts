@@ -3,12 +3,10 @@ import { UploadShopAssetUseCase } from './upload-shop-asset.js';
 import {
     ShopNotFoundError,
     InvalidShopAssetFolderError,
+    ShopAssetInvalidFileTypeError,
+    ShopAssetFileSizeExceededError,
 } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
-import {
-    InvalidFileTypeError,
-    FileSizeExceededError,
-} from '../../errors/user.js';
 import {
     Shop,
     ShopMember,
@@ -242,7 +240,7 @@ describe('UploadShopAssetUseCase', () => {
         await expect(promise).rejects.toThrow(ForbiddenError);
     });
 
-    it('should throw InvalidFileTypeError when file MIME type is unsupported', async () => {
+    it('should throw ShopAssetInvalidFileTypeError when file MIME type is unsupported', async () => {
         const { useCase } = createUseCase();
 
         for (const unsupportedType of [
@@ -261,11 +259,13 @@ describe('UploadShopAssetUseCase', () => {
                 file,
             });
 
-            await expect(promise).rejects.toThrow(InvalidFileTypeError);
+            await expect(promise).rejects.toThrow(
+                ShopAssetInvalidFileTypeError,
+            );
         }
     });
 
-    it('should throw FileSizeExceededError when file exceeds 10MB', async () => {
+    it('should throw ShopAssetFileSizeExceededError when file exceeds 10MB', async () => {
         const { useCase } = createUseCase();
 
         // 10MB + 1 byte
@@ -281,6 +281,6 @@ describe('UploadShopAssetUseCase', () => {
             file,
         });
 
-        await expect(promise).rejects.toThrow(FileSizeExceededError);
+        await expect(promise).rejects.toThrow(ShopAssetFileSizeExceededError);
     });
 });

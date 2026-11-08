@@ -13,9 +13,12 @@ export class SharpImageProcessor implements ImageProcessor {
         const maxWidth = options?.maxWidth ?? DEFAULT_MAX_IMAGE_WIDTH;
         pipeline = pipeline.resize({
             width: maxWidth,
+            fit: 'inside',
             withoutEnlargement: true,
         });
 
-        return pipeline.webp({ quality: options?.quality ?? 80 }).toBuffer();
+        return pipeline
+            .webp({ quality: options?.quality ?? 80, effort: 4 })
+            .toBuffer();
     }
 }

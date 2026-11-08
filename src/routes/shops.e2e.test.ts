@@ -738,6 +738,9 @@ describe('Shops Routes (Elysia E2E)', () => {
                 .send(formData);
 
             expect(response.status).toBe(400);
+            expect(response.body).toEqual({
+                message: 'Shop ID must be a valid UUID',
+            });
         });
     });
 });

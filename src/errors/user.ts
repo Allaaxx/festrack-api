@@ -20,11 +20,10 @@ export class InvalidPasswordError extends Error {
 }
 
 export class InvalidFileTypeError extends Error {
-    constructor(fileType: string, allowedTypes?: string[]) {
-        const allowed = allowedTypes
-            ? allowedTypes.join(', ')
-            : 'image/jpeg, image/png, image/webp';
-        super(`Invalid file type: ${fileType}. Allowed types are ${allowed}.`);
+    constructor(fileType: string) {
+        super(
+            `Invalid file type: ${fileType}. Allowed types are image/jpeg, image/png, image/webp.`,
+        );
         this.name = 'InvalidFileTypeError';
     }
 }
