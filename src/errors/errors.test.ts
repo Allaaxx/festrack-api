@@ -12,6 +12,7 @@ import {
     InvalidShopAssetFolderError,
     ShopAssetInvalidFileTypeError,
     ShopAssetFileSizeExceededError,
+    InsufficientStockError,
 } from './index.js';
 
 describe('Domain Errors', () => {
@@ -127,5 +128,27 @@ describe('Domain Errors', () => {
         expect(customError.message).toBe(
             'File size exceeds the maximum allowed size of 5MB.',
         );
+    });
+
+    it('InsufficientStockError should provide details of failed product and requested vs available quantity', () => {
+        const error = new InsufficientStockError([
+            {
+                productId: 'prod-123',
+                productName: 'Party Chair',
+                requestedQuantity: 5,
+                availableStock: 2,
+            },
+        ]);
+
+        expect(error.name).toBe('InsufficientStockError');
+        expect(error.message).toContain('prod-123');
+        expect(error.details).toBeDefined();
+        expect(error.details.length).toBe(1);
+        expect(error.details[0].productId).toBe('prod-123');
+        expect(error.details[0].product_id).toBe('prod-123');
+        expect(error.details[0].requestedQuantity).toBe(5);
+        expect(error.details[0].requested_quantity).toBe(5);
+        expect(error.details[0].availableStock).toBe(2);
+        expect(error.details[0].available_stock).toBe(2);
     });
 });

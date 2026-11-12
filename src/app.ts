@@ -10,6 +10,7 @@ import {
     transactionsRoutes,
     shopsRoutes,
     productsRoutes,
+    stockRoutes,
 } from './routes/index.js';
 
 const getValidationErrorMessage = (error: {
@@ -101,4 +102,5 @@ export const app = new Elysia({ normalize: false })
     .use(eventsRoutes)
     .use(transactionsRoutes)
     .use(shopsRoutes)
-    .use(productsRoutes);
+    .use(productsRoutes)
+    .use(stockRoutes);

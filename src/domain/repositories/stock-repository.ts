@@ -7,6 +7,10 @@ import {
 export interface StockRepository {
     create(params: CreateStockParams, tx?: any): Promise<Stock>;
     findByProductId(productId: string, tx?: any): Promise<Stock | null>;
+    findManyByProductIdsWithLock(
+        productIds: string[],
+        tx?: any,
+    ): Promise<Stock[]>;
     update(
         productId: string,
         params: UpdateStockParams,
