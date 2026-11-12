@@ -4,3 +4,4 @@ export * from './events.js';
 export * from './transactions.js';
 export * from './shops.js';
 export * from './products.js';
+export * from './stock.js';

@@ -170,5 +170,59 @@ describe('Postgres Product & Stock Repositories', () => {
             );
             expect(afterDelete).toBeNull();
         });
+
+        it('should findManyByProductIdsWithLock inside transaction sorted by product_id', async () => {
+            const p1 = await productRepo.create({
+                shop_id: shop.id,
+                name: 'Item B',
+                slug: `item-b-${faker.string.alphanumeric(8)}`,
+                type: 'sale',
+                price: 10,
+            });
+            const p2 = await productRepo.create({
+                shop_id: shop.id,
+                name: 'Item A',
+                slug: `item-a-${faker.string.alphanumeric(8)}`,
+                type: 'sale',
+                price: 20,
+            });
+
+            await stockRepo.create({
+                product_id: p1.id,
+                quantity: 10,
+                reserved: 0,
+            });
+            await stockRepo.create({
+                product_id: p2.id,
+                quantity: 20,
+                reserved: 2,
+            });
+
+            const results = await db.transaction(async (tx) => {
+                // Pass product IDs in reverse order; should return sorted by product_id
+                return await stockRepo.findManyByProductIdsWithLock(
+                    [p1.id, p2.id],
+                    tx,
+                );
+            });
+
+            expect(results.length).toBe(2);
+            // Verify sorted by product_id
+            expect(
+                results[0].product_id.localeCompare(results[1].product_id),
+            ).toBeLessThan(0);
+            const r1 = results.find((r) => r.product_id === p1.id);
+            const r2 = results.find((r) => r.product_id === p2.id);
+            expect(r1?.quantity).toBe(10);
+            expect(r2?.quantity).toBe(20);
+            expect(r2?.reserved).toBe(2);
+            expect(r2?.availableStock).toBe(18);
+
+            // Empty array returns empty
+            const emptyResult = await stockRepo.findManyByProductIdsWithLock(
+                [],
+            );
+            expect(emptyResult).toEqual([]);
+        });
     });
 });

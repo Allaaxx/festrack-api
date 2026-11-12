@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray, asc } from 'drizzle-orm';
 import { db, Database } from '../../../db/postgres/index.js';
 import { stock } from '../../../db/postgres/schemas/index.js';
 import {
@@ -48,6 +48,27 @@ export class PostgresStockRepository implements StockRepository {
             .where(eq(stock.product_id, productId));
 
         return item ? mapStock(item) : null;
+    }
+
+    async findManyByProductIdsWithLock(
+        productIds: string[],
+        tx?: any,
+    ): Promise<Stock[]> {
+        if (!productIds || productIds.length === 0) {
+            return [];
+        }
+
+        const sortedIds = [...new Set(productIds)].sort();
+        const dbInstance = tx ?? this.database;
+
+        const rows = await dbInstance
+            .select()
+            .from(stock)
+            .where(inArray(stock.product_id, sortedIds))
+            .orderBy(asc(stock.product_id))
+            .for('update');
+
+        return rows.map((r: typeof stock.$inferSelect) => mapStock(r));
     }
 
     async update(

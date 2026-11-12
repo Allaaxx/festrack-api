@@ -27,6 +27,7 @@ import {
 import { ShopNotFoundError } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/auth.js';
 import { ProductType } from '../domain/index.js';
+import { reserveStockRouteHandler, reserveStockRouteSchema } from './stock.js';
 
 export const productsRoutes = new Elysia({
     prefix: '/api/shops/:shopId/products',
@@ -541,4 +542,5 @@ export const productsRoutes = new Elysia({
                 summary: 'Get stock movements for a product',
             },
         },
-    );
+    )
+    .post('/stock/reserve', reserveStockRouteHandler, reserveStockRouteSchema);
