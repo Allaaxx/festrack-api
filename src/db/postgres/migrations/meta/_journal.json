@@ -64,6 +64,13 @@
             "when": 1794494845244,
             "tag": "0008_shocking_boomerang",
             "breakpoints": true
+        },
+        {
+            "idx": 9,
+            "version": "7",
+            "when": 1794495900665,
+            "tag": "0009_curious_killraven",
+            "breakpoints": true
         }
     ]
 }

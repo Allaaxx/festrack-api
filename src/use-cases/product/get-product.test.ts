@@ -3,7 +3,12 @@ import { GetProductUseCase } from './get-product.js';
 import { ShopNotFoundError } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import { ProductNotFoundError } from '../../errors/product.js';
-import { ProductWithStock, Shop, ShopMember } from '../../domain/index.js';
+import {
+    ProductWithStock,
+    Shop,
+    ShopMember,
+    BundleItem,
+} from '../../domain/index.js';
 
 describe('Get Product Use Case', () => {
     const fakeShop: Shop = {
@@ -144,5 +149,75 @@ describe('Get Product Use Case', () => {
         await expect(
             useCase.execute('shop-1', 'prod-1', 'stranger'),
         ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('should retrieve a bundle product and embed its bundle items', async () => {
+        const bundleProduct: ProductWithStock = {
+            id: 'bundle-1',
+            shop_id: 'shop-1',
+            name: 'Party Bundle',
+            slug: 'party-bundle',
+            type: 'sale',
+            price: '199.99',
+            description: null,
+            images: [],
+            is_bundle: true,
+            created_at: new Date(),
+            updated_at: new Date(),
+            stock: null,
+        };
+
+        const bundleItems: BundleItem[] = [
+            {
+                id: 'bi-1',
+                bundleProductId: 'bundle-1',
+                bundle_product_id: 'bundle-1',
+                productId: 'comp-1',
+                product_id: 'comp-1',
+                quantity: 2,
+                componentProduct: {
+                    id: 'comp-1',
+                    shop_id: 'shop-1',
+                    name: 'Chair',
+                    slug: 'chair',
+                    type: 'sale',
+                    price: '50.00',
+                    description: null,
+                    images: [],
+                    is_bundle: false,
+                    created_at: new Date(),
+                    updated_at: new Date(),
+                },
+                createdAt: new Date(),
+                created_at: new Date(),
+                updatedAt: new Date(),
+                updated_at: new Date(),
+            },
+        ];
+
+        const productRepo = {
+            findByIdWithStock: mock(async () => bundleProduct),
+        };
+        const shopRepo = { findById: mock(async () => fakeShop) };
+        const memberRepo = {
+            findByShopAndUserId: mock(async () => fakeMember),
+        };
+        const bundleRepo = {
+            findByBundleId: mock(async () => bundleItems),
+        };
+
+        const useCase = new GetProductUseCase(
+            productRepo,
+            shopRepo,
+            memberRepo,
+            bundleRepo,
+        );
+
+        const result = await useCase.execute('shop-1', 'bundle-1', 'user-1');
+        expect(result.id).toBe('bundle-1');
+        expect(result.is_bundle).toBe(true);
+        expect(result.stock).toBeNull();
+        expect(result.bundleItems).toEqual(bundleItems);
+        expect(bundleRepo.findByBundleId).toHaveBeenCalledWith('bundle-1');
     });
 });

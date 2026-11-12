@@ -253,6 +253,174 @@ describe('Shop-Scoped Products Routes (Elysia E2E)', () => {
 
             expect(response.status).toBe(400);
         });
+
+        it('should return 201 and create a bundle product with 2 component products without a stock record', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const comp1 = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Component 1',
+                    slug: `comp-1-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 20.0,
+                    initial_quantity: 10,
+                });
+
+            const comp2 = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Component 2',
+                    slug: `comp-2-${faker.string.alphanumeric(8)}`,
+                    type: 'rent',
+                    price: 15.0,
+                    quantity: 5,
+                });
+
+            const bundlePayload = {
+                name: 'Party Package Bundle',
+                slug: `party-package-${faker.string.alphanumeric(8)}`,
+                type: 'sale',
+                price: 99.99,
+                description: 'Complete party bundle',
+                is_bundle: true,
+                bundle_items: [
+                    { product_id: comp1.body.id, quantity: 2 },
+                    { product_id: comp2.body.id, quantity: 1 },
+                ],
+            };
+
+            const response = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send(bundlePayload);
+
+            expect(response.status).toBe(201);
+            expect(response.body.id).toBeDefined();
+            expect(response.body.is_bundle).toBe(true);
+            expect(response.body.stock).toBeNull();
+            expect(response.body.bundle_items).toBeDefined();
+            expect(response.body.bundle_items.length).toBe(2);
+        });
+
+        it('should return 400 when creating a bundle without bundle_items or with empty array', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const resNoItems = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Bundle Without Items',
+                    slug: `no-items-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 50.0,
+                    is_bundle: true,
+                });
+
+            expect(resNoItems.status).toBe(400);
+
+            const resEmptyArray = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Bundle With Empty Array',
+                    slug: `empty-items-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 50.0,
+                    is_bundle: true,
+                    bundle_items: [],
+                });
+
+            expect(resEmptyArray.status).toBe(400);
+        });
+
+        it('should return 400 when creating a bundle with a component belonging to another shop', async () => {
+            const owner1 = await createAuthenticatedUser(client);
+            const owner2 = await createAuthenticatedUser(client);
+            const shop1 = await createShop(owner1, 'Shop 1');
+            const shop2 = await createShop(owner2, 'Shop 2');
+
+            const foreignComp = await client
+                .post(`/api/shops/${shop2.id}/products`)
+                .set('Authorization', owner2.bearerHeader)
+                .send({
+                    name: 'Foreign Item',
+                    slug: `foreign-item-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 30.0,
+                    initial_quantity: 10,
+                });
+
+            const response = await client
+                .post(`/api/shops/${shop1.id}/products`)
+                .set('Authorization', owner1.bearerHeader)
+                .send({
+                    name: 'Cross Shop Bundle',
+                    slug: `cross-shop-bundle-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 100.0,
+                    is_bundle: true,
+                    bundle_items: [
+                        { product_id: foreignComp.body.id, quantity: 1 },
+                    ],
+                });
+
+            expect(response.status).toBe(400);
+            expect(response.body.message).toContain('another shop');
+        });
+
+        it('should return 400 when creating a bundle with a component that is itself a bundle', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const simpleItem = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Simple Component',
+                    slug: `simple-comp-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 10.0,
+                    initial_quantity: 10,
+                });
+
+            const parentBundle = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Parent Bundle',
+                    slug: `parent-bundle-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 25.0,
+                    is_bundle: true,
+                    bundle_items: [
+                        { product_id: simpleItem.body.id, quantity: 1 },
+                    ],
+                });
+
+            expect(parentBundle.status).toBe(201);
+
+            const nestedBundleRes = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Nested Bundle',
+                    slug: `nested-bundle-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 50.0,
+                    is_bundle: true,
+                    bundle_items: [
+                        { product_id: parentBundle.body.id, quantity: 1 },
+                    ],
+                });
+
+            expect(nestedBundleRes.status).toBe(400);
+            expect(nestedBundleRes.body.message).toContain('bundle');
+        });
     });
 
     describe('GET /api/shops/:shopId/products', () => {
@@ -463,6 +631,84 @@ describe('Shop-Scoped Products Routes (Elysia E2E)', () => {
 
             expect(response.status).toBe(404);
         });
+
+        it('should return 200 and bundle details including embedded bundle items with component details', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const comp1 = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Bundle Chair',
+                    slug: `bundle-chair-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 25.0,
+                    initial_quantity: 10,
+                });
+
+            const comp2 = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Bundle Table',
+                    slug: `bundle-table-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 75.0,
+                    initial_quantity: 5,
+                });
+
+            const bundleRes = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Living Set Bundle',
+                    slug: `living-set-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 150.0,
+                    is_bundle: true,
+                    bundle_items: [
+                        { product_id: comp1.body.id, quantity: 4 },
+                        { product_id: comp2.body.id, quantity: 1 },
+                    ],
+                });
+
+            expect(bundleRes.status).toBe(201);
+            const bundleId = bundleRes.body.id;
+
+            const response = await client
+                .get(`/api/shops/${shop.id}/products/${bundleId}`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(response.status).toBe(200);
+            expect(response.body.id).toBe(bundleId);
+            expect(response.body.is_bundle).toBe(true);
+            expect(response.body.stock).toBeNull();
+            const items =
+                response.body.bundle_items ?? response.body.bundleItems;
+            expect(items).toBeDefined();
+            expect(items.length).toBe(2);
+
+            const chairItem = items.find(
+                (i: any) => (i.product_id ?? i.productId) === comp1.body.id,
+            );
+            expect(chairItem).toBeDefined();
+            expect(chairItem.quantity).toBe(4);
+            const chairProduct =
+                chairItem.componentProduct ?? chairItem.product;
+            expect(chairProduct).toBeDefined();
+            expect(chairProduct.name).toBe('Bundle Chair');
+
+            const tableItem = items.find(
+                (i: any) => (i.product_id ?? i.productId) === comp2.body.id,
+            );
+            expect(tableItem).toBeDefined();
+            expect(tableItem.quantity).toBe(1);
+            const tableProduct =
+                tableItem.componentProduct ?? tableItem.product;
+            expect(tableProduct).toBeDefined();
+            expect(tableProduct.name).toBe('Bundle Table');
+        });
     });
 
     describe('DELETE /api/shops/:shopId/products/:id', () => {
@@ -544,6 +790,103 @@ describe('Shop-Scoped Products Routes (Elysia E2E)', () => {
                 .set('Authorization', stranger.bearerHeader);
 
             expect(deleteRes.status).toBe(403);
+        });
+
+        it('should return 409 when deleting a simple product that is in an active bundle', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const simpleItem = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Essential Part',
+                    slug: `essential-part-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 20.0,
+                    initial_quantity: 5,
+                });
+
+            const bundleRes = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Active Bundle',
+                    slug: `active-bundle-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 50.0,
+                    is_bundle: true,
+                    bundle_items: [
+                        { product_id: simpleItem.body.id, quantity: 1 },
+                    ],
+                });
+
+            expect(bundleRes.status).toBe(201);
+
+            const deleteSimpleRes = await client
+                .delete(`/api/shops/${shop.id}/products/${simpleItem.body.id}`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(deleteSimpleRes.status).toBe(409);
+            expect(deleteSimpleRes.body.message).toContain('active bundle');
+        });
+
+        it('should return 200 and successfully delete a bundle, cascading deletion to bundle_items while component simple products remain', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const simpleItem = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Component To Retain',
+                    slug: `retain-item-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 20.0,
+                    initial_quantity: 5,
+                });
+
+            const bundleRes = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Ephemeral Bundle',
+                    slug: `ephemeral-bundle-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 50.0,
+                    is_bundle: true,
+                    bundle_items: [
+                        { product_id: simpleItem.body.id, quantity: 1 },
+                    ],
+                });
+
+            expect(bundleRes.status).toBe(201);
+            const bundleId = bundleRes.body.id;
+
+            // Delete the bundle
+            const deleteBundleRes = await client
+                .delete(`/api/shops/${shop.id}/products/${bundleId}`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(deleteBundleRes.status).toBe(200);
+
+            // Bundle is gone
+            const getBundleRes = await client
+                .get(`/api/shops/${shop.id}/products/${bundleId}`)
+                .set('Authorization', owner.bearerHeader);
+            expect(getBundleRes.status).toBe(404);
+
+            // Component product still exists
+            const getSimpleRes = await client
+                .get(`/api/shops/${shop.id}/products/${simpleItem.body.id}`)
+                .set('Authorization', owner.bearerHeader);
+            expect(getSimpleRes.status).toBe(200);
+
+            // Now the component product can also be deleted
+            const deleteSimpleRes = await client
+                .delete(`/api/shops/${shop.id}/products/${simpleItem.body.id}`)
+                .set('Authorization', owner.bearerHeader);
+            expect(deleteSimpleRes.status).toBe(200);
         });
     });
 });
