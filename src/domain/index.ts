@@ -19,6 +19,7 @@ export * from './repositories/product-repository.js';
 export * from './repositories/bundle-item-repository.js';
 export * from './repositories/stock-repository.js';
 export * from './repositories/stock-movement-repository.js';
+export * from './repositories/transaction-manager.js';
 export * from './adapters/storage-service.js';
 export * from './adapters/password-verifier.js';
 export * from './adapters/google-calendar-adapter.js';

@@ -7,6 +7,7 @@ import {
     UpdateStockParams,
     StockRepository,
 } from '../../../domain/index.js';
+import { txContext } from '../transaction-manager.js';
 
 export type { StockRepository };
 
@@ -26,8 +27,12 @@ const mapStock = (s: typeof stock.$inferSelect): Stock => {
 export class PostgresStockRepository implements StockRepository {
     constructor(private readonly database: Database = db) {}
 
+    private getDb(tx?: any): Database {
+        return (tx ?? txContext.getStore() ?? this.database) as Database;
+    }
+
     async create(params: CreateStockParams, tx?: any): Promise<Stock> {
-        const dbInstance = tx ?? this.database;
+        const dbInstance = this.getDb(tx);
         const [createdStock] = await dbInstance
             .insert(stock)
             .values({
@@ -41,7 +46,7 @@ export class PostgresStockRepository implements StockRepository {
     }
 
     async findByProductId(productId: string, tx?: any): Promise<Stock | null> {
-        const dbInstance = tx ?? this.database;
+        const dbInstance = this.getDb(tx);
         const [item] = await dbInstance
             .select()
             .from(stock)
@@ -59,7 +64,7 @@ export class PostgresStockRepository implements StockRepository {
         }
 
         const sortedIds = [...new Set(productIds)].sort();
-        const dbInstance = tx ?? this.database;
+        const dbInstance = this.getDb(tx);
 
         const rows = await dbInstance
             .select()
@@ -76,7 +81,7 @@ export class PostgresStockRepository implements StockRepository {
         params: UpdateStockParams,
         tx?: any,
     ): Promise<Stock> {
-        const dbInstance = tx ?? this.database;
+        const dbInstance = this.getDb(tx);
         const [updatedStock] = await dbInstance
             .update(stock)
             .set({
@@ -90,7 +95,7 @@ export class PostgresStockRepository implements StockRepository {
     }
 
     async delete(productId: string, tx?: any): Promise<Stock> {
-        const dbInstance = tx ?? this.database;
+        const dbInstance = this.getDb(tx);
         const [deletedStock] = await dbInstance
             .delete(stock)
             .where(eq(stock.product_id, productId))

@@ -121,13 +121,11 @@ export interface InvalidRentalReturnDetail {
 
 export class InvalidRentalReturnError extends Error {
     readonly details?: InvalidRentalReturnDetail[];
-    readonly statusCode: number;
 
     constructor(
         messageOrDetails:
             string | InvalidRentalReturnDetail | InvalidRentalReturnDetail[],
         details?: InvalidRentalReturnDetail[] | InvalidRentalReturnDetail,
-        statusCode = 400,
     ) {
         let msg = 'Invalid rental return.';
         let parsedDetails: InvalidRentalReturnDetail[] = [];
@@ -152,7 +150,6 @@ export class InvalidRentalReturnError extends Error {
 
         super(msg);
         this.name = 'InvalidRentalReturnError';
-        this.statusCode = statusCode;
         if (parsedDetails.length > 0) {
             this.details = parsedDetails.map((d) => ({
                 productId: d.productId ?? d.product_id ?? '',

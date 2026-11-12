@@ -13,6 +13,8 @@ export interface Product {
     description: string | null;
     images: string[];
     is_bundle: boolean;
+    isActive?: boolean;
+    is_active?: boolean;
     created_at: Date | string;
     updated_at: Date | string;
 }
@@ -35,6 +37,8 @@ export interface CreateProductParams {
     images?: string[];
     is_bundle?: boolean;
     isBundle?: boolean;
+    isActive?: boolean;
+    is_active?: boolean;
 }
 
 export interface UpdateProductParams {
@@ -44,4 +48,6 @@ export interface UpdateProductParams {
     price?: string | number;
     description?: string | null;
     images?: string[];
+    isActive?: boolean;
+    is_active?: boolean;
 }

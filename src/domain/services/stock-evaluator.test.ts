@@ -97,6 +97,56 @@ describe('Stock Evaluator Domain Service', () => {
 
             expect(calculateBundleAvailableStock(items)).toBe(4);
         });
+
+        it('should not zero out bundle availability when a component is a service product without physical stock', () => {
+            const items = [
+                {
+                    quantity: 2,
+                    componentProduct: {
+                        type: 'sale',
+                        stock: { quantity: 10, reserved: 0 },
+                    },
+                },
+                {
+                    quantity: 1,
+                    componentProduct: {
+                        type: 'service',
+                        stock: null,
+                    },
+                },
+            ];
+
+            // 10 / 2 = 5, service is skipped
+            expect(calculateBundleAvailableStock(items)).toBe(5);
+        });
+
+        it('should return 0 when any component product has isActive === false', () => {
+            const items = [
+                {
+                    quantity: 1,
+                    componentProduct: {
+                        isActive: false,
+                        stock: { quantity: 10, reserved: 0 },
+                    },
+                },
+            ];
+
+            expect(calculateBundleAvailableStock(items)).toBe(0);
+        });
+
+        it('should return 0 when any component product has is_active === false', () => {
+            const items = [
+                {
+                    quantity: 1,
+                    componentProduct: {
+                        is_active: false,
+                        stock: { quantity: 10, reserved: 0 },
+                    },
+                },
+            ];
+
+            expect(calculateBundleAvailableStock(items)).toBe(0);
+        });
     });
 
     describe('calculateSimpleProductAvailableStock', () => {

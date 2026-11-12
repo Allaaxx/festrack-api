@@ -43,12 +43,13 @@ export const products = pgTable(
                 onUpdate: 'cascade',
             }),
         name: varchar('name', { length: 255 }).notNull(),
-        slug: varchar('slug', { length: 255 }).notNull().unique(),
+        slug: varchar('slug', { length: 255 }).notNull(),
         type: productTypeEnum('type').notNull(),
         price: numeric('price', { precision: 10, scale: 2 }).notNull(),
         description: text('description'),
         images: json('images').$type<string[]>().default([]).notNull(),
         is_bundle: boolean('is_bundle').default(false).notNull(),
+        isActive: boolean('is_active').default(true).notNull(),
         created_at: timestamp('created_at', { precision: 3, mode: 'date' })
             .defaultNow()
             .notNull(),
@@ -58,7 +59,7 @@ export const products = pgTable(
             .notNull(),
     },
     (table) => [
-        uniqueIndex('products_slug_idx').on(table.slug),
+        uniqueIndex('products_shop_slug_idx').on(table.shop_id, table.slug),
         index('products_shop_idx').on(table.shop_id),
         index('products_type_idx').on(table.type),
     ],

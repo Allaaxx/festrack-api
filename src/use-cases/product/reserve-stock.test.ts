@@ -227,7 +227,7 @@ describe('ReserveStockUseCase (Unit Tests)', () => {
         ).rejects.toThrow(InvalidStockAdjustmentError);
     });
 
-    it('should successfully reserve stock for a simple product', async () => {
+    it('should successfully reserve stock for a sale item by decrementing quantity and recording SALE movement', async () => {
         const result = await sut.execute({
             shopId: 'shop-1',
             userId: 'user-1',
@@ -240,16 +240,14 @@ describe('ReserveStockUseCase (Unit Tests)', () => {
         expect(result.items.length).toBe(1);
         expect(result.items[0].productId).toBe('prod-chair');
         expect(result.items[0].quantity).toBe(3);
-        expect(result.items[0].reservedQuantity).toBe(8); // 5 + 3
-        expect(stockRepo.findManyByProductIdsWithLock).toHaveBeenCalledWith(
-            ['prod-chair'],
-            expect.anything(),
-        );
-        expect(stockRepo.update).toHaveBeenCalledWith(
+        expect(result.items[0].reservedQuantity).toBe(5); // unchanged for sale
+        expect(stockRepo.findManyByProductIdsWithLock).toHaveBeenCalledWith([
             'prod-chair',
-            { reserved: 8 },
-            expect.anything(),
-        );
+        ]);
+        expect(stockRepo.update).toHaveBeenCalledWith('prod-chair', {
+            quantity: 17,
+            reserved: 5,
+        });
         expect(stockMovementRepo.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 stockId: 'stock-chair',
@@ -259,7 +257,36 @@ describe('ReserveStockUseCase (Unit Tests)', () => {
                 notes: 'Checkout reservation',
                 createdByUserId: 'user-1',
             }),
-            expect.anything(),
+        );
+    });
+
+    it('should successfully reserve stock for a rent item by incrementing reserved stock and recording RENTAL_ALLOCATION movement', async () => {
+        const result = await sut.execute({
+            shopId: 'shop-1',
+            userId: 'user-1',
+            referenceId: 'ref-order-rent',
+            notes: 'Rental reservation',
+            items: [{ productId: 'prod-chair', quantity: 3, type: 'rent' }],
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.items.length).toBe(1);
+        expect(result.items[0].productId).toBe('prod-chair');
+        expect(result.items[0].quantity).toBe(3);
+        expect(result.items[0].reservedQuantity).toBe(8); // 5 + 3
+        expect(stockRepo.update).toHaveBeenCalledWith('prod-chair', {
+            quantity: 20,
+            reserved: 8,
+        });
+        expect(stockMovementRepo.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                stockId: 'stock-chair',
+                type: 'RENTAL_ALLOCATION',
+                quantity: 3,
+                referenceId: 'ref-order-rent',
+                notes: 'Rental reservation',
+                createdByUserId: 'user-1',
+            }),
         );
     });
 
@@ -275,12 +302,10 @@ describe('ReserveStockUseCase (Unit Tests)', () => {
         expect(result.items.length).toBe(1);
         expect(result.items[0].productId).toBe('prod-chair');
         expect(result.items[0].quantity).toBe(8); // 4 * 2
-        expect(result.items[0].reservedQuantity).toBe(13); // 5 + 8
-        expect(stockRepo.update).toHaveBeenCalledWith(
-            'prod-chair',
-            { reserved: 13 },
-            expect.anything(),
-        );
+        expect(stockRepo.update).toHaveBeenCalledWith('prod-chair', {
+            quantity: 12,
+            reserved: 5,
+        });
     });
 
     it('should aggregate required quantities when multiple items share the same component', async () => {
@@ -299,15 +324,13 @@ describe('ReserveStockUseCase (Unit Tests)', () => {
         expect(result.success).toBe(true);
         expect(result.items.length).toBe(1);
         expect(result.items[0].quantity).toBe(6);
-        expect(result.items[0].reservedQuantity).toBe(11); // 5 + 6
-        expect(stockRepo.update).toHaveBeenCalledWith(
-            'prod-chair',
-            { reserved: 11 },
-            expect.anything(),
-        );
+        expect(stockRepo.update).toHaveBeenCalledWith('prod-chair', {
+            quantity: 14,
+            reserved: 5,
+        });
     });
 
-    it('should skip physical stock for service products', async () => {
+    it('should skip physical stock for service products and service components in bundles', async () => {
         const result = await sut.execute({
             shopId: 'shop-1',
             userId: 'user-1',
@@ -318,6 +341,52 @@ describe('ReserveStockUseCase (Unit Tests)', () => {
         expect(result.items.length).toBe(0);
         expect(result.movements.length).toBe(0);
         expect(stockRepo.findManyByProductIdsWithLock).not.toHaveBeenCalled();
+
+        // Bundle with a service component:
+        bundleItemRepo.findByBundleId = mock(() =>
+            Promise.resolve([
+                {
+                    id: 'bi-1',
+                    bundleProductId: 'prod-bundle',
+                    bundle_product_id: 'prod-bundle',
+                    productId: 'prod-chair',
+                    product_id: 'prod-chair',
+                    quantity: 2,
+                    componentProduct: { ...simpleProduct, type: 'sale' } as any,
+                    createdAt: new Date(),
+                    created_at: new Date(),
+                    updatedAt: new Date(),
+                    updated_at: new Date(),
+                },
+                {
+                    id: 'bi-2',
+                    bundleProductId: 'prod-bundle',
+                    bundle_product_id: 'prod-bundle',
+                    productId: 'prod-service',
+                    product_id: 'prod-service',
+                    quantity: 1,
+                    componentProduct: {
+                        ...serviceProduct,
+                        type: 'service',
+                    } as any,
+                    createdAt: new Date(),
+                    created_at: new Date(),
+                    updatedAt: new Date(),
+                    updated_at: new Date(),
+                },
+            ]),
+        );
+
+        const bundleResult = await sut.execute({
+            shopId: 'shop-1',
+            userId: 'user-1',
+            items: [{ productId: 'prod-bundle', quantity: 1 }],
+        });
+
+        expect(bundleResult.success).toBe(true);
+        // Only chair should be in items/movements, service is skipped
+        expect(bundleResult.items.length).toBe(1);
+        expect(bundleResult.items[0].productId).toBe('prod-chair');
     });
 
     it('should throw InsufficientStockError when requested quantity exceeds available stock', async () => {

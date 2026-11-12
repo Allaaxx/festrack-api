@@ -13,8 +13,9 @@ import {
     Stock,
     StockMovement,
     StockMovementType,
+    TransactionManager,
 } from '../../domain/index.js';
-import { db } from '../../db/postgres/index.js';
+import { DrizzleTransactionManager } from '../../repositories/postgres/transaction-manager.js';
 
 export interface RecordStockAdjustmentInput {
     shopId: string;
@@ -22,8 +23,7 @@ export interface RecordStockAdjustmentInput {
     userId: string;
     quantityDelta?: number;
     quantity_delta?: number;
-    quantity?: number;
-    type: 'INBOUND' | 'ADJUSTMENT' | 'LOSS';
+    type: StockMovementType;
     notes?: string | null;
     referenceId?: string | null;
     reference_id?: string | null;
@@ -36,9 +36,7 @@ export interface RecordStockAdjustmentOutput {
 }
 
 export class RecordStockAdjustmentUseCase {
-    private readonly runTransaction: <T>(
-        fn: (tx?: any) => Promise<T>,
-    ) => Promise<T>;
+    private readonly transactionManager: TransactionManager;
 
     constructor(
         private readonly productRepository: Pick<ProductRepository, 'findById'>,
@@ -55,16 +53,24 @@ export class RecordStockAdjustmentUseCase {
             ShopMemberRepository,
             'findByShopAndUserId'
         >,
-        runTransaction?: <T>(fn: (tx?: any) => Promise<T>) => Promise<T>,
+        transactionManager?:
+            | TransactionManager
+            | (<T>(fn: (tx?: any) => Promise<T>) => Promise<T>),
     ) {
-        this.runTransaction =
-            runTransaction ??
-            (async (fn) => {
-                if (typeof db?.transaction === 'function') {
-                    return await db.transaction(async (tx) => await fn(tx));
-                }
-                return await fn();
-            });
+        if (typeof transactionManager === 'function') {
+            const txRunner = transactionManager as any;
+            this.transactionManager = {
+                run: async <T>(fn: () => Promise<T>): Promise<T> =>
+                    await txRunner(async (_tx: any) => await fn()),
+            };
+        } else if (
+            transactionManager &&
+            typeof transactionManager.run === 'function'
+        ) {
+            this.transactionManager = transactionManager;
+        } else {
+            this.transactionManager = new DrizzleTransactionManager();
+        }
     }
 
     async execute(
@@ -94,6 +100,17 @@ export class RecordStockAdjustmentUseCase {
             );
         }
 
+        const allowedTypes: StockMovementType[] = [
+            'INBOUND',
+            'LOSS',
+            'ADJUSTMENT',
+        ];
+        if (!allowedTypes.includes(input.type)) {
+            throw new InvalidStockAdjustmentError(
+                `Manual adjustment movement type must be one of: ${allowedTypes.join(', ')}`,
+            );
+        }
+
         const isAdjustmentOrLoss =
             input.type === 'ADJUSTMENT' || input.type === 'LOSS';
         if (isAdjustmentOrLoss && (!input.notes || input.notes.trim() === '')) {
@@ -102,10 +119,10 @@ export class RecordStockAdjustmentUseCase {
             );
         }
 
-        const rawDelta =
-            input.quantityDelta ?? input.quantity_delta ?? input.quantity;
+        const rawDelta = input.quantityDelta ?? input.quantity_delta;
         if (
             rawDelta === undefined ||
+            rawDelta === null ||
             typeof rawDelta !== 'number' ||
             isNaN(rawDelta) ||
             !Number.isInteger(rawDelta)
@@ -121,10 +138,9 @@ export class RecordStockAdjustmentUseCase {
             );
         }
 
-        return await this.runTransaction(async (tx) => {
+        return await this.transactionManager.run(async () => {
             const currentStock = await this.stockRepository.findByProductId(
                 input.productId,
-                tx,
             );
             if (!currentStock) {
                 throw new InvalidStockAdjustmentError(
@@ -164,21 +180,16 @@ export class RecordStockAdjustmentUseCase {
                 {
                     quantity: newQuantity,
                 },
-                tx,
             );
 
-            const movement = await this.stockMovementRepository.create(
-                {
-                    stockId: currentStock.id,
-                    type: input.type as StockMovementType,
-                    quantity: movementQuantity,
-                    notes: input.notes?.trim() || null,
-                    referenceId:
-                        input.referenceId ?? input.reference_id ?? null,
-                    createdByUserId: input.userId,
-                },
-                tx,
-            );
+            const movement = await this.stockMovementRepository.create({
+                stockId: currentStock.id,
+                type: input.type,
+                quantity: movementQuantity,
+                notes: input.notes?.trim() || null,
+                referenceId: input.referenceId ?? input.reference_id ?? null,
+                createdByUserId: input.userId,
+            });
 
             return {
                 ...updatedStock,

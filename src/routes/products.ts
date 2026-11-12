@@ -15,6 +15,7 @@ import {
     PostgresShopMemberRepository,
     PostgresBundleItemRepository,
     PostgresStockMovementRepository,
+    DrizzleTransactionManager,
 } from '../repositories/postgres/index.js';
 import {
     ProductNotFoundError,
@@ -46,6 +47,9 @@ export const productsRoutes = new Elysia({
             const shopRepository = new PostgresShopRepository();
             const shopMemberRepository = new PostgresShopMemberRepository();
             const bundleItemRepository = new PostgresBundleItemRepository();
+            const stockMovementRepository =
+                new PostgresStockMovementRepository();
+            const transactionManager = new DrizzleTransactionManager();
 
             const useCase = new CreateProductUseCase(
                 productRepository,
@@ -53,6 +57,8 @@ export const productsRoutes = new Elysia({
                 shopRepository,
                 shopMemberRepository,
                 bundleItemRepository,
+                stockMovementRepository,
+                transactionManager,
             );
 
             try {
@@ -157,23 +163,29 @@ export const productsRoutes = new Elysia({
                     isBundle: t.Optional(t.Boolean()),
                     bundle_items: t.Optional(
                         t.Array(
-                            t.Object({
-                                product_id: t.String({ format: 'uuid' }),
-                                quantity: t.Integer({ minimum: 1 }),
-                            }),
+                            t.Object(
+                                {
+                                    product_id: t.String({ format: 'uuid' }),
+                                    quantity: t.Integer({ minimum: 1 }),
+                                },
+                                { additionalProperties: false },
+                            ),
                         ),
                     ),
                     bundleItems: t.Optional(
                         t.Array(
-                            t.Object({
-                                product_id: t.Optional(
-                                    t.String({ format: 'uuid' }),
-                                ),
-                                productId: t.Optional(
-                                    t.String({ format: 'uuid' }),
-                                ),
-                                quantity: t.Integer({ minimum: 1 }),
-                            }),
+                            t.Object(
+                                {
+                                    product_id: t.Optional(
+                                        t.String({ format: 'uuid' }),
+                                    ),
+                                    productId: t.Optional(
+                                        t.String({ format: 'uuid' }),
+                                    ),
+                                    quantity: t.Integer({ minimum: 1 }),
+                                },
+                                { additionalProperties: false },
+                            ),
                         ),
                     ),
                 },
@@ -392,6 +404,7 @@ export const productsRoutes = new Elysia({
                 new PostgresStockMovementRepository();
             const shopRepository = new PostgresShopRepository();
             const shopMemberRepository = new PostgresShopMemberRepository();
+            const transactionManager = new DrizzleTransactionManager();
 
             const useCase = new RecordStockAdjustmentUseCase(
                 productRepository,
@@ -399,6 +412,7 @@ export const productsRoutes = new Elysia({
                 stockMovementRepository,
                 shopRepository,
                 shopMemberRepository,
+                transactionManager,
             );
 
             try {

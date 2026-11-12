@@ -4,6 +4,6 @@ import {
 } from '../entities/stock-movement.js';
 
 export interface StockMovementRepository {
-    create(params: CreateStockMovementParams, tx?: any): Promise<StockMovement>;
+    create(params: CreateStockMovementParams): Promise<StockMovement>;
     findByStockId(stockId: string): Promise<StockMovement[]>;
 }

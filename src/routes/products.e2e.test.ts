@@ -66,6 +66,19 @@ describe('Shop-Scoped Products Routes (Elysia E2E)', () => {
             expect(response.body.stock).toBeDefined();
             expect(response.body.stock.quantity).toBe(25);
             expect(response.body.stock.reserved).toBe(0);
+
+            // Verify initial stock movement ledger entry
+            const movementsRes = await client
+                .get(
+                    `/api/shops/${shop.id}/products/${response.body.id}/stock/movements`,
+                )
+                .set('Authorization', owner.bearerHeader);
+            expect(movementsRes.status).toBe(200);
+            expect(movementsRes.body.length).toBe(1);
+            expect(movementsRes.body[0].type).toBe('INBOUND');
+            expect(movementsRes.body[0].quantity).toBe(25);
+            expect(movementsRes.body[0].notes).toBe('Initial stock entry');
+            expect(movementsRes.body[0].createdByUserId).toBe(owner.user.id);
         });
 
         it('should return 201 and create a product with type rent and stock record with specified quantity', async () => {
@@ -169,6 +182,39 @@ describe('Shop-Scoped Products Routes (Elysia E2E)', () => {
                 });
 
             expect(response.status).toBe(409);
+        });
+
+        it('should allow identical slug across different shops (tenant-scoped slug isolation)', async () => {
+            const owner1 = await createAuthenticatedUser(client);
+            const owner2 = await createAuthenticatedUser(client);
+            const shop1 = await createShop(owner1, 'Shop 1');
+            const shop2 = await createShop(owner2, 'Shop 2');
+            const commonSlug = `unique-per-shop-${faker.string.alphanumeric(8)}`;
+
+            const res1 = await client
+                .post(`/api/shops/${shop1.id}/products`)
+                .set('Authorization', owner1.bearerHeader)
+                .send({
+                    name: 'Product in Shop 1',
+                    slug: commonSlug,
+                    type: 'sale',
+                    price: 20.0,
+                    initial_quantity: 5,
+                });
+            expect(res1.status).toBe(201);
+
+            const res2 = await client
+                .post(`/api/shops/${shop2.id}/products`)
+                .set('Authorization', owner2.bearerHeader)
+                .send({
+                    name: 'Product in Shop 2',
+                    slug: commonSlug,
+                    type: 'sale',
+                    price: 30.0,
+                    initial_quantity: 10,
+                });
+            expect(res2.status).toBe(201);
+            expect(res1.body.id).not.toBe(res2.body.id);
         });
 
         it('should return 403 when user is not a member of the shop', async () => {

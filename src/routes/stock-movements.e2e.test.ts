@@ -331,7 +331,7 @@ describe('Stock Movement Ledger and Manual Adjustments E2E Tests (#118)', () => 
                 owner,
                 shop.id,
                 'sale',
-                10,
+                0,
             );
 
             // Record two adjustments

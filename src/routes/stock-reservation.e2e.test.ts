@@ -70,7 +70,7 @@ describe('Atomic Concurrency-Safe Stock Reservation E2E Tests (#119)', () => {
     };
 
     describe('POST /api/shops/:shopId/stock/reserve', () => {
-        it('should successfully reserve stock for a simple product -> 200 (updates stock.reserved, creates movement)', async () => {
+        it('should successfully reserve stock for a sale product -> 200 (decrements stock.quantity, records SALE movement)', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
             const product = await createSimpleProduct(
@@ -102,16 +102,15 @@ describe('Atomic Concurrency-Safe Stock Reservation E2E Tests (#119)', () => {
             expect(reserveResponse.body.items.length).toBe(1);
             expect(reserveResponse.body.items[0].product_id).toBe(product.id);
             expect(reserveResponse.body.items[0].quantity).toBe(3);
-            expect(reserveResponse.body.items[0].reservedQuantity).toBe(3);
             expect(reserveResponse.body.movementIds.length).toBe(1);
 
-            // Verify product stock reflects updated reserved count and available stock
+            // Verify product stock reflects decremented on-hand quantity and zero reserved
             const productRes = await client
                 .get(`/api/shops/${shop.id}/products/${product.id}`)
                 .set('Authorization', owner.bearerHeader);
 
-            expect(productRes.body.stock.quantity).toBe(10);
-            expect(productRes.body.stock.reserved).toBe(3);
+            expect(productRes.body.stock.quantity).toBe(7);
+            expect(productRes.body.stock.reserved).toBe(0);
             expect(productRes.body.available_stock).toBe(7);
 
             // Verify stock movement ledger recorded SALE movement
@@ -131,6 +130,67 @@ describe('Atomic Concurrency-Safe Stock Reservation E2E Tests (#119)', () => {
             expect(reserveMovement.type).toBe('SALE');
             expect(reserveMovement.quantity).toBe(3);
             expect(reserveMovement.notes).toBe('Order checkout reservation');
+            expect(reserveMovement.createdByUserId).toBe(owner.user.id);
+        });
+
+        it('should successfully reserve stock for a rent product -> 200 (increments stock.reserved, records RENTAL_ALLOCATION movement)', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+            const product = await createSimpleProduct(
+                owner,
+                shop.id,
+                'Rental Tent',
+                'rent',
+                10,
+            );
+
+            const reserveResponse = await client
+                .post(`/api/shops/${shop.id}/stock/reserve`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    referenceId: 'order-rent-101',
+                    notes: 'Order rental reservation',
+                    items: [
+                        {
+                            product_id: product.id,
+                            quantity: 3,
+                            type: 'rent',
+                        },
+                    ],
+                });
+
+            expect([200, 201]).toContain(reserveResponse.status);
+            expect(reserveResponse.body.success).toBe(true);
+            expect(reserveResponse.body.items.length).toBe(1);
+            expect(reserveResponse.body.items[0].product_id).toBe(product.id);
+            expect(reserveResponse.body.items[0].quantity).toBe(3);
+            expect(reserveResponse.body.items[0].reservedQuantity).toBe(3);
+
+            // Verify product stock reflects incremented reserved and preserved quantity
+            const productRes = await client
+                .get(`/api/shops/${shop.id}/products/${product.id}`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(productRes.body.stock.quantity).toBe(10);
+            expect(productRes.body.stock.reserved).toBe(3);
+            expect(productRes.body.available_stock).toBe(7);
+
+            // Verify stock movement ledger recorded RENTAL_ALLOCATION movement
+            const movementsRes = await client
+                .get(
+                    `/api/shops/${shop.id}/products/${product.id}/stock/movements`,
+                )
+                .set('Authorization', owner.bearerHeader);
+
+            expect(movementsRes.status).toBe(200);
+            const reserveMovement = movementsRes.body.find(
+                (m: any) =>
+                    m.referenceId === 'order-rent-101' ||
+                    m.reference_id === 'order-rent-101',
+            );
+            expect(reserveMovement).toBeDefined();
+            expect(reserveMovement.type).toBe('RENTAL_ALLOCATION');
+            expect(reserveMovement.quantity).toBe(3);
             expect(reserveMovement.createdByUserId).toBe(owner.user.id);
         });
 
@@ -272,11 +332,12 @@ describe('Atomic Concurrency-Safe Stock Reservation E2E Tests (#119)', () => {
             expect([200, 201]).toContain(reserveResponse.status);
             expect(reserveResponse.body.success).toBe(true);
 
-            // Total glasses reserved should be exactly 11
+            // Total glasses quantity decremented should be exactly 11 (sale)
             const glassRes = await client
                 .get(`/api/shops/${shop.id}/products/${glass.id}`)
                 .set('Authorization', owner.bearerHeader);
-            expect(glassRes.body.stock.reserved).toBe(11);
+            expect(glassRes.body.stock.quantity).toBe(39);
+            expect(glassRes.body.stock.reserved).toBe(0);
             expect(glassRes.body.available_stock).toBe(39);
         });
 
@@ -390,7 +451,8 @@ describe('Atomic Concurrency-Safe Stock Reservation E2E Tests (#119)', () => {
             const chairRes = await client
                 .get(`/api/shops/${shop.id}/products/${chair.id}`)
                 .set('Authorization', owner.bearerHeader);
-            expect(chairRes.body.stock.reserved).toBe(2);
+            expect(chairRes.body.stock.quantity).toBe(8);
+            expect(chairRes.body.stock.reserved).toBe(0);
         });
 
         it('should return 403 when user is not a member of the shop', async () => {
@@ -465,7 +527,7 @@ describe('Atomic Concurrency-Safe Stock Reservation E2E Tests (#119)', () => {
                 owner,
                 shop.id,
                 'Chair',
-                'sale',
+                'rent',
                 10,
             );
 
@@ -473,7 +535,9 @@ describe('Atomic Concurrency-Safe Stock Reservation E2E Tests (#119)', () => {
                 .post(`/api/shops/${shop.id}/products/stock/reserve`)
                 .set('Authorization', owner.bearerHeader)
                 .send({
-                    items: [{ product_id: product.id, quantity: 2 }],
+                    items: [
+                        { product_id: product.id, quantity: 2, type: 'rent' },
+                    ],
                 });
 
             expect([200, 201]).toContain(reserveResponse.status);
@@ -522,13 +586,13 @@ describe('Atomic Concurrency-Safe Stock Reservation E2E Tests (#119)', () => {
                 expect(rej.body.message).toContain(limitedProduct.id);
             }
 
-            // Verify the database state: reserved must be EXACTLY 2 (never over-sold to 3, 4, or 5)
+            // Verify the database state: quantity must be EXACTLY 0 and reserved 0 (never over-sold)
             const finalProductRes = await client
                 .get(`/api/shops/${shop.id}/products/${limitedProduct.id}`)
                 .set('Authorization', owner.bearerHeader);
 
-            expect(finalProductRes.body.stock.quantity).toBe(2);
-            expect(finalProductRes.body.stock.reserved).toBe(2);
+            expect(finalProductRes.body.stock.quantity).toBe(0);
+            expect(finalProductRes.body.stock.reserved).toBe(0);
             expect(finalProductRes.body.available_stock).toBe(0);
 
             // Verify stock movements: exactly 2 SALE movements must exist

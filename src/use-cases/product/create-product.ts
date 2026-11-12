@@ -8,13 +8,15 @@ import {
     ProductWithStock,
     ProductRepository,
     StockRepository,
+    StockMovementRepository,
     ShopRepository,
     ShopMemberRepository,
     BundleItemRepository,
     BundleItem,
     ProductType,
+    TransactionManager,
 } from '../../domain/index.js';
-import { db } from '../../db/postgres/index.js';
+import { DrizzleTransactionManager } from '../../repositories/postgres/transaction-manager.js';
 
 export interface CreateProductInput {
     shopId: string;
@@ -42,9 +44,11 @@ export interface CreateProductInput {
 }
 
 export class CreateProductUseCase {
-    private readonly runTransaction: <T>(
-        fn: (tx?: any) => Promise<T>,
-    ) => Promise<T>;
+    private readonly transactionManager: TransactionManager;
+    private readonly stockMovementRepository?: Pick<
+        StockMovementRepository,
+        'create'
+    >;
 
     constructor(
         private readonly productRepository: Pick<
@@ -62,16 +66,45 @@ export class CreateProductUseCase {
             BundleItemRepository,
             'createMany'
         >,
-        runTransaction?: <T>(fn: (tx?: any) => Promise<T>) => Promise<T>,
+        stockMovementRepository?:
+            | Pick<StockMovementRepository, 'create'>
+            | TransactionManager
+            | (<T>(fn: (tx?: any) => Promise<T>) => Promise<T>),
+        transactionManager?:
+            | TransactionManager
+            | (<T>(fn: (tx?: any) => Promise<T>) => Promise<T>),
     ) {
-        this.runTransaction =
-            runTransaction ??
-            (async (fn) => {
-                if (typeof db?.transaction === 'function') {
-                    return await db.transaction(async (tx) => await fn(tx));
-                }
-                return await fn();
-            });
+        if (
+            typeof stockMovementRepository === 'function' ||
+            (stockMovementRepository && 'run' in stockMovementRepository)
+        ) {
+            const txRunner = stockMovementRepository as any;
+            if (typeof txRunner === 'function') {
+                this.transactionManager = {
+                    run: async <T>(fn: () => Promise<T>): Promise<T> =>
+                        await txRunner(async (_tx: any) => await fn()),
+                };
+            } else {
+                this.transactionManager = txRunner;
+            }
+            this.stockMovementRepository = undefined;
+        } else {
+            this.stockMovementRepository = stockMovementRepository;
+            if (typeof transactionManager === 'function') {
+                const txRunner = transactionManager as any;
+                this.transactionManager = {
+                    run: async <T>(fn: () => Promise<T>): Promise<T> =>
+                        await txRunner(async (_tx: any) => await fn()),
+                };
+            } else if (
+                transactionManager &&
+                typeof transactionManager.run === 'function'
+            ) {
+                this.transactionManager = transactionManager;
+            } else {
+                this.transactionManager = new DrizzleTransactionManager();
+            }
+        }
     }
 
     async execute(input: CreateProductInput): Promise<ProductWithStock> {
@@ -88,7 +121,10 @@ export class CreateProductUseCase {
             throw new ForbiddenError();
         }
 
-        const existing = await this.productRepository.findBySlug(input.slug);
+        const existing = await this.productRepository.findBySlug(
+            input.shopId,
+            input.slug,
+        );
         if (existing) {
             throw new SlugAlreadyExistsError(input.slug);
         }
@@ -149,20 +185,17 @@ export class CreateProductUseCase {
                 });
             }
 
-            return await this.runTransaction(async (tx) => {
-                const product = await (this.productRepository as any).create(
-                    {
-                        shop_id: input.shopId,
-                        name: input.name,
-                        slug: input.slug,
-                        type: input.type,
-                        price: input.price,
-                        description: input.description ?? null,
-                        images: input.images ?? [],
-                        is_bundle: true,
-                    },
-                    tx,
-                );
+            return await this.transactionManager.run(async () => {
+                const product = await this.productRepository.create({
+                    shop_id: input.shopId,
+                    name: input.name,
+                    slug: input.slug,
+                    type: input.type,
+                    price: input.price,
+                    description: input.description ?? null,
+                    images: input.images ?? [],
+                    is_bundle: true,
+                });
 
                 let createdItems: BundleItem[] = [];
                 if (this.bundleItemRepository) {
@@ -172,7 +205,6 @@ export class CreateProductUseCase {
                             product_id: i.product_id,
                             quantity: i.quantity,
                         })),
-                        tx,
                     );
                 }
 
@@ -185,34 +217,58 @@ export class CreateProductUseCase {
             });
         }
 
-        const product = await this.productRepository.create({
-            shop_id: input.shopId,
-            name: input.name,
-            slug: input.slug,
-            type: input.type,
-            price: input.price,
-            description: input.description ?? null,
-            images: input.images ?? [],
-            is_bundle: false,
-        });
-
         if (input.type === 'service') {
+            const product = await this.productRepository.create({
+                shop_id: input.shopId,
+                name: input.name,
+                slug: input.slug,
+                type: input.type,
+                price: input.price,
+                description: input.description ?? null,
+                images: input.images ?? [],
+                is_bundle: false,
+            });
+
             return {
                 ...product,
                 stock: null,
             };
         }
 
-        const initialQuantity = input.initial_quantity ?? input.quantity ?? 0;
-        const createdStock = await this.stockRepository.create({
-            product_id: product.id,
-            quantity: initialQuantity,
-            reserved: 0,
-        });
+        return await this.transactionManager.run(async () => {
+            const product = await this.productRepository.create({
+                shop_id: input.shopId,
+                name: input.name,
+                slug: input.slug,
+                type: input.type,
+                price: input.price,
+                description: input.description ?? null,
+                images: input.images ?? [],
+                is_bundle: false,
+            });
 
-        return {
-            ...product,
-            stock: createdStock,
-        };
+            const initialQuantity =
+                input.initial_quantity ?? input.quantity ?? 0;
+            const createdStock = await this.stockRepository.create({
+                product_id: product.id,
+                quantity: initialQuantity,
+                reserved: 0,
+            });
+
+            if (initialQuantity > 0 && this.stockMovementRepository) {
+                await this.stockMovementRepository.create({
+                    stockId: createdStock.id,
+                    type: 'INBOUND',
+                    quantity: initialQuantity,
+                    notes: 'Initial stock entry',
+                    createdByUserId: input.userId,
+                });
+            }
+
+            return {
+                ...product,
+                stock: createdStock,
+            };
+        });
     }
 }

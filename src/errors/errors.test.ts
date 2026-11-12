@@ -159,7 +159,6 @@ describe('Domain Errors', () => {
         );
         expect(simpleError.name).toBe('InvalidRentalReturnError');
         expect(simpleError.message).toBe('Damaged items require damage notes.');
-        expect(simpleError.statusCode).toBe(400);
 
         const detailedError = new InvalidRentalReturnError(
             'Returned quantity exceeds reserved stock.',
@@ -173,7 +172,6 @@ describe('Domain Errors', () => {
                     reason: 'Returned and lost quantity exceeds reserved stock.',
                 },
             ],
-            400,
         );
         expect(detailedError.name).toBe('InvalidRentalReturnError');
         expect(detailedError.details).toBeDefined();
