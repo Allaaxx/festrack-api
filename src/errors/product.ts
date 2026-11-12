@@ -27,3 +27,17 @@ export class CannotDeleteProductInBundleError extends Error {
         this.name = 'CannotDeleteProductInBundleError';
     }
 }
+
+export class InvalidStockAdjustmentError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'InvalidStockAdjustmentError';
+    }
+}
+
+export class StockNotFoundError extends Error {
+    constructor(productId: string) {
+        super(`Stock for product '${productId}' not found.`);
+        this.name = 'StockNotFoundError';
+    }
+}

@@ -71,6 +71,13 @@
             "when": 1794495900665,
             "tag": "0009_curious_killraven",
             "breakpoints": true
+        },
+        {
+            "idx": 10,
+            "version": "7",
+            "when": 1794498273462,
+            "tag": "0010_wide_smiling_tiger",
+            "breakpoints": true
         }
     ]
 }
