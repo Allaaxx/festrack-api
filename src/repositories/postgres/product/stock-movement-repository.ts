@@ -9,6 +9,7 @@ import {
     StockMovementRepository,
     CreateStockMovementParams,
 } from '../../../domain/index.js';
+import { txContext } from '../transaction-manager.js';
 
 export type { StockMovementRepository };
 
@@ -54,7 +55,9 @@ export class PostgresStockMovementRepository implements StockMovementRepository 
         params: CreateStockMovementParams,
         tx?: any,
     ): Promise<StockMovement> {
-        const dbInstance = tx ?? this.database;
+        const dbInstance = (tx ??
+            txContext.getStore() ??
+            this.database) as Database;
         const [created] = await dbInstance
             .insert(stockMovements)
             .values({

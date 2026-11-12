@@ -54,13 +54,16 @@ describe('Create Product Use Case', () => {
         updated_at: new Date(),
     };
 
-    it('should create product with stock when type is rent or sale', async () => {
+    it('should create product with stock when type is rent or sale and record initial stock movement', async () => {
         const productRepo = {
             create: mock(async () => fakeProduct),
             findBySlug: mock(async () => null),
         };
         const stockRepo = {
             create: mock(async () => fakeStock),
+        };
+        const stockMovementRepo = {
+            create: mock(async (params: any) => ({ id: 'mov-1', ...params })),
         };
         const shopRepo = {
             findById: mock(async () => fakeShop),
@@ -74,6 +77,8 @@ describe('Create Product Use Case', () => {
             stockRepo,
             shopRepo,
             memberRepo,
+            undefined,
+            stockMovementRepo as any,
         );
 
         const result = await useCase.execute({
@@ -92,6 +97,17 @@ describe('Create Product Use Case', () => {
             product_id: 'prod-1',
             quantity: 10,
             reserved: 0,
+        });
+        expect(productRepo.findBySlug).toHaveBeenCalledWith(
+            'shop-1',
+            'tent-large',
+        );
+        expect(stockMovementRepo.create).toHaveBeenCalledWith({
+            stockId: 'stock-1',
+            type: 'INBOUND',
+            quantity: 10,
+            notes: 'Initial stock entry',
+            createdByUserId: 'user-1',
         });
     });
 
@@ -317,21 +333,18 @@ describe('Create Product Use Case', () => {
         expect(result.stock).toBeNull();
         expect(result.bundleItems).toEqual(fakeItems);
         expect(stockRepo.create).not.toHaveBeenCalled();
-        expect(bundleRepo.createMany).toHaveBeenCalledWith(
-            [
-                {
-                    bundle_product_id: 'bundle-1',
-                    product_id: 'comp-1',
-                    quantity: 4,
-                },
-                {
-                    bundle_product_id: 'bundle-1',
-                    product_id: 'comp-2',
-                    quantity: 1,
-                },
-            ],
-            undefined,
-        );
+        expect(bundleRepo.createMany).toHaveBeenCalledWith([
+            {
+                bundle_product_id: 'bundle-1',
+                product_id: 'comp-1',
+                quantity: 4,
+            },
+            {
+                bundle_product_id: 'bundle-1',
+                product_id: 'comp-2',
+                quantity: 1,
+            },
+        ]);
     });
 
     it('should throw InvalidBundleComponentError when bundle has no items or empty array', async () => {

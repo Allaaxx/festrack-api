@@ -10,7 +10,7 @@ export interface ProductRepository {
     create(params: CreateProductParams): Promise<Product>;
     findById(id: string): Promise<Product | null>;
     findByIdWithStock(id: string): Promise<ProductWithStock | null>;
-    findBySlug(slug: string): Promise<Product | null>;
+    findBySlug(shopId: string, slug: string): Promise<Product | null>;
     findByShopId(
         shopId: string,
         filter?: { type?: ProductType },

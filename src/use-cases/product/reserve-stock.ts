@@ -14,9 +14,9 @@ import {
     ShopMemberRepository,
     BundleItemRepository,
     StockMovement,
-    StockMovementType,
+    TransactionManager,
 } from '../../domain/index.js';
-import { db } from '../../db/postgres/index.js';
+import { DrizzleTransactionManager } from '../../repositories/postgres/transaction-manager.js';
 
 export interface ReserveStockItemInput {
     productId?: string;
@@ -61,14 +61,12 @@ export interface ReserveStockOutput {
 interface ComponentAccumulator {
     productId: string;
     productName?: string;
-    totalQuantity: number;
-    type: 'sale' | 'rent';
+    saleQuantity: number;
+    rentQuantity: number;
 }
 
 export class ReserveStockUseCase {
-    private readonly runTransaction: <T>(
-        fn: (tx?: any) => Promise<T>,
-    ) => Promise<T>;
+    private readonly transactionManager: TransactionManager;
 
     constructor(
         private readonly productRepository: Pick<ProductRepository, 'findById'>,
@@ -89,16 +87,24 @@ export class ReserveStockUseCase {
             BundleItemRepository,
             'findByBundleId'
         >,
-        runTransaction?: <T>(fn: (tx?: any) => Promise<T>) => Promise<T>,
+        transactionManager?:
+            | TransactionManager
+            | (<T>(fn: (tx?: any) => Promise<T>) => Promise<T>),
     ) {
-        this.runTransaction =
-            runTransaction ??
-            (async (fn) => {
-                if (typeof db?.transaction === 'function') {
-                    return await db.transaction(async (tx) => await fn(tx));
-                }
-                return await fn();
-            });
+        if (typeof transactionManager === 'function') {
+            const txRunner = transactionManager as any;
+            this.transactionManager = {
+                run: async <T>(fn: () => Promise<T>): Promise<T> =>
+                    await txRunner(async (_tx: any) => await fn()),
+            };
+        } else if (
+            transactionManager &&
+            typeof transactionManager.run === 'function'
+        ) {
+            this.transactionManager = transactionManager;
+        } else {
+            this.transactionManager = new DrizzleTransactionManager();
+        }
     }
 
     async execute(input: ReserveStockInput): Promise<ReserveStockOutput> {
@@ -176,6 +182,14 @@ export class ReserveStockUseCase {
                 }
 
                 for (const bComp of bundleComponents) {
+                    const compType =
+                        bComp.componentProduct?.type ??
+                        bComp.product?.type ??
+                        (bComp as any).type;
+                    if (compType === 'service') {
+                        continue;
+                    }
+
                     const compId = bComp.productId || bComp.product_id;
                     const compQty = bComp.quantity * item.quantity;
                     const compName =
@@ -184,33 +198,35 @@ export class ReserveStockUseCase {
                         undefined;
 
                     const existing = componentMap.get(compId);
+                    const saleQty = itemType === 'sale' ? compQty : 0;
+                    const rentQty = itemType === 'rent' ? compQty : 0;
+
                     if (existing) {
-                        existing.totalQuantity += compQty;
-                        if (itemType === 'rent') {
-                            existing.type = 'rent';
-                        }
+                        existing.saleQuantity += saleQty;
+                        existing.rentQuantity += rentQty;
                     } else {
                         componentMap.set(compId, {
                             productId: compId,
                             productName: compName,
-                            totalQuantity: compQty,
-                            type: itemType,
+                            saleQuantity: saleQty,
+                            rentQuantity: rentQty,
                         });
                     }
                 }
             } else {
                 const existing = componentMap.get(product.id);
+                const saleQty = itemType === 'sale' ? item.quantity : 0;
+                const rentQty = itemType === 'rent' ? item.quantity : 0;
+
                 if (existing) {
-                    existing.totalQuantity += item.quantity;
-                    if (itemType === 'rent') {
-                        existing.type = 'rent';
-                    }
+                    existing.saleQuantity += saleQty;
+                    existing.rentQuantity += rentQty;
                 } else {
                     componentMap.set(product.id, {
                         productId: product.id,
                         productName: product.name,
-                        totalQuantity: item.quantity,
-                        type: itemType,
+                        saleQuantity: saleQty,
+                        rentQuantity: rentQty,
                     });
                 }
             }
@@ -230,11 +246,10 @@ export class ReserveStockUseCase {
 
         const sortedProductIds = Array.from(componentMap.keys()).sort();
 
-        return await this.runTransaction(async (tx) => {
+        return await this.transactionManager.run(async () => {
             const lockedStocks =
                 await this.stockRepository.findManyByProductIdsWithLock(
                     sortedProductIds,
-                    tx,
                 );
 
             const stockMap = new Map(
@@ -245,19 +260,21 @@ export class ReserveStockUseCase {
 
             for (const productId of sortedProductIds) {
                 const component = componentMap.get(productId)!;
+                const totalRequested =
+                    component.saleQuantity + component.rentQuantity;
                 const stockRecord = stockMap.get(productId);
                 const available = stockRecord
                     ? stockRecord.quantity - stockRecord.reserved
                     : 0;
 
-                if (!stockRecord || available < component.totalQuantity) {
+                if (!stockRecord || available < totalRequested) {
                     insufficientDetails.push({
                         productId,
                         product_id: productId,
                         productName: component.productName,
                         product_name: component.productName,
-                        requestedQuantity: component.totalQuantity,
-                        requested_quantity: component.totalQuantity,
+                        requestedQuantity: totalRequested,
+                        requested_quantity: totalRequested,
                         availableStock: Math.max(0, available),
                         available_stock: Math.max(0, available),
                     });
@@ -275,46 +292,74 @@ export class ReserveStockUseCase {
                 const component = componentMap.get(productId)!;
                 const stockRecord = stockMap.get(productId)!;
 
+                const newQuantity =
+                    stockRecord.quantity - component.saleQuantity;
                 const newReserved =
-                    stockRecord.reserved + component.totalQuantity;
+                    stockRecord.reserved + component.rentQuantity;
+
                 const updatedStock = await this.stockRepository.update(
                     productId,
                     {
+                        quantity: newQuantity,
                         reserved: newReserved,
                     },
-                    tx,
                 );
 
-                const movementType: StockMovementType =
-                    component.type === 'rent' ? 'RENTAL_ALLOCATION' : 'SALE';
+                if (component.saleQuantity > 0) {
+                    const saleMovement =
+                        await this.stockMovementRepository.create({
+                            stockId: stockRecord.id,
+                            type: 'SALE',
+                            quantity: component.saleQuantity,
+                            referenceId:
+                                input.referenceId ?? input.reference_id ?? null,
+                            notes: input.notes ?? null,
+                            createdByUserId: input.userId,
+                        });
 
-                const movement = await this.stockMovementRepository.create(
-                    {
+                    createdMovements.push(saleMovement);
+                    reservedItems.push({
+                        productId,
+                        product_id: productId,
+                        productName: component.productName,
+                        product_name: component.productName,
+                        quantity: component.saleQuantity,
+                        reservedQuantity: updatedStock.reserved,
+                        reserved_quantity: updatedStock.reserved,
                         stockId: stockRecord.id,
-                        type: movementType,
-                        quantity: component.totalQuantity,
-                        referenceId:
-                            input.referenceId ?? input.reference_id ?? null,
-                        notes: input.notes ?? null,
-                        createdByUserId: input.userId,
-                    },
-                    tx,
-                );
+                        stock_id: stockRecord.id,
+                        movementId: saleMovement.id,
+                        movement_id: saleMovement.id,
+                    });
+                }
 
-                createdMovements.push(movement);
-                reservedItems.push({
-                    productId,
-                    product_id: productId,
-                    productName: component.productName,
-                    product_name: component.productName,
-                    quantity: component.totalQuantity,
-                    reservedQuantity: updatedStock.reserved,
-                    reserved_quantity: updatedStock.reserved,
-                    stockId: stockRecord.id,
-                    stock_id: stockRecord.id,
-                    movementId: movement.id,
-                    movement_id: movement.id,
-                });
+                if (component.rentQuantity > 0) {
+                    const rentMovement =
+                        await this.stockMovementRepository.create({
+                            stockId: stockRecord.id,
+                            type: 'RENTAL_ALLOCATION',
+                            quantity: component.rentQuantity,
+                            referenceId:
+                                input.referenceId ?? input.reference_id ?? null,
+                            notes: input.notes ?? null,
+                            createdByUserId: input.userId,
+                        });
+
+                    createdMovements.push(rentMovement);
+                    reservedItems.push({
+                        productId,
+                        product_id: productId,
+                        productName: component.productName,
+                        product_name: component.productName,
+                        quantity: component.rentQuantity,
+                        reservedQuantity: updatedStock.reserved,
+                        reserved_quantity: updatedStock.reserved,
+                        stockId: stockRecord.id,
+                        stock_id: stockRecord.id,
+                        movementId: rentMovement.id,
+                        movement_id: rentMovement.id,
+                    });
+                }
             }
 
             return {

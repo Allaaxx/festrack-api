@@ -11,6 +11,7 @@ import {
     PostgresShopMemberRepository,
     PostgresBundleItemRepository,
     PostgresStockMovementRepository,
+    DrizzleTransactionManager,
 } from '../repositories/postgres/index.js';
 import {
     ProductNotFoundError,
@@ -49,6 +50,7 @@ export const reserveStockRouteHandler = async ({
     const shopRepository = new PostgresShopRepository();
     const shopMemberRepository = new PostgresShopMemberRepository();
     const bundleItemRepository = new PostgresBundleItemRepository();
+    const transactionManager = new DrizzleTransactionManager();
 
     const useCase = new ReserveStockUseCase(
         productRepository,
@@ -57,6 +59,7 @@ export const reserveStockRouteHandler = async ({
         shopRepository,
         shopMemberRepository,
         bundleItemRepository,
+        transactionManager,
     );
 
     try {
@@ -197,6 +200,7 @@ export const checkinRentalReturnRouteHandler = async ({
     const shopRepository = new PostgresShopRepository();
     const shopMemberRepository = new PostgresShopMemberRepository();
     const bundleItemRepository = new PostgresBundleItemRepository();
+    const transactionManager = new DrizzleTransactionManager();
 
     const useCase = new CheckinRentalReturnUseCase(
         productRepository,
@@ -205,6 +209,7 @@ export const checkinRentalReturnRouteHandler = async ({
         shopRepository,
         shopMemberRepository,
         bundleItemRepository,
+        transactionManager,
     );
 
     try {
@@ -240,7 +245,7 @@ export const checkinRentalReturnRouteHandler = async ({
         return result;
     } catch (error) {
         if (error instanceof InvalidRentalReturnError) {
-            set.status = error.statusCode ?? 400;
+            set.status = 400;
             return {
                 message: error.message,
                 details: error.details,

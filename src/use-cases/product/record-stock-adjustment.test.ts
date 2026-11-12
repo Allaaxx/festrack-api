@@ -123,11 +123,9 @@ describe('RecordStockAdjustmentUseCase', () => {
             notes: 'Shipment #42 arrived',
         });
 
-        expect(stockRepo.update).toHaveBeenCalledWith(
-            'prod-1',
-            { quantity: 30 },
-            undefined,
-        );
+        expect(stockRepo.update).toHaveBeenCalledWith('prod-1', {
+            quantity: 30,
+        });
         expect(stockMovementRepo.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 stockId: 'stock-1',
@@ -136,7 +134,6 @@ describe('RecordStockAdjustmentUseCase', () => {
                 notes: 'Shipment #42 arrived',
                 createdByUserId: 'user-1',
             }),
-            undefined,
         );
         expect(result.stock.quantity).toBe(30);
         expect(result.movement.type).toBe('INBOUND');
@@ -152,11 +149,9 @@ describe('RecordStockAdjustmentUseCase', () => {
             notes: 'Found 5 extra units in warehouse',
         });
 
-        expect(stockRepo.update).toHaveBeenCalledWith(
-            'prod-1',
-            { quantity: 25 },
-            undefined,
-        );
+        expect(stockRepo.update).toHaveBeenCalledWith('prod-1', {
+            quantity: 25,
+        });
         expect(result.stock.quantity).toBe(25);
         expect(result.movement.quantity).toBe(5);
     });
@@ -171,11 +166,9 @@ describe('RecordStockAdjustmentUseCase', () => {
             notes: 'Count was off by 3',
         });
 
-        expect(stockRepo.update).toHaveBeenCalledWith(
-            'prod-1',
-            { quantity: 17 },
-            undefined,
-        );
+        expect(stockRepo.update).toHaveBeenCalledWith('prod-1', {
+            quantity: 17,
+        });
         expect(result.stock.quantity).toBe(17);
         expect(result.movement.quantity).toBe(3);
     });
@@ -190,11 +183,9 @@ describe('RecordStockAdjustmentUseCase', () => {
             notes: 'Broken during transit',
         });
 
-        expect(stockRepo.update).toHaveBeenCalledWith(
-            'prod-1',
-            { quantity: 16 },
-            undefined,
-        );
+        expect(stockRepo.update).toHaveBeenCalledWith('prod-1', {
+            quantity: 16,
+        });
         expect(result.stock.quantity).toBe(16);
         expect(result.movement.quantity).toBe(4);
         expect(result.movement.type).toBe('LOSS');

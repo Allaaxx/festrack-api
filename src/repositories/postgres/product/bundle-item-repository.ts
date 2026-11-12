@@ -13,6 +13,7 @@ import {
     ProductWithStock,
     Stock,
 } from '../../../domain/index.js';
+import { txContext } from '../transaction-manager.js';
 
 const mapProduct = (p: typeof products.$inferSelect): Product => ({
     ...p,
@@ -72,7 +73,9 @@ export class PostgresBundleItemRepository implements BundleItemRepository {
             return [];
         }
 
-        const dbInstance = tx ?? this.database;
+        const dbInstance = (tx ??
+            txContext.getStore() ??
+            this.database) as Database;
         const inserted = await dbInstance
             .insert(bundleItems)
             .values(

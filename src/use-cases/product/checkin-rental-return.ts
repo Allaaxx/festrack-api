@@ -13,8 +13,9 @@ import {
     ShopMemberRepository,
     BundleItemRepository,
     StockMovement,
+    TransactionManager,
 } from '../../domain/index.js';
-import { db } from '../../db/postgres/index.js';
+import { DrizzleTransactionManager } from '../../repositories/postgres/transaction-manager.js';
 
 export interface CheckinRentalReturnItemInput {
     productId?: string;
@@ -71,9 +72,7 @@ interface ComponentCheckinAccumulator {
 }
 
 export class CheckinRentalReturnUseCase {
-    private readonly runTransaction: <T>(
-        fn: (tx?: any) => Promise<T>,
-    ) => Promise<T>;
+    private readonly transactionManager: TransactionManager;
 
     constructor(
         private readonly productRepository: Pick<ProductRepository, 'findById'>,
@@ -94,16 +93,24 @@ export class CheckinRentalReturnUseCase {
             BundleItemRepository,
             'findByBundleId'
         >,
-        runTransaction?: <T>(fn: (tx?: any) => Promise<T>) => Promise<T>,
+        transactionManager?:
+            | TransactionManager
+            | (<T>(fn: (tx?: any) => Promise<T>) => Promise<T>),
     ) {
-        this.runTransaction =
-            runTransaction ??
-            (async (fn) => {
-                if (typeof db?.transaction === 'function') {
-                    return await db.transaction(async (tx) => await fn(tx));
-                }
-                return await fn();
-            });
+        if (typeof transactionManager === 'function') {
+            const txRunner = transactionManager as any;
+            this.transactionManager = {
+                run: async <T>(fn: () => Promise<T>): Promise<T> =>
+                    await txRunner(async (_tx: any) => await fn()),
+            };
+        } else if (
+            transactionManager &&
+            typeof transactionManager.run === 'function'
+        ) {
+            this.transactionManager = transactionManager;
+        } else {
+            this.transactionManager = new DrizzleTransactionManager();
+        }
     }
 
     async execute(
@@ -181,8 +188,6 @@ export class CheckinRentalReturnUseCase {
             if (damagedQty > 0 && !damageNotes) {
                 throw new InvalidRentalReturnError(
                     'Damage notes are required when damaged quantity is greater than 0.',
-                    undefined,
-                    400,
                 );
             }
 
@@ -208,6 +213,14 @@ export class CheckinRentalReturnUseCase {
                 }
 
                 for (const bComp of bundleComponents) {
+                    const compType =
+                        bComp.componentProduct?.type ??
+                        bComp.product?.type ??
+                        (bComp as any).type;
+                    if (compType === 'service') {
+                        continue;
+                    }
+
                     const compId = bComp.productId || bComp.product_id;
                     const compReturned = bComp.quantity * returnedQty;
                     const compDamaged = bComp.quantity * damagedQty;
@@ -271,11 +284,10 @@ export class CheckinRentalReturnUseCase {
 
         const sortedProductIds = Array.from(componentMap.keys()).sort();
 
-        return await this.runTransaction(async (tx) => {
+        return await this.transactionManager.run(async () => {
             const lockedStocks =
                 await this.stockRepository.findManyByProductIdsWithLock(
                     sortedProductIds,
-                    tx,
                 );
 
             const stockMap = new Map(
@@ -314,7 +326,6 @@ export class CheckinRentalReturnUseCase {
                                 reason: 'Returned and lost quantity exceeds reserved stock.',
                             },
                         ],
-                        400,
                     );
                 }
             }
@@ -338,50 +349,39 @@ export class CheckinRentalReturnUseCase {
                         quantity: newQuantity,
                         reserved: newReserved,
                     },
-                    tx,
                 );
 
                 if (comp.returnedQuantity > 0) {
                     const returnMovement =
-                        await this.stockMovementRepository.create(
-                            {
-                                stockId: stockRecord.id,
-                                type: 'RENTAL_RETURN',
-                                quantity: comp.returnedQuantity,
-                                referenceId:
-                                    input.referenceId ??
-                                    input.reference_id ??
-                                    null,
-                                notes:
-                                    comp.notes ||
-                                    input.notes ||
-                                    'Rental return check-in',
-                                createdByUserId: input.userId,
-                            },
-                            tx,
-                        );
+                        await this.stockMovementRepository.create({
+                            stockId: stockRecord.id,
+                            type: 'RENTAL_RETURN',
+                            quantity: comp.returnedQuantity,
+                            referenceId:
+                                input.referenceId ?? input.reference_id ?? null,
+                            notes:
+                                comp.notes ||
+                                input.notes ||
+                                'Rental return check-in',
+                            createdByUserId: input.userId,
+                        });
                     createdMovements.push(returnMovement);
                 }
 
                 if (comp.damagedQuantity > 0) {
                     const lossMovement =
-                        await this.stockMovementRepository.create(
-                            {
-                                stockId: stockRecord.id,
-                                type: 'LOSS',
-                                quantity: comp.damagedQuantity,
-                                referenceId:
-                                    input.referenceId ??
-                                    input.reference_id ??
-                                    null,
-                                notes:
-                                    comp.notes ||
-                                    input.notes ||
-                                    'Rental loss/damage',
-                                createdByUserId: input.userId,
-                            },
-                            tx,
-                        );
+                        await this.stockMovementRepository.create({
+                            stockId: stockRecord.id,
+                            type: 'LOSS',
+                            quantity: comp.damagedQuantity,
+                            referenceId:
+                                input.referenceId ?? input.reference_id ?? null,
+                            notes:
+                                comp.notes ||
+                                input.notes ||
+                                'Rental loss/damage',
+                            createdByUserId: input.userId,
+                        });
                     createdMovements.push(lossMovement);
                 }
 

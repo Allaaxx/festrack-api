@@ -10,19 +10,26 @@ import {
     ProductType,
     ProductRepository,
 } from '../../../domain/index.js';
+import { txContext } from '../transaction-manager.js';
 
 export type { ProductRepository };
 
 const mapProduct = (p: typeof products.$inferSelect): Product => ({
     ...p,
+    isActive: p.isActive,
+    is_active: p.isActive,
     images: p.images ?? [],
 });
 
 export class PostgresProductRepository implements ProductRepository {
     constructor(private readonly database: Database = db) {}
 
+    private getDb(tx?: any): Database {
+        return (tx ?? txContext.getStore() ?? this.database) as Database;
+    }
+
     async create(params: CreateProductParams, tx?: any): Promise<Product> {
-        const dbInstance = tx ?? this.database;
+        const dbInstance = this.getDb(tx);
         const [createdProduct] = await dbInstance
             .insert(products)
             .values({
@@ -34,6 +41,7 @@ export class PostgresProductRepository implements ProductRepository {
                 description: params.description ?? null,
                 images: params.images ?? [],
                 is_bundle: params.is_bundle ?? params.isBundle ?? false,
+                isActive: params.isActive ?? params.is_active ?? true,
             })
             .returning();
 
@@ -41,7 +49,8 @@ export class PostgresProductRepository implements ProductRepository {
     }
 
     async findById(id: string): Promise<Product | null> {
-        const [product] = await this.database
+        const dbInstance = this.getDb();
+        const [product] = await dbInstance
             .select()
             .from(products)
             .where(eq(products.id, id));
@@ -50,7 +59,8 @@ export class PostgresProductRepository implements ProductRepository {
     }
 
     async findByIdWithStock(id: string): Promise<ProductWithStock | null> {
-        const rows = await this.database
+        const dbInstance = this.getDb();
+        const rows = await dbInstance
             .select({
                 product: products,
                 stock: stock,
@@ -70,11 +80,12 @@ export class PostgresProductRepository implements ProductRepository {
         };
     }
 
-    async findBySlug(slug: string): Promise<Product | null> {
-        const [product] = await this.database
+    async findBySlug(shopId: string, slug: string): Promise<Product | null> {
+        const dbInstance = this.getDb();
+        const [product] = await dbInstance
             .select()
             .from(products)
-            .where(eq(products.slug, slug));
+            .where(and(eq(products.shop_id, shopId), eq(products.slug, slug)));
 
         return product ? mapProduct(product) : null;
     }
@@ -83,12 +94,13 @@ export class PostgresProductRepository implements ProductRepository {
         shopId: string,
         filter?: { type?: ProductType },
     ): Promise<ProductWithStock[]> {
+        const dbInstance = this.getDb();
         const conditions = [eq(products.shop_id, shopId)];
         if (filter?.type) {
             conditions.push(eq(products.type, filter.type));
         }
 
-        const rows = await this.database
+        const rows = await dbInstance
             .select({
                 product: products,
                 stock: stock,
@@ -105,15 +117,23 @@ export class PostgresProductRepository implements ProductRepository {
     }
 
     async update(id: string, params: UpdateProductParams): Promise<Product> {
-        const [updatedProduct] = await this.database
+        const dbInstance = this.getDb();
+        const updateValues: Record<string, any> = {};
+        if (params.name !== undefined) updateValues.name = params.name;
+        if (params.slug !== undefined) updateValues.slug = params.slug;
+        if (params.type !== undefined) updateValues.type = params.type;
+        if (params.price !== undefined)
+            updateValues.price = params.price.toString();
+        if (params.description !== undefined)
+            updateValues.description = params.description;
+        if (params.images !== undefined) updateValues.images = params.images;
+        if (params.isActive !== undefined || params.is_active !== undefined) {
+            updateValues.isActive = params.isActive ?? params.is_active;
+        }
+
+        const [updatedProduct] = await dbInstance
             .update(products)
-            .set({
-                ...params,
-                price:
-                    params.price !== undefined
-                        ? params.price.toString()
-                        : undefined,
-            })
+            .set(updateValues)
             .where(eq(products.id, id))
             .returning();
 
@@ -125,7 +145,7 @@ export class PostgresProductRepository implements ProductRepository {
     }
 
     async delete(id: string, tx?: any): Promise<Product> {
-        const dbInstance = tx ?? this.database;
+        const dbInstance = this.getDb(tx);
         const [deletedProduct] = await dbInstance
             .delete(products)
             .where(eq(products.id, id))

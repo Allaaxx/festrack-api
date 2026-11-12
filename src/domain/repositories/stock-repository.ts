@@ -5,16 +5,9 @@ import {
 } from '../entities/stock.js';
 
 export interface StockRepository {
-    create(params: CreateStockParams, tx?: any): Promise<Stock>;
-    findByProductId(productId: string, tx?: any): Promise<Stock | null>;
-    findManyByProductIdsWithLock(
-        productIds: string[],
-        tx?: any,
-    ): Promise<Stock[]>;
-    update(
-        productId: string,
-        params: UpdateStockParams,
-        tx?: any,
-    ): Promise<Stock>;
-    delete(productId: string, tx?: any): Promise<Stock>;
+    create(params: CreateStockParams): Promise<Stock>;
+    findByProductId(productId: string): Promise<Stock | null>;
+    findManyByProductIdsWithLock(productIds: string[]): Promise<Stock[]>;
+    update(productId: string, params: UpdateStockParams): Promise<Stock>;
+    delete(productId: string): Promise<Stock>;
 }

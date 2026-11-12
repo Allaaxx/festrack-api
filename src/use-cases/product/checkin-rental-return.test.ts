@@ -206,14 +206,10 @@ describe('CheckinRentalReturnUseCase (Unit Tests)', () => {
         expect(result.items.length).toBe(1);
         expect(result.items[0].currentQuantity).toBe(10);
         expect(result.items[0].currentReserved).toBe(2); // 5 - 3
-        expect(stockRepo.update).toHaveBeenCalledWith(
-            'prod-chair',
-            {
-                quantity: 10,
-                reserved: 2,
-            },
-            undefined,
-        );
+        expect(stockRepo.update).toHaveBeenCalledWith('prod-chair', {
+            quantity: 10,
+            reserved: 2,
+        });
         expect(stockMovementRepo.create).toHaveBeenCalledTimes(1);
         expect(result.movements[0].type).toBe('RENTAL_RETURN');
         expect(result.movements[0].quantity).toBe(3);
@@ -236,14 +232,10 @@ describe('CheckinRentalReturnUseCase (Unit Tests)', () => {
         expect(result.success).toBe(true);
         expect(result.items[0].currentQuantity).toBe(8); // 10 - 2
         expect(result.items[0].currentReserved).toBe(1); // 5 - (2 + 2)
-        expect(stockRepo.update).toHaveBeenCalledWith(
-            'prod-chair',
-            {
-                quantity: 8,
-                reserved: 1,
-            },
-            undefined,
-        );
+        expect(stockRepo.update).toHaveBeenCalledWith('prod-chair', {
+            quantity: 8,
+            reserved: 1,
+        });
         expect(stockMovementRepo.create).toHaveBeenCalledTimes(2);
 
         const types = result.movements.map((m) => m.type);
