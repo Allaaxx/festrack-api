@@ -13,6 +13,16 @@ import {
     varchar,
 } from 'drizzle-orm/pg-core';
 import { shops } from './shops.js';
+import { user } from './users.js';
+
+export const stockMovementTypeEnum = pgEnum('stock_movement_type', [
+    'INBOUND',
+    'SALE',
+    'RENTAL_ALLOCATION',
+    'RENTAL_RETURN',
+    'LOSS',
+    'ADJUSTMENT',
+]);
 
 export const productTypeEnum = pgEnum('product_type', [
     'service',
@@ -116,6 +126,37 @@ export const bundleItems = pgTable(
 
 export const bundleItemsTable = bundleItems;
 
+export const stockMovements = pgTable(
+    'stock_movements',
+    {
+        id: text('id')
+            .primaryKey()
+            .$defaultFn(() => crypto.randomUUID()),
+        stockId: text('stock_id')
+            .notNull()
+            .references(() => stock.id, {
+                onDelete: 'cascade',
+                onUpdate: 'cascade',
+            }),
+        type: stockMovementTypeEnum('type').notNull(),
+        quantity: integer('quantity').notNull(),
+        notes: text('notes'),
+        referenceId: text('reference_id'),
+        createdByUserId: text('created_by_user_id').references(() => user.id, {
+            onDelete: 'set null',
+        }),
+        createdAt: timestamp('created_at', { precision: 3, mode: 'date' })
+            .defaultNow()
+            .notNull(),
+    },
+    (table) => [
+        index('stock_movements_stock_idx').on(table.stockId),
+        index('stock_movements_created_at_idx').on(table.createdAt),
+    ],
+);
+
+export const stockMovementsTable = stockMovements;
+
 export const productsRelations = relations(products, ({ one, many }) => ({
     shop: one(shops, {
         fields: [products.shop_id],
@@ -129,10 +170,22 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     usedInBundles: many(bundleItems, { relationName: 'component_to_bundles' }),
 }));
 
-export const stockRelations = relations(stock, ({ one }) => ({
+export const stockRelations = relations(stock, ({ one, many }) => ({
     product: one(products, {
         fields: [stock.product_id],
         references: [products.id],
+    }),
+    movements: many(stockMovements),
+}));
+
+export const stockMovementsRelations = relations(stockMovements, ({ one }) => ({
+    stock: one(stock, {
+        fields: [stockMovements.stockId],
+        references: [stock.id],
+    }),
+    createdByUser: one(user, {
+        fields: [stockMovements.createdByUserId],
+        references: [user.id],
     }),
 }));
 
@@ -155,3 +208,5 @@ export type StockTableInsert = typeof stock.$inferInsert;
 export type StockTableSelect = typeof stock.$inferSelect;
 export type BundleItemTableInsert = typeof bundleItems.$inferInsert;
 export type BundleItemTableSelect = typeof bundleItems.$inferSelect;
+export type StockMovementTableInsert = typeof stockMovements.$inferInsert;
+export type StockMovementTableSelect = typeof stockMovements.$inferSelect;

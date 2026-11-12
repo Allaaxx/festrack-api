@@ -5,6 +5,8 @@ import {
     ListProductsUseCase,
     GetProductUseCase,
     DeleteProductUseCase,
+    RecordStockAdjustmentUseCase,
+    GetStockMovementsUseCase,
 } from '../use-cases/index.js';
 import {
     PostgresProductRepository,
@@ -12,12 +14,15 @@ import {
     PostgresShopRepository,
     PostgresShopMemberRepository,
     PostgresBundleItemRepository,
+    PostgresStockMovementRepository,
 } from '../repositories/postgres/index.js';
 import {
     ProductNotFoundError,
     SlugAlreadyExistsError,
     InvalidBundleComponentError,
     CannotDeleteProductInBundleError,
+    InvalidStockAdjustmentError,
+    StockNotFoundError,
 } from '../errors/product.js';
 import { ShopNotFoundError } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/auth.js';
@@ -369,6 +374,171 @@ export const productsRoutes = new Elysia({
             detail: {
                 tags: ['Products'],
                 summary: 'Delete product by ID',
+            },
+        },
+    )
+    .post(
+        '/:id/stock/adjust',
+        async ({ userId, params, body, set }) => {
+            const productRepository = new PostgresProductRepository();
+            const stockRepository = new PostgresStockRepository();
+            const stockMovementRepository =
+                new PostgresStockMovementRepository();
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
+
+            const useCase = new RecordStockAdjustmentUseCase(
+                productRepository,
+                stockRepository,
+                stockMovementRepository,
+                shopRepository,
+                shopMemberRepository,
+            );
+
+            try {
+                const result = await useCase.execute({
+                    shopId: params.shopId,
+                    productId: params.id,
+                    userId: userId!,
+                    quantityDelta:
+                        body.quantityDelta ??
+                        body.quantity_delta ??
+                        body.quantity!,
+                    type: body.type,
+                    notes: body.notes ?? '',
+                    referenceId: body.referenceId ?? body.reference_id ?? null,
+                });
+                set.status = 200;
+                return result;
+            } catch (error) {
+                if (error instanceof InvalidStockAdjustmentError) {
+                    set.status = 400;
+                    return { message: error.message };
+                }
+                if (
+                    error instanceof ProductNotFoundError ||
+                    error instanceof StockNotFoundError
+                ) {
+                    set.status = 404;
+                    return { message: error.message };
+                }
+                if (error instanceof ShopNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Shop not found.' };
+                }
+                if (error instanceof ForbiddenError) {
+                    set.status = 403;
+                    return { message: 'Forbidden' };
+                }
+                set.status = 500;
+                return { message: 'Internal server error' };
+            }
+        },
+        {
+            isAuth: true,
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'Product ID must be a valid UUID.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
+            body: t.Object(
+                {
+                    quantityDelta: t.Optional(t.Integer()),
+                    quantity_delta: t.Optional(t.Integer()),
+                    quantity: t.Optional(t.Integer()),
+                    type: t.Union([
+                        t.Literal('INBOUND'),
+                        t.Literal('ADJUSTMENT'),
+                        t.Literal('LOSS'),
+                    ]),
+                    notes: t.Optional(t.String()),
+                    referenceId: t.Optional(t.Nullable(t.String())),
+                    reference_id: t.Optional(t.Nullable(t.String())),
+                },
+                { additionalProperties: false },
+            ),
+            detail: {
+                tags: ['Products', 'Stock'],
+                summary: 'Record a manual stock adjustment or movement',
+            },
+        },
+    )
+    .get(
+        '/:id/stock/movements',
+        async ({ userId, params, set }) => {
+            const productRepository = new PostgresProductRepository();
+            const stockRepository = new PostgresStockRepository();
+            const stockMovementRepository =
+                new PostgresStockMovementRepository();
+            const shopRepository = new PostgresShopRepository();
+            const shopMemberRepository = new PostgresShopMemberRepository();
+
+            const useCase = new GetStockMovementsUseCase(
+                productRepository,
+                stockRepository,
+                stockMovementRepository,
+                shopRepository,
+                shopMemberRepository,
+            );
+
+            try {
+                const movements = await useCase.execute({
+                    shopId: params.shopId,
+                    productId: params.id,
+                    userId: userId!,
+                });
+                set.status = 200;
+                return movements;
+            } catch (error) {
+                if (
+                    error instanceof ProductNotFoundError ||
+                    error instanceof StockNotFoundError
+                ) {
+                    set.status = 404;
+                    return { message: error.message };
+                }
+                if (error instanceof InvalidStockAdjustmentError) {
+                    set.status = 400;
+                    return { message: error.message };
+                }
+                if (error instanceof ShopNotFoundError) {
+                    set.status = 404;
+                    return { message: 'Shop not found.' };
+                }
+                if (error instanceof ForbiddenError) {
+                    set.status = 403;
+                    return { message: 'Forbidden' };
+                }
+                set.status = 500;
+                return { message: 'Internal server error' };
+            }
+        },
+        {
+            isAuth: true,
+            params: t.Object(
+                {
+                    shopId: t.String({
+                        format: 'uuid',
+                        error: 'The provided id is not valid.',
+                    }),
+                    id: t.String({
+                        format: 'uuid',
+                        error: 'Product ID must be a valid UUID.',
+                    }),
+                },
+                { additionalProperties: false },
+            ),
+            detail: {
+                tags: ['Products', 'Stock'],
+                summary: 'Get stock movements for a product',
             },
         },
     );

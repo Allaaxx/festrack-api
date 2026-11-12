@@ -9,7 +9,7 @@ globalThis.jest = jest;
 beforeEach(async () => {
     try {
         await sqlClient.unsafe(
-            'TRUNCATE TABLE "bundle_items", "stock", "products", "Transaction", "Event", "shops", "shop_members", "session", "account", "verification", "user" CASCADE;',
+            'TRUNCATE TABLE "stock_movements", "bundle_items", "stock", "products", "Transaction", "Event", "shops", "shop_members", "session", "account", "verification", "user" CASCADE;',
         );
     } catch {
         try {

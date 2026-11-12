@@ -10,11 +10,25 @@ import {
 
 export type { StockRepository };
 
+const mapStock = (s: typeof stock.$inferSelect): Stock => {
+    const available = s.quantity - s.reserved;
+    return {
+        id: s.id,
+        product_id: s.product_id,
+        quantity: s.quantity,
+        reserved: s.reserved,
+        available_stock: available,
+        availableStock: available,
+        updated_at: s.updated_at,
+    };
+};
+
 export class PostgresStockRepository implements StockRepository {
     constructor(private readonly database: Database = db) {}
 
-    async create(params: CreateStockParams): Promise<Stock> {
-        const [createdStock] = await this.database
+    async create(params: CreateStockParams, tx?: any): Promise<Stock> {
+        const dbInstance = tx ?? this.database;
+        const [createdStock] = await dbInstance
             .insert(stock)
             .values({
                 product_id: params.product_id,
@@ -23,20 +37,26 @@ export class PostgresStockRepository implements StockRepository {
             })
             .returning();
 
-        return createdStock;
+        return mapStock(createdStock);
     }
 
-    async findByProductId(productId: string): Promise<Stock | null> {
-        const [item] = await this.database
+    async findByProductId(productId: string, tx?: any): Promise<Stock | null> {
+        const dbInstance = tx ?? this.database;
+        const [item] = await dbInstance
             .select()
             .from(stock)
             .where(eq(stock.product_id, productId));
 
-        return item ?? null;
+        return item ? mapStock(item) : null;
     }
 
-    async update(productId: string, params: UpdateStockParams): Promise<Stock> {
-        const [updatedStock] = await this.database
+    async update(
+        productId: string,
+        params: UpdateStockParams,
+        tx?: any,
+    ): Promise<Stock> {
+        const dbInstance = tx ?? this.database;
+        const [updatedStock] = await dbInstance
             .update(stock)
             .set({
                 ...params,
@@ -45,15 +65,16 @@ export class PostgresStockRepository implements StockRepository {
             .where(eq(stock.product_id, productId))
             .returning();
 
-        return updatedStock;
+        return updatedStock ? mapStock(updatedStock) : updatedStock;
     }
 
-    async delete(productId: string): Promise<Stock> {
-        const [deletedStock] = await this.database
+    async delete(productId: string, tx?: any): Promise<Stock> {
+        const dbInstance = tx ?? this.database;
+        const [deletedStock] = await dbInstance
             .delete(stock)
             .where(eq(stock.product_id, productId))
             .returning();
 
-        return deletedStock;
+        return deletedStock ? mapStock(deletedStock) : deletedStock;
     }
 }
