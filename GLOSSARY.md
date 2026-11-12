@@ -43,3 +43,23 @@ _Avoid_: Password creation, initial password, account conversion
 **Credential Rotation**:
 Users with an existing password credential must provide their active password alongside their replacement secret (`changePassword`) to verify account ownership prior to updating credentials.
 _Avoid_: Password reset, credential refresh, password modification
+
+**Product**:
+A salable, rentable, or serviceable offering created by a shop for customers.
+_Avoid_: Item, article, listing, goods
+
+**Product Bundle**:
+A composite product whose availability and fulfillment are dynamically derived from a collection of component products rather than maintaining a dedicated physical stock.
+_Avoid_: Kit, combo, package, grouped product
+
+**Bundle Item**:
+The association linking a product bundle to a required component product alongside its multiplier quantity.
+_Avoid_: Component, ingredient, sub-item, part
+
+**Stock**:
+The physical inventory record tracking on-hand quantity and reserved allocations for a single simple product owned by a shop.
+_Avoid_: Inventory, storage, warehouse count
+
+**Stock Movement**:
+An immutable ledger entry recording a discrete change in a product's stock caused by receipts, sales, rental allocations, returns, or losses.
+_Avoid_: Stock change, adjustment record, inventory log
