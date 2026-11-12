@@ -81,7 +81,42 @@ export const stock = pgTable(
 
 export const stockTable = stock;
 
-export const productsRelations = relations(products, ({ one }) => ({
+export const bundleItems = pgTable(
+    'bundle_items',
+    {
+        id: text('id')
+            .primaryKey()
+            .$defaultFn(() => crypto.randomUUID()),
+        bundle_product_id: text('bundle_product_id')
+            .notNull()
+            .references(() => products.id, {
+                onDelete: 'cascade',
+                onUpdate: 'cascade',
+            }),
+        product_id: text('product_id')
+            .notNull()
+            .references(() => products.id, {
+                onDelete: 'restrict',
+                onUpdate: 'cascade',
+            }),
+        quantity: integer('quantity').default(1).notNull(),
+        created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+            .defaultNow()
+            .notNull(),
+        updated_at: timestamp('updated_at', { precision: 3, mode: 'date' })
+            .defaultNow()
+            .$onUpdate(() => new Date())
+            .notNull(),
+    },
+    (table) => [
+        index('bundle_items_bundle_product_idx').on(table.bundle_product_id),
+        index('bundle_items_product_idx').on(table.product_id),
+    ],
+);
+
+export const bundleItemsTable = bundleItems;
+
+export const productsRelations = relations(products, ({ one, many }) => ({
     shop: one(shops, {
         fields: [products.shop_id],
         references: [shops.id],
@@ -90,6 +125,8 @@ export const productsRelations = relations(products, ({ one }) => ({
         fields: [products.id],
         references: [stock.product_id],
     }),
+    bundleItems: many(bundleItems, { relationName: 'bundle_to_items' }),
+    usedInBundles: many(bundleItems, { relationName: 'component_to_bundles' }),
 }));
 
 export const stockRelations = relations(stock, ({ one }) => ({
@@ -99,7 +136,22 @@ export const stockRelations = relations(stock, ({ one }) => ({
     }),
 }));
 
+export const bundleItemsRelations = relations(bundleItems, ({ one }) => ({
+    bundleProduct: one(products, {
+        fields: [bundleItems.bundle_product_id],
+        references: [products.id],
+        relationName: 'bundle_to_items',
+    }),
+    product: one(products, {
+        fields: [bundleItems.product_id],
+        references: [products.id],
+        relationName: 'component_to_bundles',
+    }),
+}));
+
 export type ProductTableInsert = typeof products.$inferInsert;
 export type ProductTableSelect = typeof products.$inferSelect;
 export type StockTableInsert = typeof stock.$inferInsert;
 export type StockTableSelect = typeof stock.$inferSelect;
+export type BundleItemTableInsert = typeof bundleItems.$inferInsert;
+export type BundleItemTableSelect = typeof bundleItems.$inferSelect;

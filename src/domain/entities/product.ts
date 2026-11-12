@@ -1,4 +1,5 @@
 import { Stock } from './stock.js';
+import { BundleItem } from './bundle-item.js';
 
 export type ProductType = 'service' | 'sale' | 'rent';
 
@@ -18,6 +19,8 @@ export interface Product {
 
 export interface ProductWithStock extends Product {
     stock: Stock | null;
+    bundle_items?: BundleItem[] | null;
+    bundleItems?: BundleItem[] | null;
 }
 
 export interface CreateProductParams {
@@ -29,6 +32,7 @@ export interface CreateProductParams {
     description?: string | null;
     images?: string[];
     is_bundle?: boolean;
+    isBundle?: boolean;
 }
 
 export interface UpdateProductParams {

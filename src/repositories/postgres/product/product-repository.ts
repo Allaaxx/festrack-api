@@ -21,8 +21,9 @@ const mapProduct = (p: typeof products.$inferSelect): Product => ({
 export class PostgresProductRepository implements ProductRepository {
     constructor(private readonly database: Database = db) {}
 
-    async create(params: CreateProductParams): Promise<Product> {
-        const [createdProduct] = await this.database
+    async create(params: CreateProductParams, tx?: any): Promise<Product> {
+        const dbInstance = tx ?? this.database;
+        const [createdProduct] = await dbInstance
             .insert(products)
             .values({
                 shop_id: params.shop_id,
@@ -32,7 +33,7 @@ export class PostgresProductRepository implements ProductRepository {
                 price: params.price.toString(),
                 description: params.description ?? null,
                 images: params.images ?? [],
-                is_bundle: params.is_bundle ?? false,
+                is_bundle: params.is_bundle ?? params.isBundle ?? false,
             })
             .returning();
 
@@ -123,8 +124,9 @@ export class PostgresProductRepository implements ProductRepository {
         return mapProduct(updatedProduct);
     }
 
-    async delete(id: string): Promise<Product> {
-        const [deletedProduct] = await this.database
+    async delete(id: string, tx?: any): Promise<Product> {
+        const dbInstance = tx ?? this.database;
+        const [deletedProduct] = await dbInstance
             .delete(products)
             .where(eq(products.id, id))
             .returning();

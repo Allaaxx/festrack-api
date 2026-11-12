@@ -6,6 +6,7 @@ import {
     ProductRepository,
     ShopRepository,
     ShopMemberRepository,
+    BundleItemRepository,
 } from '../../domain/index.js';
 
 export class GetProductUseCase {
@@ -18,6 +19,10 @@ export class GetProductUseCase {
         private readonly shopMemberRepository: Pick<
             ShopMemberRepository,
             'findByShopAndUserId'
+        >,
+        private readonly bundleItemRepository?: Pick<
+            BundleItemRepository,
+            'findByBundleId'
         >,
     ) {}
 
@@ -43,6 +48,17 @@ export class GetProductUseCase {
             await this.productRepository.findByIdWithStock(productId);
         if (!product || product.shop_id !== shopId) {
             throw new ProductNotFoundError(productId);
+        }
+
+        if (product.is_bundle && this.bundleItemRepository) {
+            const bundleItems =
+                await this.bundleItemRepository.findByBundleId(productId);
+            return {
+                ...product,
+                stock: null,
+                bundle_items: bundleItems,
+                bundleItems,
+            };
         }
 
         return product;

@@ -2,7 +2,10 @@ import { describe, it, expect, mock } from 'bun:test';
 import { DeleteProductUseCase } from './delete-product.js';
 import { ShopNotFoundError } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
-import { ProductNotFoundError } from '../../errors/product.js';
+import {
+    ProductNotFoundError,
+    CannotDeleteProductInBundleError,
+} from '../../errors/product.js';
 import { Product, Shop, ShopMember } from '../../domain/index.js';
 
 describe('Delete Product Use Case', () => {
@@ -142,5 +145,31 @@ describe('Delete Product Use Case', () => {
         await expect(
             useCase.execute('shop-1', 'prod-1', 'stranger'),
         ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('should throw CannotDeleteProductInBundleError when product is component in an active bundle', async () => {
+        const productRepo = {
+            findById: mock(async () => fakeProduct),
+            delete: mock(async () => fakeProduct),
+        };
+        const shopRepo = { findById: mock(async () => fakeShop) };
+        const memberRepo = {
+            findByShopAndUserId: mock(async () => fakeMember),
+        };
+        const bundleRepo = {
+            isComponentInAnyBundle: mock(async () => true),
+        };
+
+        const useCase = new DeleteProductUseCase(
+            productRepo,
+            shopRepo,
+            memberRepo,
+            bundleRepo,
+        );
+
+        await expect(
+            useCase.execute('shop-1', 'prod-1', 'user-1'),
+        ).rejects.toThrow(CannotDeleteProductInBundleError);
+        expect(productRepo.delete).not.toHaveBeenCalled();
     });
 });

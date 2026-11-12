@@ -11,10 +11,13 @@ import {
     PostgresStockRepository,
     PostgresShopRepository,
     PostgresShopMemberRepository,
+    PostgresBundleItemRepository,
 } from '../repositories/postgres/index.js';
 import {
     ProductNotFoundError,
     SlugAlreadyExistsError,
+    InvalidBundleComponentError,
+    CannotDeleteProductInBundleError,
 } from '../errors/product.js';
 import { ShopNotFoundError } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/auth.js';
@@ -31,12 +34,14 @@ export const productsRoutes = new Elysia({
             const stockRepository = new PostgresStockRepository();
             const shopRepository = new PostgresShopRepository();
             const shopMemberRepository = new PostgresShopMemberRepository();
+            const bundleItemRepository = new PostgresBundleItemRepository();
 
             const useCase = new CreateProductUseCase(
                 productRepository,
                 stockRepository,
                 shopRepository,
                 shopMemberRepository,
+                bundleItemRepository,
             );
 
             try {
@@ -51,10 +56,17 @@ export const productsRoutes = new Elysia({
                     images: body.images ?? [],
                     quantity: body.quantity,
                     initial_quantity: body.initial_quantity,
+                    is_bundle: body.is_bundle ?? (body as any).isBundle,
+                    bundle_items:
+                        body.bundle_items ?? (body as any).bundleItems,
                 });
                 set.status = 201;
                 return product;
             } catch (error) {
+                if (error instanceof InvalidBundleComponentError) {
+                    set.status = 400;
+                    return { message: error.message };
+                }
                 if (error instanceof ShopNotFoundError) {
                     set.status = 404;
                     return { message: 'Shop not found.' };
@@ -129,6 +141,29 @@ export const productsRoutes = new Elysia({
                             minimum: 0,
                             error: 'Initial quantity must be a non-negative integer.',
                         }),
+                    ),
+                    is_bundle: t.Optional(t.Boolean()),
+                    isBundle: t.Optional(t.Boolean()),
+                    bundle_items: t.Optional(
+                        t.Array(
+                            t.Object({
+                                product_id: t.String({ format: 'uuid' }),
+                                quantity: t.Integer({ minimum: 1 }),
+                            }),
+                        ),
+                    ),
+                    bundleItems: t.Optional(
+                        t.Array(
+                            t.Object({
+                                product_id: t.Optional(
+                                    t.String({ format: 'uuid' }),
+                                ),
+                                productId: t.Optional(
+                                    t.String({ format: 'uuid' }),
+                                ),
+                                quantity: t.Integer({ minimum: 1 }),
+                            }),
+                        ),
                     ),
                 },
                 { additionalProperties: false },
@@ -215,11 +250,13 @@ export const productsRoutes = new Elysia({
             const productRepository = new PostgresProductRepository();
             const shopRepository = new PostgresShopRepository();
             const shopMemberRepository = new PostgresShopMemberRepository();
+            const bundleItemRepository = new PostgresBundleItemRepository();
 
             const useCase = new GetProductUseCase(
                 productRepository,
                 shopRepository,
                 shopMemberRepository,
+                bundleItemRepository,
             );
 
             try {
@@ -274,11 +311,13 @@ export const productsRoutes = new Elysia({
             const productRepository = new PostgresProductRepository();
             const shopRepository = new PostgresShopRepository();
             const shopMemberRepository = new PostgresShopMemberRepository();
+            const bundleItemRepository = new PostgresBundleItemRepository();
 
             const useCase = new DeleteProductUseCase(
                 productRepository,
                 shopRepository,
                 shopMemberRepository,
+                bundleItemRepository,
             );
 
             try {
@@ -290,6 +329,10 @@ export const productsRoutes = new Elysia({
                 set.status = 200;
                 return product;
             } catch (error) {
+                if (error instanceof CannotDeleteProductInBundleError) {
+                    set.status = 409;
+                    return { message: error.message };
+                }
                 if (error instanceof ProductNotFoundError) {
                     set.status = 404;
                     return { message: error.message };
