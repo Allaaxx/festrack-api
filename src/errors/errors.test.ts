@@ -13,6 +13,7 @@ import {
     ShopAssetInvalidFileTypeError,
     ShopAssetFileSizeExceededError,
     InsufficientStockError,
+    InvalidRentalReturnError,
 } from './index.js';
 
 describe('Domain Errors', () => {
@@ -150,5 +151,37 @@ describe('Domain Errors', () => {
         expect(error.details[0].requested_quantity).toBe(5);
         expect(error.details[0].availableStock).toBe(2);
         expect(error.details[0].available_stock).toBe(2);
+    });
+
+    it('InvalidRentalReturnError should have correct properties and details', () => {
+        const simpleError = new InvalidRentalReturnError(
+            'Damaged items require damage notes.',
+        );
+        expect(simpleError.name).toBe('InvalidRentalReturnError');
+        expect(simpleError.message).toBe('Damaged items require damage notes.');
+        expect(simpleError.statusCode).toBe(400);
+
+        const detailedError = new InvalidRentalReturnError(
+            'Returned quantity exceeds reserved stock.',
+            [
+                {
+                    productId: 'prod-chair',
+                    returnedQuantity: 5,
+                    damagedQuantity: 0,
+                    totalToCheckin: 5,
+                    reservedStock: 2,
+                    reason: 'Returned and lost quantity exceeds reserved stock.',
+                },
+            ],
+            400,
+        );
+        expect(detailedError.name).toBe('InvalidRentalReturnError');
+        expect(detailedError.details).toBeDefined();
+        expect(detailedError.details!.length).toBe(1);
+        expect(detailedError.details![0].productId).toBe('prod-chair');
+        expect(detailedError.details![0].product_id).toBe('prod-chair');
+        expect(detailedError.details![0].returnedQuantity).toBe(5);
+        expect(detailedError.details![0].totalToCheckin).toBe(5);
+        expect(detailedError.details![0].reservedStock).toBe(2);
     });
 });

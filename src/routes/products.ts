@@ -27,7 +27,12 @@ import {
 import { ShopNotFoundError } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/auth.js';
 import { ProductType } from '../domain/index.js';
-import { reserveStockRouteHandler, reserveStockRouteSchema } from './stock.js';
+import {
+    reserveStockRouteHandler,
+    reserveStockRouteSchema,
+    checkinRentalReturnRouteHandler,
+    checkinRentalReturnRouteSchema,
+} from './stock.js';
 
 export const productsRoutes = new Elysia({
     prefix: '/api/shops/:shopId/products',
@@ -543,4 +548,9 @@ export const productsRoutes = new Elysia({
             },
         },
     )
-    .post('/stock/reserve', reserveStockRouteHandler, reserveStockRouteSchema);
+    .post('/stock/reserve', reserveStockRouteHandler, reserveStockRouteSchema)
+    .post(
+        '/stock/checkin',
+        checkinRentalReturnRouteHandler,
+        checkinRentalReturnRouteSchema,
+    );
