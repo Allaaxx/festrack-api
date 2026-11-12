@@ -2,8 +2,9 @@ import { describe, it, expect } from 'bun:test';
 import { app } from '../app.js';
 import { testClient } from '../test-helper.js';
 import { createAuthenticatedUser } from '../tests/auth-helper.js';
+import { eq } from 'drizzle-orm';
 import { db } from '../db/postgres/index.js';
-import { shopMembersTable } from '../db/postgres/schemas/index.js';
+import { shopMembersTable, stock } from '../db/postgres/schemas/index.js';
 import { faker } from '@faker-js/faker';
 
 describe('Shop-Scoped Products Routes (Elysia E2E)', () => {
@@ -887,6 +888,358 @@ describe('Shop-Scoped Products Routes (Elysia E2E)', () => {
                 .delete(`/api/shops/${shop.id}/products/${simpleItem.body.id}`)
                 .set('Authorization', owner.bearerHeader);
             expect(deleteSimpleRes.status).toBe(200);
+        });
+    });
+
+    describe('Dynamic Available Stock Evaluation (#117)', () => {
+        it('should calculate dynamic available stock for a bundle with multiple components based on bottleneck component', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            // Component A: 10 stock
+            const compA = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Component A',
+                    slug: `comp-a-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 10.0,
+                    initial_quantity: 10,
+                });
+
+            // Component B: 12 stock
+            const compB = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Component B',
+                    slug: `comp-b-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 15.0,
+                    initial_quantity: 12,
+                });
+
+            // Bundle requires 2 of A (10/2 = 5) and 3 of B (12/3 = 4) -> bottleneck is 4
+            const bundleRes = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Combo Bundle',
+                    slug: `combo-bundle-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 59.99,
+                    is_bundle: true,
+                    bundle_items: [
+                        { product_id: compA.body.id, quantity: 2 },
+                        { product_id: compB.body.id, quantity: 3 },
+                    ],
+                });
+
+            expect(bundleRes.status).toBe(201);
+            const bundleId = bundleRes.body.id;
+
+            // 1. Check Bundle Details GET /api/shops/:shopId/products/:id
+            const detailRes = await client
+                .get(`/api/shops/${shop.id}/products/${bundleId}`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(detailRes.status).toBe(200);
+            expect(detailRes.body.available_stock).toBe(4);
+            expect(detailRes.body.stock).toBeNull();
+
+            const items =
+                detailRes.body.bundle_items ?? detailRes.body.bundleItems;
+            expect(items).toBeDefined();
+            expect(items.length).toBe(2);
+
+            const itemA = items.find(
+                (i: any) => (i.product_id ?? i.productId) === compA.body.id,
+            );
+            expect(itemA).toBeDefined();
+            expect(itemA.quantity).toBe(2);
+            const stockA = itemA.stock ?? itemA.componentProduct?.stock;
+            expect(stockA).toBeDefined();
+            expect(stockA.quantity).toBe(10);
+            expect(stockA.reserved).toBe(0);
+            expect(stockA.available_stock).toBe(10);
+
+            const itemB = items.find(
+                (i: any) => (i.product_id ?? i.productId) === compB.body.id,
+            );
+            expect(itemB).toBeDefined();
+            expect(itemB.quantity).toBe(3);
+            const stockB = itemB.stock ?? itemB.componentProduct?.stock;
+            expect(stockB).toBeDefined();
+            expect(stockB.quantity).toBe(12);
+            expect(stockB.reserved).toBe(0);
+            expect(stockB.available_stock).toBe(12);
+
+            // 2. Check Catalog Listing GET /api/shops/:shopId/products
+            const listRes = await client
+                .get(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(listRes.status).toBe(200);
+            const listedBundle = listRes.body.find(
+                (p: any) => p.id === bundleId,
+            );
+            expect(listedBundle).toBeDefined();
+            expect(listedBundle.available_stock).toBe(4);
+
+            const listedA = listRes.body.find(
+                (p: any) => p.id === compA.body.id,
+            );
+            expect(listedA).toBeDefined();
+            expect(listedA.available_stock).toBe(10);
+
+            const listedB = listRes.body.find(
+                (p: any) => p.id === compB.body.id,
+            );
+            expect(listedB).toBeDefined();
+            expect(listedB.available_stock).toBe(12);
+        });
+
+        it('should immediately update dynamic available stock across multiple bundles sharing a component when that component stock changes', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            // Shared Component: Chair (20 in stock)
+            const chairRes = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Shared Chair',
+                    slug: `shared-chair-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 20.0,
+                    initial_quantity: 20,
+                });
+
+            // Component: Table (10 in stock)
+            const tableRes = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Table',
+                    slug: `table-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 80.0,
+                    initial_quantity: 10,
+                });
+
+            // Component: Arch (5 in stock)
+            const archRes = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Arch',
+                    slug: `arch-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 150.0,
+                    initial_quantity: 5,
+                });
+
+            // Bundle 1 (Dinner Set): requires 4 Chairs, 1 Table
+            // Chair: 20/4 = 5. Table: 10/1 = 10 -> Bundle 1 = 5
+            const bundle1Res = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Dinner Set Bundle',
+                    slug: `dinner-set-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 140.0,
+                    is_bundle: true,
+                    bundle_items: [
+                        { product_id: chairRes.body.id, quantity: 4 },
+                        { product_id: tableRes.body.id, quantity: 1 },
+                    ],
+                });
+
+            // Bundle 2 (Ceremony Set): requires 2 Chairs, 1 Arch
+            // Chair: 20/2 = 10. Arch: 5/1 = 5 -> Bundle 2 = 5
+            const bundle2Res = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Ceremony Set Bundle',
+                    slug: `ceremony-set-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 180.0,
+                    is_bundle: true,
+                    bundle_items: [
+                        { product_id: chairRes.body.id, quantity: 2 },
+                        { product_id: archRes.body.id, quantity: 1 },
+                    ],
+                });
+
+            const bundle1Id = bundle1Res.body.id;
+            const bundle2Id = bundle2Res.body.id;
+
+            // Verify initial stock evaluation
+            const initialB1 = await client
+                .get(`/api/shops/${shop.id}/products/${bundle1Id}`)
+                .set('Authorization', owner.bearerHeader);
+            expect(initialB1.body.available_stock).toBe(5);
+
+            const initialB2 = await client
+                .get(`/api/shops/${shop.id}/products/${bundle2Id}`)
+                .set('Authorization', owner.bearerHeader);
+            expect(initialB2.body.available_stock).toBe(5);
+
+            // Now, reduce Chair stock to 8 (e.g. sales or reservation)
+            await db
+                .update(stock)
+                .set({ quantity: 8 })
+                .where(eq(stock.product_id, chairRes.body.id));
+
+            // With Chair stock = 8:
+            // Bundle 1: Chair 8/4 = 2, Table 10/1 = 10 -> min is 2
+            // Bundle 2: Chair 8/2 = 4, Arch 5/1 = 5 -> min is 4
+            const updatedB1 = await client
+                .get(`/api/shops/${shop.id}/products/${bundle1Id}`)
+                .set('Authorization', owner.bearerHeader);
+            expect(updatedB1.body.available_stock).toBe(2);
+
+            const updatedB2 = await client
+                .get(`/api/shops/${shop.id}/products/${bundle2Id}`)
+                .set('Authorization', owner.bearerHeader);
+            expect(updatedB2.body.available_stock).toBe(4);
+
+            // Catalog listing also reflects updated available stock
+            const listRes = await client
+                .get(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader);
+
+            const b1InList = listRes.body.find((p: any) => p.id === bundle1Id);
+            expect(b1InList.available_stock).toBe(2);
+
+            const b2InList = listRes.body.find((p: any) => p.id === bundle2Id);
+            expect(b2InList.available_stock).toBe(4);
+
+            const chairInList = listRes.body.find(
+                (p: any) => p.id === chairRes.body.id,
+            );
+            expect(chairInList.available_stock).toBe(8);
+        });
+
+        it('should evaluate bundle available stock as 0 when any component has zero available stock', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const compAvailable = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Available Part',
+                    slug: `avail-part-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 20.0,
+                    initial_quantity: 10,
+                });
+
+            const compZero = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Zero Part',
+                    slug: `zero-part-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 30.0,
+                    initial_quantity: 0,
+                });
+
+            const bundleRes = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Zero Stock Bundle',
+                    slug: `zero-bundle-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 45.0,
+                    is_bundle: true,
+                    bundle_items: [
+                        { product_id: compAvailable.body.id, quantity: 1 },
+                        { product_id: compZero.body.id, quantity: 1 },
+                    ],
+                });
+
+            const bundleId = bundleRes.body.id;
+
+            // Details should show available_stock = 0
+            const detailRes = await client
+                .get(`/api/shops/${shop.id}/products/${bundleId}`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(detailRes.body.available_stock).toBe(0);
+
+            // Listing should show available_stock = 0
+            const listRes = await client
+                .get(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader);
+
+            const listedBundle = listRes.body.find(
+                (p: any) => p.id === bundleId,
+            );
+            expect(listedBundle.available_stock).toBe(0);
+
+            // When component has stock but all reserved (quantity 5, reserved 5 -> available 0)
+            await db
+                .update(stock)
+                .set({ quantity: 5, reserved: 5 })
+                .where(eq(stock.product_id, compZero.body.id));
+
+            const detailAfterReserved = await client
+                .get(`/api/shops/${shop.id}/products/${bundleId}`)
+                .set('Authorization', owner.bearerHeader);
+            expect(detailAfterReserved.body.available_stock).toBe(0);
+        });
+
+        it('should round down fractional bottleneck results to the nearest integer', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const comp = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Fractional Part',
+                    slug: `frac-part-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 15.0,
+                    initial_quantity: 5,
+                });
+
+            // Requires 2 -> floor(5 / 2) = 2
+            const bundleRes = await client
+                .post(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Fractional Bundle',
+                    slug: `frac-bundle-${faker.string.alphanumeric(8)}`,
+                    type: 'sale',
+                    price: 25.0,
+                    is_bundle: true,
+                    bundle_items: [{ product_id: comp.body.id, quantity: 2 }],
+                });
+
+            const bundleId = bundleRes.body.id;
+
+            const detailRes = await client
+                .get(`/api/shops/${shop.id}/products/${bundleId}`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(detailRes.body.available_stock).toBe(2);
+
+            const listRes = await client
+                .get(`/api/shops/${shop.id}/products`)
+                .set('Authorization', owner.bearerHeader);
+
+            const listedBundle = listRes.body.find(
+                (p: any) => p.id === bundleId,
+            );
+            expect(listedBundle.available_stock).toBe(2);
         });
     });
 });

@@ -7,6 +7,7 @@ import {
     ShopRepository,
     ShopMemberRepository,
     BundleItemRepository,
+    calculateBundleAvailableStock,
 } from '../../domain/index.js';
 
 export class GetProductUseCase {
@@ -50,17 +51,44 @@ export class GetProductUseCase {
             throw new ProductNotFoundError(productId);
         }
 
-        if (product.is_bundle && this.bundleItemRepository) {
-            const bundleItems =
-                await this.bundleItemRepository.findByBundleId(productId);
+        if (product.is_bundle) {
+            const bundleItems = this.bundleItemRepository
+                ? await this.bundleItemRepository.findByBundleId(productId)
+                : [];
+            const availableStock = calculateBundleAvailableStock(bundleItems);
+
             return {
                 ...product,
                 stock: null,
+                available_stock: availableStock,
+                availableStock,
                 bundle_items: bundleItems,
                 bundleItems,
             };
         }
 
-        return product;
+        if (product.type === 'service') {
+            return {
+                ...product,
+                stock: null,
+            };
+        }
+
+        const available = product.stock
+            ? product.stock.quantity - product.stock.reserved
+            : 0;
+
+        return {
+            ...product,
+            available_stock: available,
+            availableStock: available,
+            stock: product.stock
+                ? {
+                      ...product.stock,
+                      available_stock: available,
+                      availableStock: available,
+                  }
+                : null,
+        };
     }
 }

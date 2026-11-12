@@ -22,3 +22,4 @@ export * from './adapters/password-verifier.js';
 export * from './adapters/google-calendar-adapter.js';
 export * from './adapters/email-service.js';
 export * from './adapters/image-processor.js';
+export * from './services/stock-evaluator.js';

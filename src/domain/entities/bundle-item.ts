@@ -1,4 +1,5 @@
-import { Product } from './product.js';
+import { ProductWithStock } from './product.js';
+import { Stock } from './stock.js';
 
 export interface BundleItem {
     id: string;
@@ -7,8 +8,11 @@ export interface BundleItem {
     productId: string;
     product_id: string;
     quantity: number;
-    componentProduct?: Product;
-    product?: Product;
+    componentProduct?: ProductWithStock;
+    product?: ProductWithStock;
+    stock?: Stock | null;
+    available_stock?: number | null;
+    availableStock?: number | null;
     createdAt: Date | string;
     created_at: Date | string;
     updatedAt: Date | string;

@@ -3,6 +3,8 @@ export interface Stock {
     product_id: string;
     quantity: number;
     reserved: number;
+    available_stock?: number;
+    availableStock?: number;
     updated_at: Date | string;
 }
 

@@ -19,6 +19,8 @@ export interface Product {
 
 export interface ProductWithStock extends Product {
     stock: Stock | null;
+    available_stock?: number | null;
+    availableStock?: number | null;
     bundle_items?: BundleItem[] | null;
     bundleItems?: BundleItem[] | null;
 }

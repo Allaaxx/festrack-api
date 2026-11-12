@@ -1,11 +1,17 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { db, Database } from '../../../db/postgres/index.js';
-import { bundleItems, products } from '../../../db/postgres/schemas/index.js';
+import {
+    bundleItems,
+    products,
+    stock,
+} from '../../../db/postgres/schemas/index.js';
 import {
     BundleItem,
     BundleItemRepository,
     CreateBundleItemParams,
     Product,
+    ProductWithStock,
+    Stock,
 } from '../../../domain/index.js';
 
 const mapProduct = (p: typeof products.$inferSelect): Product => ({
@@ -13,23 +19,47 @@ const mapProduct = (p: typeof products.$inferSelect): Product => ({
     images: p.images ?? [],
 });
 
+const mapStock = (s: typeof stock.$inferSelect): Stock => {
+    const available = s.quantity - s.reserved;
+    return {
+        id: s.id,
+        product_id: s.product_id,
+        quantity: s.quantity,
+        reserved: s.reserved,
+        available_stock: available,
+        availableStock: available,
+        updated_at: s.updated_at,
+    };
+};
+
 const mapBundleItem = (
     item: typeof bundleItems.$inferSelect,
-    componentProduct?: Product,
-): BundleItem => ({
-    id: item.id,
-    bundleProductId: item.bundle_product_id,
-    bundle_product_id: item.bundle_product_id,
-    productId: item.product_id,
-    product_id: item.product_id,
-    quantity: item.quantity,
-    componentProduct,
-    product: componentProduct,
-    createdAt: item.created_at,
-    created_at: item.created_at,
-    updatedAt: item.updated_at,
-    updated_at: item.updated_at,
-});
+    componentProduct?: ProductWithStock,
+    stockData?: Stock | null,
+): BundleItem => {
+    const effectiveStock = stockData ?? componentProduct?.stock ?? null;
+    const available = effectiveStock
+        ? effectiveStock.quantity - effectiveStock.reserved
+        : componentProduct?.available_stock;
+
+    return {
+        id: item.id,
+        bundleProductId: item.bundle_product_id,
+        bundle_product_id: item.bundle_product_id,
+        productId: item.product_id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        componentProduct,
+        product: componentProduct,
+        stock: effectiveStock,
+        available_stock: available,
+        availableStock: available,
+        createdAt: item.created_at,
+        created_at: item.created_at,
+        updatedAt: item.updated_at,
+        updated_at: item.updated_at,
+    };
+};
 
 export class PostgresBundleItemRepository implements BundleItemRepository {
     constructor(private readonly database: Database = db) {}
@@ -65,17 +95,73 @@ export class PostgresBundleItemRepository implements BundleItemRepository {
             .select({
                 item: bundleItems,
                 component: products,
+                stock: stock,
             })
             .from(bundleItems)
             .leftJoin(products, eq(bundleItems.product_id, products.id))
+            .leftJoin(stock, eq(products.id, stock.product_id))
             .where(eq(bundleItems.bundle_product_id, bundleProductId));
 
-        return rows.map((r) =>
-            mapBundleItem(
-                r.item,
-                r.component ? mapProduct(r.component) : undefined,
-            ),
-        );
+        return rows.map((r) => {
+            const stockData = r.stock ? mapStock(r.stock) : null;
+            const componentProduct: ProductWithStock | undefined = r.component
+                ? {
+                      ...mapProduct(r.component),
+                      stock: stockData,
+                      available_stock: stockData
+                          ? stockData.available_stock
+                          : r.component.type === 'service'
+                            ? undefined
+                            : 0,
+                      availableStock: stockData
+                          ? stockData.availableStock
+                          : r.component.type === 'service'
+                            ? undefined
+                            : 0,
+                  }
+                : undefined;
+
+            return mapBundleItem(r.item, componentProduct, stockData);
+        });
+    }
+
+    async findByBundleIds(bundleProductIds: string[]): Promise<BundleItem[]> {
+        if (bundleProductIds.length === 0) {
+            return [];
+        }
+
+        const rows = await this.database
+            .select({
+                item: bundleItems,
+                component: products,
+                stock: stock,
+            })
+            .from(bundleItems)
+            .leftJoin(products, eq(bundleItems.product_id, products.id))
+            .leftJoin(stock, eq(products.id, stock.product_id))
+            .where(inArray(bundleItems.bundle_product_id, bundleProductIds));
+
+        return rows.map((r) => {
+            const stockData = r.stock ? mapStock(r.stock) : null;
+            const componentProduct: ProductWithStock | undefined = r.component
+                ? {
+                      ...mapProduct(r.component),
+                      stock: stockData,
+                      available_stock: stockData
+                          ? stockData.available_stock
+                          : r.component.type === 'service'
+                            ? undefined
+                            : 0,
+                      availableStock: stockData
+                          ? stockData.availableStock
+                          : r.component.type === 'service'
+                            ? undefined
+                            : 0,
+                  }
+                : undefined;
+
+            return mapBundleItem(r.item, componentProduct, stockData);
+        });
     }
 
     async isComponentInAnyBundle(productId: string): Promise<boolean> {

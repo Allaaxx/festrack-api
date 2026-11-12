@@ -6,6 +6,7 @@ export interface BundleItemRepository {
         tx?: any,
     ): Promise<BundleItem[]>;
     findByBundleId(bundleProductId: string): Promise<BundleItem[]>;
+    findByBundleIds?(bundleProductIds: string[]): Promise<BundleItem[]>;
     isComponentInAnyBundle(productId: string): Promise<boolean>;
     deleteByBundleId?(bundleProductId: string): Promise<void>;
 }

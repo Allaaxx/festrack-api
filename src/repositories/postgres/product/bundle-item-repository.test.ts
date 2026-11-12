@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { db } from '../../../db/postgres/index.js';
-import { usersTable, shops } from '../../../db/postgres/schemas/index.js';
+import {
+    usersTable,
+    shops,
+    stock,
+} from '../../../db/postgres/schemas/index.js';
 import { user, shop } from '../../../tests/index.js';
 import { PostgresProductRepository } from './product-repository.js';
 import { PostgresBundleItemRepository } from './bundle-item-repository.js';
@@ -130,5 +134,77 @@ describe('Postgres BundleItem Repository', () => {
         // Component product still exists
         const stillComponent = await productRepo.findById(component.id);
         expect(stillComponent).not.toBeNull();
+    });
+
+    it('should load component product stock and available stock across findByBundleId and findByBundleIds', async () => {
+        const component = await productRepo.create({
+            shop_id: shop.id,
+            name: 'Glasses',
+            slug: `glasses-${faker.string.alphanumeric(8)}`,
+            type: 'sale',
+            price: 5,
+        });
+
+        // Insert stock for component (quantity: 20, reserved: 4 -> available: 16)
+        await db.insert(stock).values({
+            product_id: component.id,
+            quantity: 20,
+            reserved: 4,
+        });
+
+        const bundle1 = await productRepo.create({
+            shop_id: shop.id,
+            name: 'Glasses Pack',
+            slug: `glasses-pack-${faker.string.alphanumeric(8)}`,
+            type: 'sale',
+            price: 25,
+            is_bundle: true,
+        });
+
+        const bundle2 = await productRepo.create({
+            shop_id: shop.id,
+            name: 'Party Set',
+            slug: `party-set-${faker.string.alphanumeric(8)}`,
+            type: 'sale',
+            price: 50,
+            is_bundle: true,
+        });
+
+        await bundleItemRepo.createMany([
+            {
+                bundle_product_id: bundle1.id,
+                product_id: component.id,
+                quantity: 4,
+            },
+            {
+                bundle_product_id: bundle2.id,
+                product_id: component.id,
+                quantity: 2,
+            },
+        ]);
+
+        // Test findByBundleId
+        const itemsBundle1 = await bundleItemRepo.findByBundleId(bundle1.id);
+        expect(itemsBundle1.length).toBe(1);
+        expect(itemsBundle1[0].stock).toBeDefined();
+        expect(itemsBundle1[0].stock?.quantity).toBe(20);
+        expect(itemsBundle1[0].stock?.reserved).toBe(4);
+        expect(itemsBundle1[0].stock?.available_stock).toBe(16);
+        expect(itemsBundle1[0].componentProduct?.stock?.quantity).toBe(20);
+
+        // Test findByBundleIds
+        const multiItems = await bundleItemRepo.findByBundleIds([
+            bundle1.id,
+            bundle2.id,
+        ]);
+        expect(multiItems.length).toBe(2);
+
+        const b1Item = multiItems.find((i) => i.bundleProductId === bundle1.id);
+        expect(b1Item).toBeDefined();
+        expect(b1Item?.stock?.available_stock).toBe(16);
+
+        const b2Item = multiItems.find((i) => i.bundleProductId === bundle2.id);
+        expect(b2Item).toBeDefined();
+        expect(b2Item?.stock?.available_stock).toBe(16);
     });
 });
