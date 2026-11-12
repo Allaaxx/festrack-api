@@ -31,6 +31,7 @@ export * from './shop/get-shop-members.js';
 export * from './shop/remove-shop-member.js';
 export * from './shop/transfer-shop-ownership.js';
 export * from './shop/get-shop-balance.js';
+export * from './product/index.js';
 export {
     UploadShopAssetUseCase,
     ALLOWED_SHOP_ASSET_FOLDERS,
