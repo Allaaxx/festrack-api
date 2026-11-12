@@ -180,11 +180,13 @@ export const productsRoutes = new Elysia({
             const productRepository = new PostgresProductRepository();
             const shopRepository = new PostgresShopRepository();
             const shopMemberRepository = new PostgresShopMemberRepository();
+            const bundleItemRepository = new PostgresBundleItemRepository();
 
             const useCase = new ListProductsUseCase(
                 productRepository,
                 shopRepository,
                 shopMemberRepository,
+                bundleItemRepository,
             );
 
             try {

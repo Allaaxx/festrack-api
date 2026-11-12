@@ -40,11 +40,15 @@ describe('Get Product Use Case', () => {
         is_bundle: false,
         created_at: new Date(),
         updated_at: new Date(),
+        available_stock: 5,
+        availableStock: 5,
         stock: {
             id: 'stock-1',
             product_id: 'prod-1',
             quantity: 5,
             reserved: 0,
+            available_stock: 5,
+            availableStock: 5,
             updated_at: new Date(),
         },
     };
@@ -175,6 +179,17 @@ describe('Get Product Use Case', () => {
                 productId: 'comp-1',
                 product_id: 'comp-1',
                 quantity: 2,
+                available_stock: 5,
+                availableStock: 5,
+                stock: {
+                    id: 'stock-comp-1',
+                    product_id: 'comp-1',
+                    quantity: 10,
+                    reserved: 0,
+                    available_stock: 10,
+                    availableStock: 10,
+                    updated_at: new Date(),
+                },
                 componentProduct: {
                     id: 'comp-1',
                     shop_id: 'shop-1',
@@ -187,6 +202,17 @@ describe('Get Product Use Case', () => {
                     is_bundle: false,
                     created_at: new Date(),
                     updated_at: new Date(),
+                    available_stock: 10,
+                    availableStock: 10,
+                    stock: {
+                        id: 'stock-comp-1',
+                        product_id: 'comp-1',
+                        quantity: 10,
+                        reserved: 0,
+                        available_stock: 10,
+                        availableStock: 10,
+                        updated_at: new Date(),
+                    },
                 },
                 createdAt: new Date(),
                 created_at: new Date(),
@@ -217,7 +243,46 @@ describe('Get Product Use Case', () => {
         expect(result.id).toBe('bundle-1');
         expect(result.is_bundle).toBe(true);
         expect(result.stock).toBeNull();
+        expect(result.available_stock).toBe(5);
+        expect(result.availableStock).toBe(5);
         expect(result.bundleItems).toEqual(bundleItems);
         expect(bundleRepo.findByBundleId).toHaveBeenCalledWith('bundle-1');
+    });
+
+    it('should retrieve a service product with null stock', async () => {
+        const serviceProduct: ProductWithStock = {
+            id: 'service-1',
+            shop_id: 'shop-1',
+            name: 'DJ Service',
+            slug: 'dj-service',
+            type: 'service',
+            price: '300.00',
+            description: null,
+            images: [],
+            is_bundle: false,
+            created_at: new Date(),
+            updated_at: new Date(),
+            stock: null,
+        };
+
+        const productRepo = {
+            findByIdWithStock: mock(async () => serviceProduct),
+        };
+        const shopRepo = { findById: mock(async () => fakeShop) };
+        const memberRepo = {
+            findByShopAndUserId: mock(async () => fakeMember),
+        };
+
+        const useCase = new GetProductUseCase(
+            productRepo,
+            shopRepo,
+            memberRepo,
+        );
+        const result = await useCase.execute('shop-1', 'service-1', 'user-1');
+
+        expect(result.id).toBe('service-1');
+        expect(result.type).toBe('service');
+        expect(result.stock).toBeNull();
+        expect(result.available_stock).toBeUndefined();
     });
 });
