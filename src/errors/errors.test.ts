@@ -12,6 +12,8 @@ import {
     InvalidShopAssetFolderError,
     ShopAssetInvalidFileTypeError,
     ShopAssetFileSizeExceededError,
+    InsufficientStockError,
+    InvalidRentalReturnError,
 } from './index.js';
 
 describe('Domain Errors', () => {
@@ -127,5 +129,57 @@ describe('Domain Errors', () => {
         expect(customError.message).toBe(
             'File size exceeds the maximum allowed size of 5MB.',
         );
+    });
+
+    it('InsufficientStockError should provide details of failed product and requested vs available quantity', () => {
+        const error = new InsufficientStockError([
+            {
+                productId: 'prod-123',
+                productName: 'Party Chair',
+                requestedQuantity: 5,
+                availableStock: 2,
+            },
+        ]);
+
+        expect(error.name).toBe('InsufficientStockError');
+        expect(error.message).toContain('prod-123');
+        expect(error.details).toBeDefined();
+        expect(error.details.length).toBe(1);
+        expect(error.details[0].productId).toBe('prod-123');
+        expect(error.details[0].product_id).toBe('prod-123');
+        expect(error.details[0].requestedQuantity).toBe(5);
+        expect(error.details[0].requested_quantity).toBe(5);
+        expect(error.details[0].availableStock).toBe(2);
+        expect(error.details[0].available_stock).toBe(2);
+    });
+
+    it('InvalidRentalReturnError should have correct properties and details', () => {
+        const simpleError = new InvalidRentalReturnError(
+            'Damaged items require damage notes.',
+        );
+        expect(simpleError.name).toBe('InvalidRentalReturnError');
+        expect(simpleError.message).toBe('Damaged items require damage notes.');
+
+        const detailedError = new InvalidRentalReturnError(
+            'Returned quantity exceeds reserved stock.',
+            [
+                {
+                    productId: 'prod-chair',
+                    returnedQuantity: 5,
+                    damagedQuantity: 0,
+                    totalToCheckin: 5,
+                    reservedStock: 2,
+                    reason: 'Returned and lost quantity exceeds reserved stock.',
+                },
+            ],
+        );
+        expect(detailedError.name).toBe('InvalidRentalReturnError');
+        expect(detailedError.details).toBeDefined();
+        expect(detailedError.details!.length).toBe(1);
+        expect(detailedError.details![0].productId).toBe('prod-chair');
+        expect(detailedError.details![0].product_id).toBe('prod-chair');
+        expect(detailedError.details![0].returnedQuantity).toBe(5);
+        expect(detailedError.details![0].totalToCheckin).toBe(5);
+        expect(detailedError.details![0].reservedStock).toBe(2);
     });
 });

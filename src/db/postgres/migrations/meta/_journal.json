@@ -57,6 +57,34 @@
             "when": 1793813416736,
             "tag": "0007_ordinary_cerebro",
             "breakpoints": true
+        },
+        {
+            "idx": 8,
+            "version": "7",
+            "when": 1794494845244,
+            "tag": "0008_shocking_boomerang",
+            "breakpoints": true
+        },
+        {
+            "idx": 9,
+            "version": "7",
+            "when": 1794495900665,
+            "tag": "0009_curious_killraven",
+            "breakpoints": true
+        },
+        {
+            "idx": 10,
+            "version": "7",
+            "when": 1794498273462,
+            "tag": "0010_wide_smiling_tiger",
+            "breakpoints": true
+        },
+        {
+            "idx": 11,
+            "version": "7",
+            "when": 1794502516332,
+            "tag": "0011_true_pixie",
+            "breakpoints": true
         }
     ]
 }

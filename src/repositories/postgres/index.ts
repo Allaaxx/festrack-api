@@ -4,3 +4,5 @@ export * from './event/event-repository.js';
 export * from './shop/shop-repository.js';
 export * from './shop/shop-member-repository.js';
 export * from './shop/shop-invitation-repository.js';
+export * from './product/index.js';
+export * from './transaction-manager.js';
