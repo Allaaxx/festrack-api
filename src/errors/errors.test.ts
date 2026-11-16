@@ -14,6 +14,8 @@ import {
     ShopAssetFileSizeExceededError,
     InsufficientStockError,
     InvalidRentalReturnError,
+    EventTagConflictError,
+    EventTagSlugAlreadyExistsError,
 } from './index.js';
 
 describe('Domain Errors', () => {
@@ -181,5 +183,21 @@ describe('Domain Errors', () => {
         expect(detailedError.details![0].returnedQuantity).toBe(5);
         expect(detailedError.details![0].totalToCheckin).toBe(5);
         expect(detailedError.details![0].reservedStock).toBe(2);
+    });
+
+    it('EventTagConflictError should have correct message and name', () => {
+        const error = new EventTagConflictError('family');
+        expect(error.name).toBe('EventTagConflictError');
+        expect(error.message).toBe(
+            "Event tag with slug 'family' already exists.",
+        );
+        expect(error).toBeInstanceOf(Error);
+    });
+
+    it('EventTagSlugAlreadyExistsError should inherit from EventTagConflictError', () => {
+        const error = new EventTagSlugAlreadyExistsError('vip');
+        expect(error.name).toBe('EventTagSlugAlreadyExistsError');
+        expect(error.message).toBe("Event tag with slug 'vip' already exists.");
+        expect(error).toBeInstanceOf(EventTagConflictError);
     });
 });

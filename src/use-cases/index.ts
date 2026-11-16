@@ -32,6 +32,7 @@ export * from './shop/remove-shop-member.js';
 export * from './shop/transfer-shop-ownership.js';
 export * from './shop/get-shop-balance.js';
 export * from './event-tag/get-event-tags-by-shop-id.js';
+export * from './event-tag/create-event-tag.js';
 export * from './product/index.js';
 export {
     UploadShopAssetUseCase,
