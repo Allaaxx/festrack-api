@@ -26,6 +26,7 @@ export const eventsTable = pgTable('Event', {
         onUpdate: 'cascade',
     }),
     google_event_id: text('google_event_id'),
+    tag: varchar('tag', { length: 50 }).notNull().default('etc'),
 });
 
 export const eventsRelations = relations(eventsTable, ({ one, many }) => ({

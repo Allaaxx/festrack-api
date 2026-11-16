@@ -9,4 +9,5 @@ export const event: Event = {
     description: faker.lorem.sentence(),
     start_date: '2026-09-15T00:00:00.000Z',
     end_date: '2026-09-16T00:00:00.000Z',
+    tag: 'etc',
 };

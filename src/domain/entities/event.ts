@@ -8,6 +8,7 @@ export interface Event {
     created_by_user_id: string | null;
     user_id?: string | null;
     google_event_id?: string | null;
+    tag?: string | null;
 }
 
 export interface CreateEventParams {
@@ -18,6 +19,7 @@ export interface CreateEventParams {
     start_date: Date | string;
     end_date: Date | string;
     google_event_id?: string | null;
+    tag?: string | null;
 }
 
 export interface UpdateEventParams {
@@ -26,4 +28,5 @@ export interface UpdateEventParams {
     start_date?: Date | string;
     end_date?: Date | string;
     google_event_id?: string | null;
+    tag?: string | null;
 }

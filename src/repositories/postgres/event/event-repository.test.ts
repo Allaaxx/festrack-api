@@ -42,6 +42,18 @@ describe('Postgres Event Repository', () => {
             expect(dayjs(result.end_date).toISOString()).toBe(
                 dayjs(event.end_date).toISOString(),
             );
+            expect(result.tag).toBe('etc');
+        });
+
+        it('should create an event with explicit tag', async () => {
+            const result = await sut.create({
+                ...event,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'business',
+            });
+
+            expect(result.tag).toBe('business');
         });
 
         it('should throw if database throws', async () => {
@@ -63,6 +75,7 @@ describe('Postgres Event Repository', () => {
         it('should return event by id', async () => {
             await db.insert(eventsTable).values({
                 ...event,
+                tag: event.tag ?? 'etc',
                 shop_id: shop.id,
                 created_by_user_id: user.id,
                 start_date: new Date(event.start_date),
@@ -89,6 +102,7 @@ describe('Postgres Event Repository', () => {
         it('should return all events for a shop', async () => {
             await db.insert(eventsTable).values({
                 ...event,
+                tag: event.tag ?? 'etc',
                 shop_id: shop.id,
                 created_by_user_id: user.id,
                 start_date: new Date(event.start_date),
@@ -114,6 +128,7 @@ describe('Postgres Event Repository', () => {
         it('should return all events for a user', async () => {
             await db.insert(eventsTable).values({
                 ...event,
+                tag: event.tag ?? 'etc',
                 shop_id: shop.id,
                 created_by_user_id: user.id,
                 start_date: new Date(event.start_date),
@@ -138,6 +153,7 @@ describe('Postgres Event Repository', () => {
         it('should update event fields and dates on db', async () => {
             await db.insert(eventsTable).values({
                 ...event,
+                tag: event.tag ?? 'etc',
                 shop_id: shop.id,
                 created_by_user_id: user.id,
                 start_date: new Date(event.start_date),
@@ -161,6 +177,26 @@ describe('Postgres Event Repository', () => {
             );
         });
 
+        it('should update event tag on db', async () => {
+            await db.insert(eventsTable).values({
+                ...event,
+                tag: event.tag ?? 'etc',
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                start_date: new Date(event.start_date),
+                end_date: new Date(event.end_date),
+            });
+
+            const result = await sut.update(event.id, {
+                tag: 'wedding',
+            });
+
+            expect(result.tag).toBe('wedding');
+
+            const fromDb = await sut.findById(event.id);
+            expect(fromDb?.tag).toBe('wedding');
+        });
+
         it('should throw EventNotFoundError if event does not exist', async () => {
             await expect(
                 sut.update(event.id, { name: 'Non Existent' }),
@@ -172,6 +208,7 @@ describe('Postgres Event Repository', () => {
         it('should delete event from db and return deleted event', async () => {
             await db.insert(eventsTable).values({
                 ...event,
+                tag: event.tag ?? 'etc',
                 shop_id: shop.id,
                 created_by_user_id: user.id,
                 start_date: new Date(event.start_date),

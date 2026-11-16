@@ -142,6 +142,7 @@ describe('Create Event Use Case', () => {
             start_date: createEventInput.start_date,
             end_date: createEventInput.end_date,
             google_event_id: null,
+            tag: 'etc',
         });
     });
 
@@ -193,6 +194,57 @@ describe('Create Event Use Case', () => {
         expect(createSpy).toHaveBeenCalledWith(
             expect.objectContaining({
                 google_event_id: null,
+            }),
+        );
+    });
+
+    it('should pass explicit tag to eventRepository.create', async () => {
+        const { sut, eventRepository } = makeSut();
+        const createSpy = jest.spyOn(eventRepository, 'create');
+
+        await sut.execute({
+            ...createEventInput,
+            tag: 'business',
+        });
+
+        expect(createSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tag: 'business',
+            }),
+        );
+    });
+
+    it('should default tag to "etc" if tag is undefined, null, or empty string', async () => {
+        const { sut, eventRepository } = makeSut();
+        const createSpy = jest.spyOn(eventRepository, 'create');
+
+        await sut.execute({
+            ...createEventInput,
+            tag: undefined,
+        });
+        expect(createSpy).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                tag: 'etc',
+            }),
+        );
+
+        await sut.execute({
+            ...createEventInput,
+            tag: null,
+        });
+        expect(createSpy).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                tag: 'etc',
+            }),
+        );
+
+        await sut.execute({
+            ...createEventInput,
+            tag: '',
+        });
+        expect(createSpy).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                tag: 'etc',
             }),
         );
     });

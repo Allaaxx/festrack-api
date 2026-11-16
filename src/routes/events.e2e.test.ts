@@ -94,6 +94,46 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             expect(response.body.name).toBe(sampleEventData.name);
         });
 
+        it('should create an event with explicit tag and return it', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const response = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    ...sampleEventData,
+                    tag: 'business',
+                });
+
+            expect(response.status).toBe(201);
+            expect(response.body.tag).toBe('business');
+        });
+
+        it('should default event tag to "etc" when tag is omitted or null', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const responseWithoutTag = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send(sampleEventData);
+
+            expect(responseWithoutTag.status).toBe(201);
+            expect(responseWithoutTag.body.tag).toBe('etc');
+
+            const responseWithNullTag = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    ...sampleEventData,
+                    tag: null,
+                });
+
+            expect(responseWithNullTag.status).toBe(201);
+            expect(responseWithNullTag.body.tag).toBe('etc');
+        });
+
         it('should return 401 when unauthorized', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
@@ -630,6 +670,38 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
 
             expect(response.status).toBe(200);
             expect(response.body.name).toBe('Member Updated Name');
+        });
+
+        it('should return 200 and update event tag', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    ...sampleEventData,
+                    tag: 'business',
+                });
+
+            const eventId = createRes.body.id;
+
+            const response = await client
+                .patch(`/api/shops/${shop.id}/events/${eventId}`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    tag: 'personal',
+                });
+
+            expect(response.status).toBe(200);
+            expect(response.body.tag).toBe('personal');
+
+            const getRes = await client
+                .get(`/api/shops/${shop.id}/events/${eventId}`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(getRes.status).toBe(200);
+            expect(getRes.body.tag).toBe('personal');
         });
 
         it('should return 403 when non-member tries to update event', async () => {

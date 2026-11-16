@@ -62,6 +62,7 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
                     description: body.description ?? null,
                     start_date: body.start_date,
                     end_date: body.end_date,
+                    tag: body.tag,
                 });
                 set.status = 201;
                 return event;
@@ -112,6 +113,14 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
                         minLength: 1,
                         error: 'End date is required.',
                     }),
+                    tag: t.Optional(
+                        t.Nullable(
+                            t.String({
+                                minLength: 1,
+                                maxLength: 50,
+                            }),
+                        ),
+                    ),
                 },
                 { additionalProperties: false },
             ),
@@ -322,6 +331,14 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
                     ),
                     start_date: t.Optional(t.String()),
                     end_date: t.Optional(t.String()),
+                    tag: t.Optional(
+                        t.Nullable(
+                            t.String({
+                                minLength: 1,
+                                maxLength: 50,
+                            }),
+                        ),
+                    ),
                 },
                 { additionalProperties: false },
             ),

@@ -11,6 +11,15 @@ import {
     GoogleCalendarAdapter,
 } from '../../domain/index.js';
 
+export interface UpdateEventInput {
+    name?: string;
+    description?: string | null;
+    start_date?: Date | string;
+    end_date?: Date | string;
+    google_event_id?: string | null;
+    tag?: string | null;
+}
+
 export class UpdateEventUseCase {
     constructor(
         private readonly eventRepository: Pick<
@@ -30,7 +39,7 @@ export class UpdateEventUseCase {
         shopId: string,
         eventId: string,
         userId: string,
-        updateParams: UpdateEventParams,
+        updateParams: UpdateEventInput,
     ): Promise<Event> {
         const shop = await this.shopRepository.findById(shopId);
         if (!shop) {
@@ -77,6 +86,16 @@ export class UpdateEventUseCase {
             }
         }
 
-        return await this.eventRepository.update(eventId, updateParams);
+        const updateData: UpdateEventParams = {
+            ...updateParams,
+        };
+        if (updateParams.tag !== undefined) {
+            updateData.tag =
+                updateParams.tag && updateParams.tag.trim() !== ''
+                    ? updateParams.tag
+                    : 'etc';
+        }
+
+        return await this.eventRepository.update(eventId, updateData);
     }
 }
