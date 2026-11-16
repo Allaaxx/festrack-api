@@ -4,3 +4,4 @@ export * from './auth.js';
 export * from './event.js';
 export * from './shop.js';
 export * from './product.js';
+export * from './event-tag.js';

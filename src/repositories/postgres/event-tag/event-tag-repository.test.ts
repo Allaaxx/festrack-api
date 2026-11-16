@@ -113,4 +113,64 @@ describe('Postgres Event Tag Repository', () => {
             }
         });
     });
+
+    describe('findBySlug', () => {
+        it('should return null when tag with given slug does not exist in shop', async () => {
+            const tag = await sut.findBySlug(shopId, 'non-existent-slug');
+            expect(tag).toBeNull();
+        });
+
+        it('should return the event tag when found by shopId and slug', async () => {
+            const created = await sut.create({
+                shop_id: shopId,
+                name: 'Aniversário',
+                slug: 'aniversario',
+                color: 'bg-emerald-500',
+            });
+
+            const found = await sut.findBySlug(shopId, 'aniversario');
+
+            expect(found).not.toBeNull();
+            expect(found?.id).toBe(created.id);
+            expect(found?.shop_id).toBe(shopId);
+            expect(found?.name).toBe('Aniversário');
+            expect(found?.slug).toBe('aniversario');
+            expect(found?.color).toBe('bg-emerald-500');
+            expect(found?.is_system).toBe(false);
+        });
+
+        it('should enforce shop isolation and not find slug from another shop', async () => {
+            const otherShopId = faker.string.uuid();
+            await db.insert(shopsTable).values({
+                id: otherShopId,
+                name: 'Other Shop Slug',
+            });
+
+            try {
+                await sut.create({
+                    shop_id: otherShopId,
+                    name: 'Other Shop Tag',
+                    slug: 'isolated-slug',
+                    color: 'bg-pink-500',
+                });
+
+                const foundInOriginalShop = await sut.findBySlug(
+                    shopId,
+                    'isolated-slug',
+                );
+                expect(foundInOriginalShop).toBeNull();
+
+                const foundInOtherShop = await sut.findBySlug(
+                    otherShopId,
+                    'isolated-slug',
+                );
+                expect(foundInOtherShop).not.toBeNull();
+                expect(foundInOtherShop?.shop_id).toBe(otherShopId);
+            } finally {
+                await db
+                    .delete(shopsTable)
+                    .where(eq(shopsTable.id, otherShopId));
+            }
+        });
+    });
 });

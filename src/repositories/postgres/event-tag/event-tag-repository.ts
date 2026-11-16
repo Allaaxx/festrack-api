@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, Database } from '../../../db/postgres/index.js';
 import { eventTagsTable } from '../../../db/postgres/schemas/index.js';
 import {
@@ -32,5 +32,19 @@ export class PostgresEventTagRepository implements EventTagRepository {
             .select()
             .from(eventTagsTable)
             .where(eq(eventTagsTable.shop_id, shopId));
+    }
+
+    async findBySlug(shopId: string, slug: string): Promise<EventTag | null> {
+        const [tag] = await this.database
+            .select()
+            .from(eventTagsTable)
+            .where(
+                and(
+                    eq(eventTagsTable.shop_id, shopId),
+                    eq(eventTagsTable.slug, slug),
+                ),
+            );
+
+        return tag ?? null;
     }
 }
