@@ -20,6 +20,10 @@ _Avoid_: Invite, pass, ticket, request
 A scheduled occasion or financial project (e.g. wedding, festival, party) owned by a shop, spanning a start date and an end date, against which transactions can be tracked.
 _Avoid_: Occasion, project, gathering
 
+**Event Tag**:
+A visual classification marker and filtering token (e.g. family, business, custom occasions) assigned to an event to categorize and organize calendar entries across a shop. May be a built-in system default or a custom tag created by shop members.
+_Avoid_: Category, EventType, Classificação, Label
+
 **Transaction**:
 An individual financial movement of money (earning, expense, or investment) belonging to a shop, optionally associated with an event and attributed to the user who recorded it. Transactions associated with an event are temporally decoupled, meaning their occurrence date is independent of the event's start date and end date.
 _Avoid_: Movement, entry, record
