@@ -174,55 +174,57 @@ describe('CreateEventTagUseCase (Unit Tests)', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
-    it('should throw EventTagConflictError when slug conflicts with a system default tag', async () => {
-        // System tags are: family, business, personal, holiday, etc
-        await expect(
-            sut.execute({
-                shopId,
-                userId,
-                name: 'Family',
-                color: 'bg-emerald-500',
-            }),
-        ).rejects.toThrow(EventTagConflictError);
+    it('should allow creating custom tags with slugs that were previously system defaults', async () => {
+        // Slugs previously reserved: family, holiday, business, personal, etc
+        const familyTag = await sut.execute({
+            shopId,
+            userId,
+            name: 'Family',
+            color: 'bg-emerald-500',
+        });
+        expect(familyTag.slug).toBe('family');
+        expect(familyTag.name).toBe('Family');
+        expect(familyTag.shop_id).toBe(shopId);
+        expect((familyTag as any).is_system).toBeUndefined();
 
-        await expect(
-            sut.execute({
-                shopId,
-                userId,
-                name: 'Custom Holiday',
-                color: 'bg-amber-500',
-                slug: 'holiday',
-            }),
-        ).rejects.toThrow(EventTagConflictError);
+        const holidayTag = await sut.execute({
+            shopId,
+            userId,
+            name: 'Custom Holiday',
+            color: 'bg-amber-500',
+            slug: 'holiday',
+        });
+        expect(holidayTag.slug).toBe('holiday');
+        expect((holidayTag as any).is_system).toBeUndefined();
 
-        await expect(
-            sut.execute({
-                shopId,
-                userId,
-                name: 'Outros Negócios',
-                color: 'bg-blue-500',
-                slug: 'business',
-            }),
-        ).rejects.toThrow(EventTagConflictError);
+        const businessTag = await sut.execute({
+            shopId,
+            userId,
+            name: 'Outros Negócios',
+            color: 'bg-blue-500',
+            slug: 'business',
+        });
+        expect(businessTag.slug).toBe('business');
+        expect((businessTag as any).is_system).toBeUndefined();
 
-        await expect(
-            sut.execute({
-                shopId,
-                userId,
-                name: 'Personal Tag',
-                color: 'bg-purple-500',
-                slug: 'PERSONAL',
-            }),
-        ).rejects.toThrow(EventTagConflictError);
+        const personalTag = await sut.execute({
+            shopId,
+            userId,
+            name: 'Personal Tag',
+            color: 'bg-purple-500',
+            slug: 'PERSONAL',
+        });
+        expect(personalTag.slug).toBe('personal');
+        expect((personalTag as any).is_system).toBeUndefined();
 
-        await expect(
-            sut.execute({
-                shopId,
-                userId,
-                name: 'Etc',
-                color: 'bg-slate-500',
-            }),
-        ).rejects.toThrow(EventTagConflictError);
+        const etcTag = await sut.execute({
+            shopId,
+            userId,
+            name: 'Etc',
+            color: 'bg-slate-500',
+        });
+        expect(etcTag.slug).toBe('etc');
+        expect((etcTag as any).is_system).toBeUndefined();
     });
 
     it('should throw EventTagConflictError when slug already exists in the same shop', async () => {

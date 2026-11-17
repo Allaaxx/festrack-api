@@ -228,11 +228,11 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
             expect(response.body.slug).toBe('corporate-gala');
         });
 
-        it('should return 409 when slug conflicts with a built-in system default tag', async () => {
+        it('should allow creating custom tags with slugs that were previously system defaults', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
 
-            // Attempt colliding with 'family' (via derived slug)
+            // Attempt creating with 'family' (via derived slug)
             const responseFamily = await client
                 .post(`/api/shops/${shop.id}/event-tags`)
                 .set('Authorization', owner.bearerHeader)
@@ -240,10 +240,13 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     name: 'Family',
                     color: 'bg-emerald-500',
                 });
-            expect(responseFamily.status).toBe(409);
-            expect(responseFamily.body.message).toContain('family');
+            expect(responseFamily.status).toBe(201);
+            expect(responseFamily.body.slug).toBe('family');
+            expect(responseFamily.body.name).toBe('Family');
+            expect(responseFamily.body.shop_id).toBe(shop.id);
+            expect(responseFamily.body.is_system).toBeUndefined();
 
-            // Attempt colliding with 'holiday' (via explicit slug)
+            // Attempt creating with 'holiday' (via explicit slug)
             const responseHoliday = await client
                 .post(`/api/shops/${shop.id}/event-tags`)
                 .set('Authorization', owner.bearerHeader)
@@ -252,10 +255,11 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     color: 'bg-amber-500',
                     slug: 'holiday',
                 });
-            expect(responseHoliday.status).toBe(409);
-            expect(responseHoliday.body.message).toContain('holiday');
+            expect(responseHoliday.status).toBe(201);
+            expect(responseHoliday.body.slug).toBe('holiday');
+            expect(responseHoliday.body.is_system).toBeUndefined();
 
-            // Attempt colliding with 'business'
+            // Attempt creating with 'business'
             const responseBusiness = await client
                 .post(`/api/shops/${shop.id}/event-tags`)
                 .set('Authorization', owner.bearerHeader)
@@ -264,9 +268,11 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     color: 'bg-blue-500',
                     slug: 'BUSINESS',
                 });
-            expect(responseBusiness.status).toBe(409);
+            expect(responseBusiness.status).toBe(201);
+            expect(responseBusiness.body.slug).toBe('business');
+            expect(responseBusiness.body.is_system).toBeUndefined();
 
-            // Attempt colliding with 'personal'
+            // Attempt creating with 'personal'
             const responsePersonal = await client
                 .post(`/api/shops/${shop.id}/event-tags`)
                 .set('Authorization', owner.bearerHeader)
@@ -275,9 +281,11 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     color: 'bg-purple-500',
                     slug: 'personal',
                 });
-            expect(responsePersonal.status).toBe(409);
+            expect(responsePersonal.status).toBe(201);
+            expect(responsePersonal.body.slug).toBe('personal');
+            expect(responsePersonal.body.is_system).toBeUndefined();
 
-            // Attempt colliding with 'etc'
+            // Attempt creating with 'etc'
             const responseEtc = await client
                 .post(`/api/shops/${shop.id}/event-tags`)
                 .set('Authorization', owner.bearerHeader)
@@ -285,7 +293,19 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     name: 'Etc',
                     color: 'bg-slate-500',
                 });
-            expect(responseEtc.status).toBe(409);
+            expect(responseEtc.status).toBe(201);
+            expect(responseEtc.body.slug).toBe('etc');
+            expect(responseEtc.body.is_system).toBeUndefined();
+
+            // Duplicate within same shop returns 409
+            const duplicateEtc = await client
+                .post(`/api/shops/${shop.id}/event-tags`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Etc',
+                    color: 'bg-slate-500',
+                });
+            expect(duplicateEtc.status).toBe(409);
         });
 
         it('should return 409 when slug already exists in the same shop', async () => {
