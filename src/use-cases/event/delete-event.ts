@@ -9,6 +9,7 @@ import {
     UserRepository,
     GoogleCalendarAdapter,
 } from '../../domain/index.js';
+import { resolveShopOwner } from './resolve-shop-owner.js';
 
 export class DeleteEventUseCase {
     constructor(
@@ -56,13 +57,12 @@ export class DeleteEventUseCase {
             this.calendarAdapter &&
             this.userRepository
         ) {
-            const ownerMember =
-                member.role === 'OWNER'
-                    ? member
-                    : await this.shopMemberRepository.findOwnerByShopId(shopId);
-            const owner = ownerMember
-                ? await this.userRepository.findById(ownerMember.user_id)
-                : null;
+            const owner = await resolveShopOwner(
+                shopId,
+                member,
+                this.shopMemberRepository,
+                this.userRepository,
+            );
 
             if (owner?.google_calendar_sync_enabled) {
                 try {

@@ -9,6 +9,7 @@ import {
     GoogleCalendarAdapter,
     DEFAULT_EVENT_TAG_SLUG,
 } from '../../domain/index.js';
+import { resolveShopOwner } from './resolve-shop-owner.js';
 
 export interface CreateEventInput {
     shopId: string;
@@ -51,15 +52,12 @@ export class CreateEventUseCase {
 
         let googleEventId: string | null = null;
         if (this.userRepository && this.calendarAdapter) {
-            const ownerMember =
-                member.role === 'OWNER'
-                    ? member
-                    : await this.shopMemberRepository.findOwnerByShopId(
-                          input.shopId,
-                      );
-            const owner = ownerMember
-                ? await this.userRepository.findById(ownerMember.user_id)
-                : null;
+            const owner = await resolveShopOwner(
+                input.shopId,
+                member,
+                this.shopMemberRepository,
+                this.userRepository,
+            );
 
             if (owner?.google_calendar_sync_enabled) {
                 try {

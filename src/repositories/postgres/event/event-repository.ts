@@ -43,6 +43,19 @@ function mapEvent(
 export class PostgresEventRepository implements EventRepository {
     constructor(private readonly database: Database = db) {}
 
+    private selectEventsWithAuthor() {
+        return this.database
+            .select({
+                event: eventsTable,
+                author: usersTable,
+            })
+            .from(eventsTable)
+            .leftJoin(
+                usersTable,
+                eq(eventsTable.created_by_user_id, usersTable.id),
+            );
+    }
+
     async create(createEventParams: CreateEventParams): Promise<Event> {
         const { tag, ...rest } = createEventParams;
         const [createdEvent] = await this.database
@@ -60,49 +73,25 @@ export class PostgresEventRepository implements EventRepository {
     }
 
     async findById(eventId: string): Promise<Event | null> {
-        const [row] = await this.database
-            .select({
-                event: eventsTable,
-                author: usersTable,
-            })
-            .from(eventsTable)
-            .leftJoin(
-                usersTable,
-                eq(eventsTable.created_by_user_id, usersTable.id),
-            )
-            .where(eq(eventsTable.id, eventId));
+        const [row] = await this.selectEventsWithAuthor().where(
+            eq(eventsTable.id, eventId),
+        );
 
         return row ? mapEvent(row.event, row.author) : null;
     }
 
     async findByShopId(shopId: string): Promise<Event[]> {
-        const rows = await this.database
-            .select({
-                event: eventsTable,
-                author: usersTable,
-            })
-            .from(eventsTable)
-            .leftJoin(
-                usersTable,
-                eq(eventsTable.created_by_user_id, usersTable.id),
-            )
-            .where(eq(eventsTable.shop_id, shopId));
+        const rows = await this.selectEventsWithAuthor().where(
+            eq(eventsTable.shop_id, shopId),
+        );
 
         return rows.map((row) => mapEvent(row.event, row.author));
     }
 
     async findByUserId(userId: string): Promise<Event[]> {
-        const rows = await this.database
-            .select({
-                event: eventsTable,
-                author: usersTable,
-            })
-            .from(eventsTable)
-            .leftJoin(
-                usersTable,
-                eq(eventsTable.created_by_user_id, usersTable.id),
-            )
-            .where(eq(eventsTable.created_by_user_id, userId));
+        const rows = await this.selectEventsWithAuthor().where(
+            eq(eventsTable.created_by_user_id, userId),
+        );
 
         return rows.map((row) => mapEvent(row.event, row.author));
     }
