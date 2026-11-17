@@ -9,7 +9,10 @@ import {
 } from '../../domain/index.js';
 import { ShopNotFoundError } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
-import { EventTagConflictError } from '../../errors/event-tag.js';
+import {
+    EventTagConflictError,
+    InvalidEventTagSlugError,
+} from '../../errors/event-tag.js';
 
 describe('CreateEventTagUseCase (Unit Tests)', () => {
     let sut: CreateEventTagUseCase;
@@ -273,5 +276,47 @@ describe('CreateEventTagUseCase (Unit Tests)', () => {
 
         expect(result.shop_id).toBe(otherShopId);
         expect(result.slug).toBe('fest-tag');
+    });
+
+    it('should throw InvalidEventTagSlugError when name normalizes to empty string', async () => {
+        await expect(
+            sut.execute({
+                shopId,
+                userId,
+                name: '???',
+                color: 'bg-blue-500',
+            }),
+        ).rejects.toThrow(InvalidEventTagSlugError);
+
+        await expect(
+            sut.execute({
+                shopId,
+                userId,
+                name: '🎉🎉',
+                color: 'bg-blue-500',
+            }),
+        ).rejects.toThrow(InvalidEventTagSlugError);
+    });
+
+    it('should throw InvalidEventTagSlugError when provided slug normalizes to empty string', async () => {
+        await expect(
+            sut.execute({
+                shopId,
+                userId,
+                name: 'Valid Name',
+                color: 'bg-blue-500',
+                slug: '---',
+            }),
+        ).rejects.toThrow(InvalidEventTagSlugError);
+
+        await expect(
+            sut.execute({
+                shopId,
+                userId,
+                name: 'Valid Name',
+                color: 'bg-blue-500',
+                slug: '!@#$%',
+            }),
+        ).rejects.toThrow(InvalidEventTagSlugError);
     });
 });

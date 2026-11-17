@@ -15,7 +15,7 @@ import {
     InsufficientStockError,
     InvalidRentalReturnError,
     EventTagConflictError,
-    EventTagSlugAlreadyExistsError,
+    InvalidEventTagSlugError,
     EventTagNotFoundError,
     CannotDeleteSystemTagError,
 } from './index.js';
@@ -196,11 +196,13 @@ describe('Domain Errors', () => {
         expect(error).toBeInstanceOf(Error);
     });
 
-    it('EventTagSlugAlreadyExistsError should inherit from EventTagConflictError', () => {
-        const error = new EventTagSlugAlreadyExistsError('vip');
-        expect(error.name).toBe('EventTagSlugAlreadyExistsError');
-        expect(error.message).toBe("Event tag with slug 'vip' already exists.");
-        expect(error).toBeInstanceOf(EventTagConflictError);
+    it('InvalidEventTagSlugError should have correct message and name', () => {
+        const error = new InvalidEventTagSlugError();
+        expect(error.name).toBe('InvalidEventTagSlugError');
+        expect(error.message).toBe(
+            'Event tag slug cannot be empty or invalid.',
+        );
+        expect(error).toBeInstanceOf(Error);
     });
 
     it('EventTagNotFoundError should have correct message and name', () => {

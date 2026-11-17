@@ -5,10 +5,10 @@ export class EventTagConflictError extends Error {
     }
 }
 
-export class EventTagSlugAlreadyExistsError extends EventTagConflictError {
-    constructor(slug: string) {
-        super(slug);
-        this.name = 'EventTagSlugAlreadyExistsError';
+export class InvalidEventTagSlugError extends Error {
+    constructor(message = 'Event tag slug cannot be empty or invalid.') {
+        super(message);
+        this.name = 'InvalidEventTagSlugError';
     }
 }
 
@@ -25,4 +25,3 @@ export class CannotDeleteSystemTagError extends Error {
         this.name = 'CannotDeleteSystemTagError';
     }
 }
-

@@ -16,52 +16,63 @@ export interface CreateEventTagParams {
     is_system?: boolean;
 }
 
+export const DEFAULT_EVENT_TAG_SLUG = 'etc';
+export const DEFAULT_EVENT_TAG_NAME = 'Outros';
+
 export const SYSTEM_DEFAULT_EVENT_TAGS = [
     {
+        id: 'system-family',
         name: 'Família',
         slug: 'family',
         color: 'bg-emerald-500',
         is_system: true,
     },
     {
+        id: 'system-business',
         name: 'Negócios',
         slug: 'business',
         color: 'bg-blue-500',
         is_system: true,
     },
     {
+        id: 'system-personal',
         name: 'Pessoal',
         slug: 'personal',
         color: 'bg-purple-500',
         is_system: true,
     },
     {
+        id: 'system-holiday',
         name: 'Feriado',
         slug: 'holiday',
         color: 'bg-amber-500',
         is_system: true,
     },
     {
-        name: 'Outros',
-        slug: 'etc',
+        id: 'system-etc',
+        name: DEFAULT_EVENT_TAG_NAME,
+        slug: DEFAULT_EVENT_TAG_SLUG,
         color: 'bg-slate-500',
         is_system: true,
     },
 ] as const;
 
-export const SYSTEM_EVENT_TAG_SLUGS = [
-    'family',
-    'business',
-    'personal',
-    'holiday',
-    'etc',
-] as const;
+export const SYSTEM_EVENT_TAGS = SYSTEM_DEFAULT_EVENT_TAGS;
 
-export type SystemEventTagSlug = (typeof SYSTEM_EVENT_TAG_SLUGS)[number];
+export const SYSTEM_EVENT_TAG_IDS: ReadonlySet<string> = new Set(
+    SYSTEM_EVENT_TAGS.map((t) => t.id),
+);
+
+export const SYSTEM_EVENT_TAG_SLUGS: ReadonlySet<string> = new Set(
+    SYSTEM_EVENT_TAGS.map((t) => t.slug),
+);
+
+export type SystemEventTagSlug =
+    (typeof SYSTEM_DEFAULT_EVENT_TAGS)[number]['slug'];
 
 export function getSystemDefaultEventTags(shopId: string): EventTag[] {
-    return SYSTEM_DEFAULT_EVENT_TAGS.map((tag) => ({
-        id: `system-${tag.slug}`,
+    return SYSTEM_EVENT_TAGS.map((tag) => ({
+        id: tag.id,
         shop_id: shopId,
         name: tag.name,
         slug: tag.slug,

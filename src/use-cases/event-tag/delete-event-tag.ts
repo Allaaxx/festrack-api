@@ -10,7 +10,9 @@ import {
     EventRepository,
     ShopRepository,
     ShopMemberRepository,
+    SYSTEM_EVENT_TAG_IDS,
     SYSTEM_EVENT_TAG_SLUGS,
+    DEFAULT_EVENT_TAG_SLUG,
 } from '../../domain/index.js';
 
 export interface DeleteEventTagInput {
@@ -25,10 +27,7 @@ export class DeleteEventTagUseCase {
             EventTagRepository,
             'findById' | 'delete'
         >,
-        private readonly eventRepository: Pick<
-            EventRepository,
-            'reassignTag'
-        >,
+        private readonly eventRepository: Pick<EventRepository, 'reassignTag'>,
         private readonly shopRepository: Pick<ShopRepository, 'findById'>,
         private readonly shopMemberRepository: Pick<
             ShopMemberRepository,
@@ -36,56 +35,45 @@ export class DeleteEventTagUseCase {
         >,
     ) {}
 
-    async execute(
-        inputOrShopId: DeleteEventTagInput | string,
-        maybeTagId?: string,
-        maybeUserId?: string,
-    ): Promise<EventTag> {
-        let shopId: string;
-        let tagId: string;
-        let userId: string;
-
-        if (typeof inputOrShopId === 'object') {
-            shopId = inputOrShopId.shopId;
-            tagId = inputOrShopId.tagId;
-            userId = inputOrShopId.userId;
-        } else {
-            shopId = inputOrShopId;
-            tagId = maybeTagId!;
-            userId = maybeUserId!;
-        }
-
-        const shop = await this.shopRepository.findById(shopId);
+    async execute(input: DeleteEventTagInput): Promise<EventTag> {
+        const shop = await this.shopRepository.findById(input.shopId);
         if (!shop) {
-            throw new ShopNotFoundError(shopId);
+            throw new ShopNotFoundError(input.shopId);
         }
 
         const member = await this.shopMemberRepository.findByShopAndUserId(
-            shopId,
-            userId,
+            input.shopId,
+            input.userId,
         );
         if (!member) {
             throw new ForbiddenError();
         }
 
-        const isSystemId =
-            tagId.startsWith('system-') ||
-            (SYSTEM_EVENT_TAG_SLUGS as readonly string[]).includes(tagId);
-        if (isSystemId) {
+        if (
+            SYSTEM_EVENT_TAG_IDS.has(input.tagId) ||
+            SYSTEM_EVENT_TAG_SLUGS.has(input.tagId)
+        ) {
             throw new CannotDeleteSystemTagError();
         }
 
-        const tag = await this.eventTagRepository.findById(tagId, shopId);
+        const tag = await this.eventTagRepository.findById(
+            input.tagId,
+            input.shopId,
+        );
         if (!tag) {
-            throw new EventTagNotFoundError(tagId);
+            throw new EventTagNotFoundError(input.tagId);
         }
 
         if (tag.is_system) {
             throw new CannotDeleteSystemTagError();
         }
 
-        await this.eventRepository.reassignTag(shopId, tag.slug, 'etc');
+        await this.eventRepository.reassignTag(
+            input.shopId,
+            tag.slug,
+            DEFAULT_EVENT_TAG_SLUG,
+        );
 
-        return await this.eventTagRepository.delete(tagId, shopId);
+        return await this.eventTagRepository.delete(input.tagId, input.shopId);
     }
 }

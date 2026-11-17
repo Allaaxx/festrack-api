@@ -252,9 +252,9 @@ describe('Postgres Event Tag Repository', () => {
         });
 
         it('should throw EventTagNotFoundError when deleting non-existent tag', async () => {
-            await expect(
-                sut.delete('non-existent-id', shopId),
-            ).rejects.toThrow(new EventTagNotFoundError('non-existent-id'));
+            await expect(sut.delete('non-existent-id', shopId)).rejects.toThrow(
+                new EventTagNotFoundError('non-existent-id'),
+            );
         });
 
         it('should not delete tag from another shop (enforce isolation)', async () => {
@@ -272,9 +272,9 @@ describe('Postgres Event Tag Repository', () => {
                     color: 'bg-yellow-500',
                 });
 
-                await expect(
-                    sut.delete(created.id, shopId),
-                ).rejects.toThrow(new EventTagNotFoundError(created.id));
+                await expect(sut.delete(created.id, shopId)).rejects.toThrow(
+                    new EventTagNotFoundError(created.id),
+                );
 
                 const stillExists = await sut.findById(created.id, otherShopId);
                 expect(stillExists).not.toBeNull();

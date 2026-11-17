@@ -1,6 +1,9 @@
 import { ShopNotFoundError } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
-import { EventTagConflictError } from '../../errors/event-tag.js';
+import {
+    EventTagConflictError,
+    InvalidEventTagSlugError,
+} from '../../errors/event-tag.js';
 import {
     EventTag,
     EventTagRepository,
@@ -59,9 +62,11 @@ export class CreateEventTagUseCase {
                 : input.name;
         const slug = toKebabCase(rawSlug);
 
-        const isSystemDefault = (
-            SYSTEM_EVENT_TAG_SLUGS as readonly string[]
-        ).includes(slug);
+        if (slug.length === 0) {
+            throw new InvalidEventTagSlugError();
+        }
+
+        const isSystemDefault = SYSTEM_EVENT_TAG_SLUGS.has(slug);
         if (isSystemDefault) {
             throw new EventTagConflictError(slug);
         }

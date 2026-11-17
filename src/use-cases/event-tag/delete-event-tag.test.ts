@@ -16,10 +16,7 @@ import {
 
 describe('DeleteEventTagUseCase (Unit Tests)', () => {
     let sut: DeleteEventTagUseCase;
-    let mockEventTagRepository: Pick<
-        EventTagRepository,
-        'findById' | 'delete'
-    >;
+    let mockEventTagRepository: Pick<EventTagRepository, 'findById' | 'delete'>;
     let mockEventRepository: Pick<EventRepository, 'reassignTag'>;
     let mockShopRepository: Pick<ShopRepository, 'findById'>;
     let mockShopMemberRepository: Pick<
@@ -28,7 +25,11 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
     >;
 
     let tags: EventTag[];
-    let reassignCalls: Array<{ shopId: string; fromSlug: string; toSlug: string }>;
+    let reassignCalls: Array<{
+        shopId: string;
+        fromSlug: string;
+        toSlug: string;
+    }>;
 
     const shopId = '11111111-1111-4111-8111-111111111111';
     const otherShopId = '99999999-9999-4999-8999-999999999999';
@@ -68,12 +69,19 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
         reassignCalls = [];
 
         mockEventTagRepository = {
-            findById: async (id: string, sId: string): Promise<EventTag | null> => {
-                const found = tags.find((t) => t.id === id && t.shop_id === sId);
+            findById: async (
+                id: string,
+                sId: string,
+            ): Promise<EventTag | null> => {
+                const found = tags.find(
+                    (t) => t.id === id && t.shop_id === sId,
+                );
                 return found ?? null;
             },
             delete: async (id: string, sId: string): Promise<EventTag> => {
-                const index = tags.findIndex((t) => t.id === id && t.shop_id === sId);
+                const index = tags.findIndex(
+                    (t) => t.id === id && t.shop_id === sId,
+                );
                 if (index === -1) {
                     throw new EventTagNotFoundError(id);
                 }
@@ -83,7 +91,11 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
         };
 
         mockEventRepository = {
-            reassignTag: async (sId: string, fromSlug: string, toSlug: string): Promise<number> => {
+            reassignTag: async (
+                sId: string,
+                fromSlug: string,
+                toSlug: string,
+            ): Promise<number> => {
                 reassignCalls.push({ shopId: sId, fromSlug, toSlug });
                 return 3;
             },
@@ -147,15 +159,14 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
         });
     });
 
-    it('should accept positional arguments (shopId, tagId, userId)', async () => {
-        const result = await sut.execute(shopId, 'custom-tag-1', userId);
-
-        expect(result.id).toBe('custom-tag-1');
-        expect(reassignCalls[0]).toEqual({
-            shopId,
-            fromSlug: 'aniversario',
-            toSlug: 'etc',
-        });
+    it('should throw EventTagNotFoundError when tagId starts with system- but is not a recognized system tag', async () => {
+        await expect(
+            sut.execute({
+                shopId,
+                tagId: 'system-unknown',
+                userId,
+            }),
+        ).rejects.toThrow(EventTagNotFoundError);
     });
 
     it('should throw ShopNotFoundError when shop does not exist', async () => {
@@ -199,7 +210,13 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
     });
 
     it('should throw CannotDeleteSystemTagError when tagId is a system tag slug', async () => {
-        const systemSlugs = ['family', 'business', 'personal', 'holiday', 'etc'];
+        const systemSlugs = [
+            'family',
+            'business',
+            'personal',
+            'holiday',
+            'etc',
+        ];
 
         for (const slug of systemSlugs) {
             await expect(

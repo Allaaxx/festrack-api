@@ -15,6 +15,7 @@ import { ShopNotFoundError } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/auth.js';
 import {
     EventTagConflictError,
+    InvalidEventTagSlugError,
     EventTagNotFoundError,
     CannotDeleteSystemTagError,
 } from '../errors/event-tag.js';
@@ -101,6 +102,10 @@ export const eventTagsRoutes = new Elysia({
                 if (error instanceof ForbiddenError) {
                     set.status = 403;
                     return { message: 'Forbidden' };
+                }
+                if (error instanceof InvalidEventTagSlugError) {
+                    set.status = 400;
+                    return { message: error.message };
                 }
                 if (error instanceof EventTagConflictError) {
                     set.status = 409;
@@ -206,7 +211,8 @@ export const eventTagsRoutes = new Elysia({
             ),
             detail: {
                 tags: ['Events'],
-                summary: 'Delete custom event tag with automatic fallback to default tag',
+                summary:
+                    'Delete custom event tag with automatic fallback to default tag',
             },
         },
     );

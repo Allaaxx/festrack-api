@@ -125,21 +125,42 @@ describe('Postgres Event Repository', () => {
     });
 
     describe('findByUserId', () => {
-        it('should return all events for a user', async () => {
-            await db.insert(eventsTable).values({
-                ...event,
-                tag: event.tag ?? 'etc',
-                shop_id: shop.id,
-                created_by_user_id: user.id,
-                start_date: new Date(event.start_date),
-                end_date: new Date(event.end_date),
-            });
+        it('should return all events for a user with tag property (default and custom)', async () => {
+            const secondEventId = '33333333-3333-4333-8333-333333333333';
+            await db.insert(eventsTable).values([
+                {
+                    ...event,
+                    tag: 'etc',
+                    shop_id: shop.id,
+                    created_by_user_id: user.id,
+                    start_date: new Date(event.start_date),
+                    end_date: new Date(event.end_date),
+                },
+                {
+                    ...event,
+                    id: secondEventId,
+                    name: 'Custom Tag Event',
+                    tag: 'festival',
+                    shop_id: shop.id,
+                    created_by_user_id: user.id,
+                    start_date: new Date(event.start_date),
+                    end_date: new Date(event.end_date),
+                },
+            ]);
 
             const result = await sut.findByUserId(user.id);
 
-            expect(result).toHaveLength(1);
-            expect(result[0].id).toBe(event.id);
-            expect(result[0].created_by_user_id).toBe(user.id);
+            expect(result).toHaveLength(2);
+            const defaultEvt = result.find((e) => e.id === event.id);
+            const customEvt = result.find((e) => e.id === secondEventId);
+
+            expect(defaultEvt).toBeDefined();
+            expect(defaultEvt?.tag).toBe('etc');
+            expect(defaultEvt?.created_by_user_id).toBe(user.id);
+
+            expect(customEvt).toBeDefined();
+            expect(customEvt?.tag).toBe('festival');
+            expect(customEvt?.created_by_user_id).toBe(user.id);
         });
 
         it('should return empty list if user has no events', async () => {

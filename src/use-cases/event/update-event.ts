@@ -9,6 +9,7 @@ import {
     ShopMemberRepository,
     UserRepository,
     GoogleCalendarAdapter,
+    DEFAULT_EVENT_TAG_SLUG,
 } from '../../domain/index.js';
 
 export interface UpdateEventInput {
@@ -93,7 +94,7 @@ export class UpdateEventUseCase {
             updateData.tag =
                 updateParams.tag && updateParams.tag.trim() !== ''
                     ? updateParams.tag
-                    : 'etc';
+                    : DEFAULT_EVENT_TAG_SLUG;
         }
 
         return await this.eventRepository.update(eventId, updateData);

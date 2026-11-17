@@ -387,6 +387,36 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
             expect(duplicateSlug.status).toBe(409);
         });
 
+        it('should return 400 when name or slug normalizes to an empty string', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const resEmptyName = await client
+                .post(`/api/shops/${shop.id}/event-tags`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: '???',
+                    color: 'bg-emerald-500',
+                });
+            expect(resEmptyName.status).toBe(400);
+            expect(resEmptyName.body.message).toBe(
+                'Event tag slug cannot be empty or invalid.',
+            );
+
+            const resEmptySlug = await client
+                .post(`/api/shops/${shop.id}/event-tags`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Special Tag',
+                    color: 'bg-blue-500',
+                    slug: '---',
+                });
+            expect(resEmptySlug.status).toBe(400);
+            expect(resEmptySlug.body.message).toBe(
+                'Event tag slug cannot be empty or invalid.',
+            );
+        });
+
         it('should allow same slug in different shop (cross-tenant non-conflict)', async () => {
             const ownerA = await createAuthenticatedUser(client);
             const shopA = await createShop(ownerA, 'Shop Alpha');
@@ -695,6 +725,12 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                 .set('Authorization', owner.bearerHeader);
 
             expect(response.status).toBe(404);
+
+            const systemUnknownResponse = await client
+                .delete(`/api/shops/${shop.id}/event-tags/system-unknown`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(systemUnknownResponse.status).toBe(404);
         });
 
         it('should return 404 when tag belongs to another shop (isolation)', async () => {
@@ -726,7 +762,9 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
             const nonExistentShopId = '00000000-0000-4000-8000-000000000000';
 
             const response = await client
-                .delete(`/api/shops/${nonExistentShopId}/event-tags/some-tag-id`)
+                .delete(
+                    `/api/shops/${nonExistentShopId}/event-tags/some-tag-id`,
+                )
                 .set('Authorization', owner.bearerHeader);
 
             expect(response.status).toBe(404);

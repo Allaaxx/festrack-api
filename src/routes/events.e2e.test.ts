@@ -417,6 +417,50 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             expect(response.body[0].shop_id).toBe(shop.id);
         });
 
+        it('should return events containing their tag property (both custom and default etc)', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            // Create event with custom tag
+            await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    ...sampleEventData,
+                    name: 'Custom Tag Event',
+                    tag: 'business',
+                });
+
+            // Create event without tag (should default to 'etc')
+            await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    ...sampleEventData,
+                    name: 'Default Tag Event',
+                });
+
+            const response = await client
+                .get(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(response.status).toBe(200);
+            expect(response.body).toHaveLength(2);
+
+            const customEvent = response.body.find(
+                (e: any) => e.name === 'Custom Tag Event',
+            );
+            const defaultEvent = response.body.find(
+                (e: any) => e.name === 'Default Tag Event',
+            );
+
+            expect(customEvent).toBeDefined();
+            expect(customEvent.tag).toBe('business');
+
+            expect(defaultEvent).toBeDefined();
+            expect(defaultEvent.tag).toBe('etc');
+        });
+
         it('should return 200 with all shop events for MEMBER (including events created by OWNER)', async () => {
             const owner = await createAuthenticatedUser(client);
             const member = await createAuthenticatedUser(client);
