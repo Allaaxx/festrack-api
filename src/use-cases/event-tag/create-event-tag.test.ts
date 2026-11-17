@@ -98,7 +98,7 @@ describe('CreateEventTagUseCase (Unit Tests)', () => {
         expect(result.name).toBe('Aniversário de Casamento');
         expect(result.slug).toBe('aniversario-de-casamento');
         expect(result.color).toBe('bg-emerald-500');
-        expect((result as any).is_system).toBeUndefined();
+        expect('is_system' in result).toBe(false);
     });
 
     it('should normalize explicit slug to lowercase kebab-case', async () => {
@@ -185,7 +185,7 @@ describe('CreateEventTagUseCase (Unit Tests)', () => {
         expect(familyTag.slug).toBe('family');
         expect(familyTag.name).toBe('Family');
         expect(familyTag.shop_id).toBe(shopId);
-        expect((familyTag as any).is_system).toBeUndefined();
+        expect('is_system' in familyTag).toBe(false);
 
         const holidayTag = await sut.execute({
             shopId,
@@ -195,7 +195,7 @@ describe('CreateEventTagUseCase (Unit Tests)', () => {
             slug: 'holiday',
         });
         expect(holidayTag.slug).toBe('holiday');
-        expect((holidayTag as any).is_system).toBeUndefined();
+        expect('is_system' in holidayTag).toBe(false);
 
         const businessTag = await sut.execute({
             shopId,
@@ -205,7 +205,7 @@ describe('CreateEventTagUseCase (Unit Tests)', () => {
             slug: 'business',
         });
         expect(businessTag.slug).toBe('business');
-        expect((businessTag as any).is_system).toBeUndefined();
+        expect('is_system' in businessTag).toBe(false);
 
         const personalTag = await sut.execute({
             shopId,
@@ -215,7 +215,7 @@ describe('CreateEventTagUseCase (Unit Tests)', () => {
             slug: 'PERSONAL',
         });
         expect(personalTag.slug).toBe('personal');
-        expect((personalTag as any).is_system).toBeUndefined();
+        expect('is_system' in personalTag).toBe(false);
 
         const etcTag = await sut.execute({
             shopId,
@@ -224,7 +224,7 @@ describe('CreateEventTagUseCase (Unit Tests)', () => {
             color: 'bg-slate-500',
         });
         expect(etcTag.slug).toBe('etc');
-        expect((etcTag as any).is_system).toBeUndefined();
+        expect('is_system' in etcTag).toBe(false);
     });
 
     it('should throw EventTagConflictError when slug already exists in the same shop', async () => {

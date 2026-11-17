@@ -38,7 +38,7 @@ describe('Postgres Event Tag Repository', () => {
             expect(result.name).toBe('Aniversário');
             expect(result.slug).toBe('aniversario');
             expect(result.color).toBe('bg-indigo-500');
-            expect((result as any).is_system).toBeUndefined();
+            expect('is_system' in result).toBe(false);
             expect(result.created_at).toBeInstanceOf(Date);
         });
 
@@ -137,7 +137,7 @@ describe('Postgres Event Tag Repository', () => {
             expect(found?.name).toBe('Aniversário');
             expect(found?.slug).toBe('aniversario');
             expect(found?.color).toBe('bg-emerald-500');
-            expect((found as any)?.is_system).toBeUndefined();
+            expect('is_system' in found!).toBe(false);
         });
 
         it('should enforce shop isolation and not find slug from another shop', async () => {

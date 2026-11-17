@@ -51,11 +51,7 @@ export class DeleteEventTagUseCase {
             throw new EventTagNotFoundError(input.tagId);
         }
 
-        await this.eventRepository.reassignTag(
-            input.shopId,
-            tag.slug,
-            null,
-        );
+        await this.eventRepository.reassignTag(input.shopId, tag.slug, null);
 
         return await this.eventTagRepository.delete(input.tagId, input.shopId);
     }

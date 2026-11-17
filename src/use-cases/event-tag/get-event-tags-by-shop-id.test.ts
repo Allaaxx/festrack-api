@@ -77,7 +77,7 @@ describe('GetEventTagsByShopIdUseCase (Unit Tests)', () => {
 
         expect(result).toHaveLength(1);
         expect(result).toEqual([customTag]);
-        expect((result[0] as any).is_system).toBeUndefined();
+        expect('is_system' in result[0]!).toBe(false);
     });
 
     it('should throw ShopNotFoundError if the shop does not exist', async () => {
