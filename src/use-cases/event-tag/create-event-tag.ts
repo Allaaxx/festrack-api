@@ -84,7 +84,6 @@ export class CreateEventTagUseCase {
             name: input.name.trim(),
             slug,
             color: input.color.trim(),
-            is_system: false,
         });
     }
 }

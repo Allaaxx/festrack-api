@@ -5,7 +5,6 @@ import {
     EventTagRepository,
     ShopRepository,
     ShopMemberRepository,
-    getSystemDefaultEventTags,
 } from '../../domain/index.js';
 
 export class GetEventTagsByShopIdUseCase {
@@ -35,9 +34,6 @@ export class GetEventTagsByShopIdUseCase {
             throw new ForbiddenError();
         }
 
-        const systemTags = getSystemDefaultEventTags(shopId);
-        const customTags = await this.eventTagRepository.findByShopId(shopId);
-
-        return [...systemTags, ...customTags];
+        return await this.eventTagRepository.findByShopId(shopId);
     }
 }

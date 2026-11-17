@@ -4,7 +4,6 @@ export interface EventTag {
     name: string;
     slug: string;
     color: string;
-    is_system: boolean;
     created_at: Date;
 }
 
@@ -13,7 +12,6 @@ export interface CreateEventTagParams {
     name: string;
     slug: string;
     color: string;
-    is_system?: boolean;
 }
 
 export const DEFAULT_EVENT_TAG_SLUG = 'etc';
@@ -69,15 +67,3 @@ export const SYSTEM_EVENT_TAG_SLUGS: ReadonlySet<string> = new Set(
 
 export type SystemEventTagSlug =
     (typeof SYSTEM_DEFAULT_EVENT_TAGS)[number]['slug'];
-
-export function getSystemDefaultEventTags(shopId: string): EventTag[] {
-    return SYSTEM_EVENT_TAGS.map((tag) => ({
-        id: tag.id,
-        shop_id: shopId,
-        name: tag.name,
-        slug: tag.slug,
-        color: tag.color,
-        is_system: true,
-        created_at: new Date(0),
-    }));
-}

@@ -54,74 +54,20 @@ describe('GetEventTagsByShopIdUseCase (Unit Tests)', () => {
         );
     });
 
-    it('should return all 5 system default event tags when the shop has no custom tags', async () => {
+    it('should return an empty array when the shop has no custom event tags', async () => {
         const result = await sut.execute(shopId, userId);
 
-        expect(result).toHaveLength(5);
-        expect(result.every((tag) => tag.is_system === true)).toBe(true);
-        expect(result.every((tag) => tag.shop_id === shopId)).toBe(true);
-
-        const slugs = result.map((t) => t.slug);
-        expect(slugs).toContain('family');
-        expect(slugs).toContain('business');
-        expect(slugs).toContain('personal');
-        expect(slugs).toContain('holiday');
-        expect(slugs).toContain('etc');
-
-        const familyTag = result.find((t) => t.slug === 'family');
-        expect(familyTag).toMatchObject({
-            name: 'Família',
-            slug: 'family',
-            color: 'bg-emerald-500',
-            is_system: true,
-            shop_id: shopId,
-        });
-
-        const businessTag = result.find((t) => t.slug === 'business');
-        expect(businessTag).toMatchObject({
-            name: 'Negócios',
-            slug: 'business',
-            color: 'bg-blue-500',
-            is_system: true,
-            shop_id: shopId,
-        });
-
-        const personalTag = result.find((t) => t.slug === 'personal');
-        expect(personalTag).toMatchObject({
-            name: 'Pessoal',
-            slug: 'personal',
-            color: 'bg-purple-500',
-            is_system: true,
-            shop_id: shopId,
-        });
-
-        const holidayTag = result.find((t) => t.slug === 'holiday');
-        expect(holidayTag).toMatchObject({
-            name: 'Feriado',
-            slug: 'holiday',
-            color: 'bg-amber-500',
-            is_system: true,
-            shop_id: shopId,
-        });
-
-        const etcTag = result.find((t) => t.slug === 'etc');
-        expect(etcTag).toMatchObject({
-            name: 'Outros',
-            slug: 'etc',
-            color: 'bg-slate-500',
-            is_system: true,
-            shop_id: shopId,
-        });
+        expect(result).toEqual([]);
+        expect(result).toHaveLength(0);
     });
 
-    it('should merge system default tags with shop custom tags', async () => {
+    it('should return only shop custom tags without injecting system defaults', async () => {
         const customTag: EventTag = {
             id: 'custom-tag-1',
             shop_id: shopId,
             name: 'VIP Gala',
             slug: 'vip-gala',
             color: 'bg-pink-500',
-            is_system: false,
             created_at: new Date('2026-01-01'),
         };
 
@@ -129,10 +75,9 @@ describe('GetEventTagsByShopIdUseCase (Unit Tests)', () => {
 
         const result = await sut.execute(shopId, userId);
 
-        expect(result).toHaveLength(6);
-        expect(result.map((t) => t.slug)).toContain('vip-gala');
-        const foundCustom = result.find((t) => t.slug === 'vip-gala');
-        expect(foundCustom).toEqual(customTag);
+        expect(result).toHaveLength(1);
+        expect(result).toEqual([customTag]);
+        expect((result[0] as any).is_system).toBeUndefined();
     });
 
     it('should throw ShopNotFoundError if the shop does not exist', async () => {

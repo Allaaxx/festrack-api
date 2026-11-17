@@ -41,7 +41,6 @@ describe('CreateEventTagUseCase (Unit Tests)', () => {
                     name: params.name,
                     slug: params.slug,
                     color: params.color,
-                    is_system: params.is_system ?? false,
                     created_at: new Date(),
                 };
                 createdTags.push(tag);
@@ -99,7 +98,7 @@ describe('CreateEventTagUseCase (Unit Tests)', () => {
         expect(result.name).toBe('Aniversário de Casamento');
         expect(result.slug).toBe('aniversario-de-casamento');
         expect(result.color).toBe('bg-emerald-500');
-        expect(result.is_system).toBe(false);
+        expect((result as any).is_system).toBeUndefined();
     });
 
     it('should normalize explicit slug to lowercase kebab-case', async () => {

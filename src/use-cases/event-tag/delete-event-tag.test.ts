@@ -24,7 +24,7 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
         'findByShopAndUserId'
     >;
 
-    let tags: EventTag[];
+    let tags: (EventTag & { is_system?: boolean })[];
     let reassignCalls: Array<{
         shopId: string;
         fromSlug: string;

@@ -35,7 +35,7 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
     };
 
     describe('GET /api/shops/:shopId/event-tags', () => {
-        it('should return 200 and list the 5 built-in system default tags for shop OWNER', async () => {
+        it('should return 200 and an empty array when shop has no custom tags for shop OWNER', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
 
@@ -45,70 +45,11 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
 
             expect(response.status).toBe(200);
             expect(Array.isArray(response.body)).toBe(true);
-            expect(response.body).toHaveLength(5);
-
-            const slugs = response.body.map((t: any) => t.slug);
-            expect(slugs).toContain('family');
-            expect(slugs).toContain('business');
-            expect(slugs).toContain('personal');
-            expect(slugs).toContain('holiday');
-            expect(slugs).toContain('etc');
-
-            const familyTag = response.body.find(
-                (t: any) => t.slug === 'family',
-            );
-            expect(familyTag).toMatchObject({
-                name: 'Família',
-                slug: 'family',
-                color: 'bg-emerald-500',
-                is_system: true,
-                shop_id: shop.id,
-            });
-
-            const businessTag = response.body.find(
-                (t: any) => t.slug === 'business',
-            );
-            expect(businessTag).toMatchObject({
-                name: 'Negócios',
-                slug: 'business',
-                color: 'bg-blue-500',
-                is_system: true,
-                shop_id: shop.id,
-            });
-
-            const personalTag = response.body.find(
-                (t: any) => t.slug === 'personal',
-            );
-            expect(personalTag).toMatchObject({
-                name: 'Pessoal',
-                slug: 'personal',
-                color: 'bg-purple-500',
-                is_system: true,
-                shop_id: shop.id,
-            });
-
-            const holidayTag = response.body.find(
-                (t: any) => t.slug === 'holiday',
-            );
-            expect(holidayTag).toMatchObject({
-                name: 'Feriado',
-                slug: 'holiday',
-                color: 'bg-amber-500',
-                is_system: true,
-                shop_id: shop.id,
-            });
-
-            const etcTag = response.body.find((t: any) => t.slug === 'etc');
-            expect(etcTag).toMatchObject({
-                name: 'Outros',
-                slug: 'etc',
-                color: 'bg-slate-500',
-                is_system: true,
-                shop_id: shop.id,
-            });
+            expect(response.body).toHaveLength(0);
+            expect(response.body).toEqual([]);
         });
 
-        it('should return 200 with system tags for a shop MEMBER', async () => {
+        it('should return 200 and an empty array when shop has no custom tags for a shop MEMBER', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
             const member = await createAuthenticatedUser(client);
@@ -119,10 +60,10 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                 .set('Authorization', member.bearerHeader);
 
             expect(response.status).toBe(200);
-            expect(response.body).toHaveLength(5);
+            expect(response.body).toEqual([]);
         });
 
-        it('should merge system default tags with existing shop custom tags', async () => {
+        it('should return only shop custom tags without system default tags', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
 
@@ -134,7 +75,6 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     name: 'Workshop VIP',
                     slug: 'workshop-vip',
                     color: 'bg-rose-500',
-                    is_system: false,
                 })
                 .returning();
 
@@ -143,20 +83,17 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                 .set('Authorization', owner.bearerHeader);
 
             expect(response.status).toBe(200);
-            expect(response.body).toHaveLength(6);
+            expect(response.body).toHaveLength(1);
 
-            const foundCustom = response.body.find(
-                (t: any) => t.slug === 'workshop-vip',
-            );
-            expect(foundCustom).toBeDefined();
+            const foundCustom = response.body[0];
             expect(foundCustom).toMatchObject({
                 id: customTag.id,
                 shop_id: shop.id,
                 name: 'Workshop VIP',
                 slug: 'workshop-vip',
                 color: 'bg-rose-500',
-                is_system: false,
             });
+            expect(foundCustom.is_system).toBeUndefined();
         });
 
         it('should not return custom event tags from other shops (tenant isolation)', async () => {
@@ -172,7 +109,6 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                 name: 'Shop A Exclusive',
                 slug: 'exclusive-a',
                 color: 'bg-teal-500',
-                is_system: false,
             });
 
             // Query from Shop B
@@ -249,8 +185,8 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                 name: 'Aniversário de 15 Anos',
                 slug: 'aniversario-de-15-anos',
                 color: 'bg-emerald-500',
-                is_system: false,
             });
+            expect(response.body.is_system).toBeUndefined();
             expect(response.body.id).toBeDefined();
             expect(response.body.created_at).toBeDefined();
         });
@@ -271,7 +207,7 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
 
             expect(response.status).toBe(201);
             expect(response.body.slug).toBe('reuniao-semanal');
-            expect(response.body.is_system).toBe(false);
+            expect(response.body.is_system).toBeUndefined();
         });
 
         it('should return 201 and accept an explicit slug normalized to kebab-case', async () => {

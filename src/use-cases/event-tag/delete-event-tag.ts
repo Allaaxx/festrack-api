@@ -64,7 +64,7 @@ export class DeleteEventTagUseCase {
             throw new EventTagNotFoundError(input.tagId);
         }
 
-        if (tag.is_system) {
+        if ('is_system' in tag && (tag as { is_system?: boolean }).is_system) {
             throw new CannotDeleteSystemTagError();
         }
 
