@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { db, Database } from '../../../db/postgres/index.js';
 import { eventTagsTable } from '../../../db/postgres/schemas/index.js';
+import { EventTagNotFoundError } from '../../../errors/index.js';
 import {
     EventTag,
     CreateEventTagParams,
@@ -46,5 +47,37 @@ export class PostgresEventTagRepository implements EventTagRepository {
             );
 
         return tag ?? null;
+    }
+
+    async findById(id: string, shopId: string): Promise<EventTag | null> {
+        const [tag] = await this.database
+            .select()
+            .from(eventTagsTable)
+            .where(
+                and(
+                    eq(eventTagsTable.id, id),
+                    eq(eventTagsTable.shop_id, shopId),
+                ),
+            );
+
+        return tag ?? null;
+    }
+
+    async delete(id: string, shopId: string): Promise<EventTag> {
+        const [deletedTag] = await this.database
+            .delete(eventTagsTable)
+            .where(
+                and(
+                    eq(eventTagsTable.id, id),
+                    eq(eventTagsTable.shop_id, shopId),
+                ),
+            )
+            .returning();
+
+        if (!deletedTag) {
+            throw new EventTagNotFoundError(id);
+        }
+
+        return deletedTag;
     }
 }

@@ -527,4 +527,242 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
             expect(resExtraProp.status).toBe(400);
         });
     });
+
+    describe('DELETE /api/shops/:shopId/event-tags/:tagId', () => {
+        it('should return 200 and delete custom event tag for shop OWNER', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/event-tags`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Custom Party',
+                    color: 'bg-emerald-500',
+                    slug: 'custom-party',
+                });
+            expect(createRes.status).toBe(201);
+            const createdTagId = createRes.body.id;
+
+            const deleteRes = await client
+                .delete(`/api/shops/${shop.id}/event-tags/${createdTagId}`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(deleteRes.status).toBe(200);
+            expect(deleteRes.body.id).toBe(createdTagId);
+            expect(deleteRes.body.slug).toBe('custom-party');
+
+            const listRes = await client
+                .get(`/api/shops/${shop.id}/event-tags`)
+                .set('Authorization', owner.bearerHeader);
+            expect(listRes.status).toBe(200);
+            const tagIds = listRes.body.map((t: any) => t.id);
+            expect(tagIds).not.toContain(createdTagId);
+        });
+
+        it('should return 200 and delete custom event tag for shop MEMBER', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const member = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+            await addMemberToShop(shop.id, member.user.id, 'MEMBER');
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/event-tags`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Member Tag',
+                    color: 'bg-purple-500',
+                });
+            expect(createRes.status).toBe(201);
+            const createdTagId = createRes.body.id;
+
+            const deleteRes = await client
+                .delete(`/api/shops/${shop.id}/event-tags/${createdTagId}`)
+                .set('Authorization', member.bearerHeader);
+
+            expect(deleteRes.status).toBe(200);
+            expect(deleteRes.body.id).toBe(createdTagId);
+        });
+
+        it('should automatically reassign shop events referencing the deleted tag slug to etc', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            // Create custom tag 'festival-verao'
+            const createTagRes = await client
+                .post(`/api/shops/${shop.id}/event-tags`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Festival de Verão',
+                    slug: 'festival-verao',
+                    color: 'bg-yellow-500',
+                });
+            expect(createTagRes.status).toBe(201);
+            const tagId = createTagRes.body.id;
+
+            // Create two events referencing 'festival-verao'
+            const evt1Res = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Show de Abertura',
+                    start_date: '2026-10-01T10:00:00.000Z',
+                    end_date: '2026-10-01T12:00:00.000Z',
+                    tag: 'festival-verao',
+                });
+            expect(evt1Res.status).toBe(201);
+            expect(evt1Res.body.tag).toBe('festival-verao');
+
+            const evt2Res = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Show Principal',
+                    start_date: '2026-10-02T20:00:00.000Z',
+                    end_date: '2026-10-02T23:00:00.000Z',
+                    tag: 'festival-verao',
+                });
+            expect(evt2Res.status).toBe(201);
+            expect(evt2Res.body.tag).toBe('festival-verao');
+
+            // Create one event with 'business' tag
+            const evt3Res = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Reunião de Alinhamento',
+                    start_date: '2026-10-03T10:00:00.000Z',
+                    end_date: '2026-10-03T11:00:00.000Z',
+                    tag: 'business',
+                });
+            expect(evt3Res.status).toBe(201);
+            expect(evt3Res.body.tag).toBe('business');
+
+            // Delete the custom tag
+            const deleteRes = await client
+                .delete(`/api/shops/${shop.id}/event-tags/${tagId}`)
+                .set('Authorization', owner.bearerHeader);
+            expect(deleteRes.status).toBe(200);
+
+            // Check events now have fallback tag 'etc'
+            const getEvt1 = await client
+                .get(`/api/shops/${shop.id}/events/${evt1Res.body.id}`)
+                .set('Authorization', owner.bearerHeader);
+            expect(getEvt1.status).toBe(200);
+            expect(getEvt1.body.tag).toBe('etc');
+
+            const getEvt2 = await client
+                .get(`/api/shops/${shop.id}/events/${evt2Res.body.id}`)
+                .set('Authorization', owner.bearerHeader);
+            expect(getEvt2.status).toBe(200);
+            expect(getEvt2.body.tag).toBe('etc');
+
+            // Check business event remains unaffected
+            const getEvt3 = await client
+                .get(`/api/shops/${shop.id}/events/${evt3Res.body.id}`)
+                .set('Authorization', owner.bearerHeader);
+            expect(getEvt3.status).toBe(200);
+            expect(getEvt3.body.tag).toBe('business');
+        });
+
+        it('should return 400 when attempting to delete a system default tag ID', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const systemIds = [
+                'system-family',
+                'system-business',
+                'system-personal',
+                'system-holiday',
+                'system-etc',
+            ];
+
+            for (const sysId of systemIds) {
+                const response = await client
+                    .delete(`/api/shops/${shop.id}/event-tags/${sysId}`)
+                    .set('Authorization', owner.bearerHeader);
+
+                expect(response.status).toBe(400);
+            }
+        });
+
+        it('should return 404 when tag does not exist', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const response = await client
+                .delete(`/api/shops/${shop.id}/event-tags/non-existent-tag-id`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(response.status).toBe(404);
+        });
+
+        it('should return 404 when tag belongs to another shop (isolation)', async () => {
+            const ownerA = await createAuthenticatedUser(client);
+            const ownerB = await createAuthenticatedUser(client);
+            const shopA = await createShop(ownerA, 'Shop A');
+            const shopB = await createShop(ownerB, 'Shop B');
+
+            const tagBRes = await client
+                .post(`/api/shops/${shopB.id}/event-tags`)
+                .set('Authorization', ownerB.bearerHeader)
+                .send({
+                    name: 'Tag in Shop B',
+                    color: 'bg-red-500',
+                });
+            expect(tagBRes.status).toBe(201);
+            const tagBId = tagBRes.body.id;
+
+            // Attempt to delete tagB through shopA
+            const response = await client
+                .delete(`/api/shops/${shopA.id}/event-tags/${tagBId}`)
+                .set('Authorization', ownerA.bearerHeader);
+
+            expect(response.status).toBe(404);
+        });
+
+        it('should return 404 when shop does not exist', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const nonExistentShopId = '00000000-0000-4000-8000-000000000000';
+
+            const response = await client
+                .delete(`/api/shops/${nonExistentShopId}/event-tags/some-tag-id`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(response.status).toBe(404);
+        });
+
+        it('should return 401 when unauthenticated', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const response = await client.delete(
+                `/api/shops/${shop.id}/event-tags/any-tag-id`,
+            );
+
+            expect(response.status).toBe(401);
+        });
+
+        it('should return 403 when user is not a member of the shop', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const stranger = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createTagRes = await client
+                .post(`/api/shops/${shop.id}/event-tags`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Owner Tag',
+                    color: 'bg-indigo-500',
+                });
+            expect(createTagRes.status).toBe(201);
+            const tagId = createTagRes.body.id;
+
+            const response = await client
+                .delete(`/api/shops/${shop.id}/event-tags/${tagId}`)
+                .set('Authorization', stranger.bearerHeader);
+
+            expect(response.status).toBe(403);
+        });
+    });
 });

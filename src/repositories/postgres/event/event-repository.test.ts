@@ -232,4 +232,72 @@ describe('Postgres Event Repository', () => {
             );
         });
     });
+
+    describe('reassignTag', () => {
+        it('should update tag from fromSlug to toSlug for all events in the specified shop', async () => {
+            const { id: _id, ...eventData } = event;
+            const event1 = await sut.create({
+                ...eventData,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'festival',
+            });
+            const event2 = await sut.create({
+                ...eventData,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'festival',
+            });
+            const event3 = await sut.create({
+                ...eventData,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'wedding',
+            });
+
+            const count = await sut.reassignTag(shop.id, 'festival', 'etc');
+            expect(count).toBe(2);
+
+            const found1 = await sut.findById(event1.id);
+            expect(found1?.tag).toBe('etc');
+
+            const found2 = await sut.findById(event2.id);
+            expect(found2?.tag).toBe('etc');
+
+            const found3 = await sut.findById(event3.id);
+            expect(found3?.tag).toBe('wedding');
+        });
+
+        it('should not update events belonging to another shop with the same fromSlug', async () => {
+            const otherShopId = '00000000-0000-4000-8000-000000000099';
+            await db.insert(shopsTable).values({
+                id: otherShopId,
+                name: 'Other Shop Events',
+                description: 'Other shop description',
+            });
+
+            try {
+                const { id: _id, ...eventData } = event;
+                const otherEvent = await sut.create({
+                    ...eventData,
+                    shop_id: otherShopId,
+                    created_by_user_id: user.id,
+                    tag: 'festival',
+                });
+
+                const count = await sut.reassignTag(shop.id, 'festival', 'etc');
+                expect(count).toBe(0);
+
+                const foundOther = await sut.findById(otherEvent.id);
+                expect(foundOther?.tag).toBe('festival');
+            } finally {
+                await db
+                    .delete(eventsTable)
+                    .where(eq(eventsTable.shop_id, otherShopId));
+                await db
+                    .delete(shopsTable)
+                    .where(eq(shopsTable.id, otherShopId));
+            }
+        });
+    });
 });

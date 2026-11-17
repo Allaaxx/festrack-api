@@ -4,6 +4,7 @@ import { faker } from '@faker-js/faker';
 import { db } from '../../../db/postgres/index.js';
 import { shopsTable } from '../../../db/postgres/schemas/index.js';
 import { PostgresEventTagRepository } from './event-tag-repository.js';
+import { EventTagNotFoundError } from '../../../errors/index.js';
 
 describe('Postgres Event Tag Repository', () => {
     let sut: PostgresEventTagRepository;
@@ -166,6 +167,117 @@ describe('Postgres Event Tag Repository', () => {
                 );
                 expect(foundInOtherShop).not.toBeNull();
                 expect(foundInOtherShop?.shop_id).toBe(otherShopId);
+            } finally {
+                await db
+                    .delete(shopsTable)
+                    .where(eq(shopsTable.id, otherShopId));
+            }
+        });
+    });
+
+    describe('findById', () => {
+        it('should return null when tag with given id does not exist in shop', async () => {
+            const tag = await sut.findById('non-existent-id', shopId);
+            expect(tag).toBeNull();
+        });
+
+        it('should return the event tag when found by id and shopId', async () => {
+            const created = await sut.create({
+                shop_id: shopId,
+                name: 'VIP Tag',
+                slug: 'vip-tag',
+                color: 'bg-emerald-500',
+            });
+
+            const found = await sut.findById(created.id, shopId);
+
+            expect(found).not.toBeNull();
+            expect(found?.id).toBe(created.id);
+            expect(found?.shop_id).toBe(shopId);
+            expect(found?.name).toBe('VIP Tag');
+            expect(found?.slug).toBe('vip-tag');
+        });
+
+        it('should enforce shop isolation and not find tag by id from another shop', async () => {
+            const otherShopId = faker.string.uuid();
+            await db.insert(shopsTable).values({
+                id: otherShopId,
+                name: 'Other Shop Id',
+            });
+
+            try {
+                const created = await sut.create({
+                    shop_id: otherShopId,
+                    name: 'Other Shop Tag',
+                    slug: 'other-slug',
+                    color: 'bg-pink-500',
+                });
+
+                const foundInOriginalShop = await sut.findById(
+                    created.id,
+                    shopId,
+                );
+                expect(foundInOriginalShop).toBeNull();
+
+                const foundInOtherShop = await sut.findById(
+                    created.id,
+                    otherShopId,
+                );
+                expect(foundInOtherShop).not.toBeNull();
+                expect(foundInOtherShop?.shop_id).toBe(otherShopId);
+            } finally {
+                await db
+                    .delete(shopsTable)
+                    .where(eq(shopsTable.id, otherShopId));
+            }
+        });
+    });
+
+    describe('delete', () => {
+        it('should delete event tag by id and shopId and return deleted tag', async () => {
+            const created = await sut.create({
+                shop_id: shopId,
+                name: 'Tag To Delete',
+                slug: 'tag-to-delete',
+                color: 'bg-red-500',
+            });
+
+            const deleted = await sut.delete(created.id, shopId);
+
+            expect(deleted.id).toBe(created.id);
+            expect(deleted.slug).toBe('tag-to-delete');
+
+            const found = await sut.findById(created.id, shopId);
+            expect(found).toBeNull();
+        });
+
+        it('should throw EventTagNotFoundError when deleting non-existent tag', async () => {
+            await expect(
+                sut.delete('non-existent-id', shopId),
+            ).rejects.toThrow(new EventTagNotFoundError('non-existent-id'));
+        });
+
+        it('should not delete tag from another shop (enforce isolation)', async () => {
+            const otherShopId = faker.string.uuid();
+            await db.insert(shopsTable).values({
+                id: otherShopId,
+                name: 'Other Shop Isolation',
+            });
+
+            try {
+                const created = await sut.create({
+                    shop_id: otherShopId,
+                    name: 'Other Tag',
+                    slug: 'other-tag-slug',
+                    color: 'bg-yellow-500',
+                });
+
+                await expect(
+                    sut.delete(created.id, shopId),
+                ).rejects.toThrow(new EventTagNotFoundError(created.id));
+
+                const stillExists = await sut.findById(created.id, otherShopId);
+                expect(stillExists).not.toBeNull();
             } finally {
                 await db
                     .delete(shopsTable)

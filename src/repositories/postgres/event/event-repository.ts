@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, Database } from '../../../db/postgres/index.js';
 import { eventsTable } from '../../../db/postgres/schemas/index.js';
 import { EventNotFoundError } from '../../../errors/event.js';
@@ -95,5 +95,24 @@ export class PostgresEventRepository implements EventRepository {
         }
 
         return { ...deletedEvent, user_id: deletedEvent.created_by_user_id };
+    }
+
+    async reassignTag(
+        shopId: string,
+        fromSlug: string,
+        toSlug: string,
+    ): Promise<number> {
+        const updated = await this.database
+            .update(eventsTable)
+            .set({ tag: toSlug })
+            .where(
+                and(
+                    eq(eventsTable.shop_id, shopId),
+                    eq(eventsTable.tag, fromSlug),
+                ),
+            )
+            .returning();
+
+        return updated.length;
     }
 }

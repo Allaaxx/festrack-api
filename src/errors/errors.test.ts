@@ -16,6 +16,8 @@ import {
     InvalidRentalReturnError,
     EventTagConflictError,
     EventTagSlugAlreadyExistsError,
+    EventTagNotFoundError,
+    CannotDeleteSystemTagError,
 } from './index.js';
 
 describe('Domain Errors', () => {
@@ -199,5 +201,19 @@ describe('Domain Errors', () => {
         expect(error.name).toBe('EventTagSlugAlreadyExistsError');
         expect(error.message).toBe("Event tag with slug 'vip' already exists.");
         expect(error).toBeInstanceOf(EventTagConflictError);
+    });
+
+    it('EventTagNotFoundError should have correct message and name', () => {
+        const error = new EventTagNotFoundError('tag-123');
+        expect(error.name).toBe('EventTagNotFoundError');
+        expect(error.message).toBe("Event tag with id 'tag-123' not found.");
+        expect(error).toBeInstanceOf(Error);
+    });
+
+    it('CannotDeleteSystemTagError should have correct message and name', () => {
+        const error = new CannotDeleteSystemTagError();
+        expect(error.name).toBe('CannotDeleteSystemTagError');
+        expect(error.message).toBe('Cannot delete system default event tag.');
+        expect(error).toBeInstanceOf(Error);
     });
 });

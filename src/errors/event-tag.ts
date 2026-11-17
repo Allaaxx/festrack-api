@@ -11,3 +11,18 @@ export class EventTagSlugAlreadyExistsError extends EventTagConflictError {
         this.name = 'EventTagSlugAlreadyExistsError';
     }
 }
+
+export class EventTagNotFoundError extends Error {
+    constructor(id: string) {
+        super(`Event tag with id '${id}' not found.`);
+        this.name = 'EventTagNotFoundError';
+    }
+}
+
+export class CannotDeleteSystemTagError extends Error {
+    constructor(message = 'Cannot delete system default event tag.') {
+        super(message);
+        this.name = 'CannotDeleteSystemTagError';
+    }
+}
+
