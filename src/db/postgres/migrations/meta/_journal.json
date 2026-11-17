@@ -85,6 +85,20 @@
             "when": 1794502516332,
             "tag": "0011_true_pixie",
             "breakpoints": true
+        },
+        {
+            "idx": 12,
+            "version": "7",
+            "when": 1794872291627,
+            "tag": "0012_slim_nehzno",
+            "breakpoints": true
+        },
+        {
+            "idx": 13,
+            "version": "7",
+            "when": 1794873007875,
+            "tag": "0013_hard_star_brand",
+            "breakpoints": true
         }
     ]
 }

@@ -42,6 +42,18 @@ describe('Postgres Event Repository', () => {
             expect(dayjs(result.end_date).toISOString()).toBe(
                 dayjs(event.end_date).toISOString(),
             );
+            expect(result.tag).toBe('etc');
+        });
+
+        it('should create an event with explicit tag', async () => {
+            const result = await sut.create({
+                ...event,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'business',
+            });
+
+            expect(result.tag).toBe('business');
         });
 
         it('should throw if database throws', async () => {
@@ -63,6 +75,7 @@ describe('Postgres Event Repository', () => {
         it('should return event by id', async () => {
             await db.insert(eventsTable).values({
                 ...event,
+                tag: event.tag ?? 'etc',
                 shop_id: shop.id,
                 created_by_user_id: user.id,
                 start_date: new Date(event.start_date),
@@ -89,6 +102,7 @@ describe('Postgres Event Repository', () => {
         it('should return all events for a shop', async () => {
             await db.insert(eventsTable).values({
                 ...event,
+                tag: event.tag ?? 'etc',
                 shop_id: shop.id,
                 created_by_user_id: user.id,
                 start_date: new Date(event.start_date),
@@ -111,20 +125,42 @@ describe('Postgres Event Repository', () => {
     });
 
     describe('findByUserId', () => {
-        it('should return all events for a user', async () => {
-            await db.insert(eventsTable).values({
-                ...event,
-                shop_id: shop.id,
-                created_by_user_id: user.id,
-                start_date: new Date(event.start_date),
-                end_date: new Date(event.end_date),
-            });
+        it('should return all events for a user with tag property (default and custom)', async () => {
+            const secondEventId = '33333333-3333-4333-8333-333333333333';
+            await db.insert(eventsTable).values([
+                {
+                    ...event,
+                    tag: 'etc',
+                    shop_id: shop.id,
+                    created_by_user_id: user.id,
+                    start_date: new Date(event.start_date),
+                    end_date: new Date(event.end_date),
+                },
+                {
+                    ...event,
+                    id: secondEventId,
+                    name: 'Custom Tag Event',
+                    tag: 'festival',
+                    shop_id: shop.id,
+                    created_by_user_id: user.id,
+                    start_date: new Date(event.start_date),
+                    end_date: new Date(event.end_date),
+                },
+            ]);
 
             const result = await sut.findByUserId(user.id);
 
-            expect(result).toHaveLength(1);
-            expect(result[0].id).toBe(event.id);
-            expect(result[0].created_by_user_id).toBe(user.id);
+            expect(result).toHaveLength(2);
+            const defaultEvt = result.find((e) => e.id === event.id);
+            const customEvt = result.find((e) => e.id === secondEventId);
+
+            expect(defaultEvt).toBeDefined();
+            expect(defaultEvt?.tag).toBe('etc');
+            expect(defaultEvt?.created_by_user_id).toBe(user.id);
+
+            expect(customEvt).toBeDefined();
+            expect(customEvt?.tag).toBe('festival');
+            expect(customEvt?.created_by_user_id).toBe(user.id);
         });
 
         it('should return empty list if user has no events', async () => {
@@ -138,6 +174,7 @@ describe('Postgres Event Repository', () => {
         it('should update event fields and dates on db', async () => {
             await db.insert(eventsTable).values({
                 ...event,
+                tag: event.tag ?? 'etc',
                 shop_id: shop.id,
                 created_by_user_id: user.id,
                 start_date: new Date(event.start_date),
@@ -161,6 +198,26 @@ describe('Postgres Event Repository', () => {
             );
         });
 
+        it('should update event tag on db', async () => {
+            await db.insert(eventsTable).values({
+                ...event,
+                tag: event.tag ?? 'etc',
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                start_date: new Date(event.start_date),
+                end_date: new Date(event.end_date),
+            });
+
+            const result = await sut.update(event.id, {
+                tag: 'wedding',
+            });
+
+            expect(result.tag).toBe('wedding');
+
+            const fromDb = await sut.findById(event.id);
+            expect(fromDb?.tag).toBe('wedding');
+        });
+
         it('should throw EventNotFoundError if event does not exist', async () => {
             await expect(
                 sut.update(event.id, { name: 'Non Existent' }),
@@ -172,6 +229,7 @@ describe('Postgres Event Repository', () => {
         it('should delete event from db and return deleted event', async () => {
             await db.insert(eventsTable).values({
                 ...event,
+                tag: event.tag ?? 'etc',
                 shop_id: shop.id,
                 created_by_user_id: user.id,
                 start_date: new Date(event.start_date),
@@ -193,6 +251,74 @@ describe('Postgres Event Repository', () => {
             await expect(sut.delete(event.id)).rejects.toThrow(
                 new EventNotFoundError(event.id),
             );
+        });
+    });
+
+    describe('reassignTag', () => {
+        it('should update tag from fromSlug to toSlug for all events in the specified shop', async () => {
+            const { id: _id, ...eventData } = event;
+            const event1 = await sut.create({
+                ...eventData,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'festival',
+            });
+            const event2 = await sut.create({
+                ...eventData,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'festival',
+            });
+            const event3 = await sut.create({
+                ...eventData,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'wedding',
+            });
+
+            const count = await sut.reassignTag(shop.id, 'festival', 'etc');
+            expect(count).toBe(2);
+
+            const found1 = await sut.findById(event1.id);
+            expect(found1?.tag).toBe('etc');
+
+            const found2 = await sut.findById(event2.id);
+            expect(found2?.tag).toBe('etc');
+
+            const found3 = await sut.findById(event3.id);
+            expect(found3?.tag).toBe('wedding');
+        });
+
+        it('should not update events belonging to another shop with the same fromSlug', async () => {
+            const otherShopId = '00000000-0000-4000-8000-000000000099';
+            await db.insert(shopsTable).values({
+                id: otherShopId,
+                name: 'Other Shop Events',
+                description: 'Other shop description',
+            });
+
+            try {
+                const { id: _id, ...eventData } = event;
+                const otherEvent = await sut.create({
+                    ...eventData,
+                    shop_id: otherShopId,
+                    created_by_user_id: user.id,
+                    tag: 'festival',
+                });
+
+                const count = await sut.reassignTag(shop.id, 'festival', 'etc');
+                expect(count).toBe(0);
+
+                const foundOther = await sut.findById(otherEvent.id);
+                expect(foundOther?.tag).toBe('festival');
+            } finally {
+                await db
+                    .delete(eventsTable)
+                    .where(eq(eventsTable.shop_id, otherShopId));
+                await db
+                    .delete(shopsTable)
+                    .where(eq(shopsTable.id, otherShopId));
+            }
         });
     });
 });

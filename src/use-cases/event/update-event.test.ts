@@ -212,4 +212,20 @@ describe('Update Event Use Case', () => {
         expect(result).toBeDefined();
         expect(result.name).toBe(updateParams.name!);
     });
+
+    it('should pass tag to eventRepository.update', async () => {
+        const { sut, eventRepository } = makeSut();
+        const updateSpy = jest.spyOn(eventRepository, 'update');
+
+        await sut.execute(shop.id, event.id, user.id, {
+            tag: 'custom-tag',
+        });
+
+        expect(updateSpy).toHaveBeenCalledWith(
+            event.id,
+            expect.objectContaining({
+                tag: 'custom-tag',
+            }),
+        );
+    });
 });

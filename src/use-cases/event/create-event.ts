@@ -8,6 +8,7 @@ import {
     ShopMemberRepository,
     UserRepository,
     GoogleCalendarAdapter,
+    DEFAULT_EVENT_TAG_SLUG,
 } from '../../domain/index.js';
 
 export interface CreateEventInput {
@@ -17,6 +18,7 @@ export interface CreateEventInput {
     description?: string | null;
     start_date: Date | string;
     end_date: Date | string;
+    tag?: string | null;
 }
 
 export class CreateEventUseCase {
@@ -75,6 +77,11 @@ export class CreateEventUseCase {
             }
         }
 
+        const tag =
+            input.tag && input.tag.trim() !== ''
+                ? input.tag
+                : DEFAULT_EVENT_TAG_SLUG;
+
         return await this.eventRepository.create({
             shop_id: input.shopId,
             created_by_user_id: input.userId,
@@ -83,6 +90,7 @@ export class CreateEventUseCase {
             start_date: input.start_date,
             end_date: input.end_date,
             google_event_id: googleEventId,
+            tag,
         });
     }
 }

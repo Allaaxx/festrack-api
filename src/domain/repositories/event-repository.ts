@@ -14,4 +14,9 @@ export interface EventRepository {
         updateEventParams: UpdateEventParams,
     ): Promise<Event>;
     delete(eventId: string): Promise<Event>;
+    reassignTag(
+        shopId: string,
+        fromSlug: string,
+        toSlug: string,
+    ): Promise<number>;
 }

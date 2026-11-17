@@ -14,6 +14,10 @@ import {
     ShopAssetFileSizeExceededError,
     InsufficientStockError,
     InvalidRentalReturnError,
+    EventTagConflictError,
+    InvalidEventTagSlugError,
+    EventTagNotFoundError,
+    CannotDeleteSystemTagError,
 } from './index.js';
 
 describe('Domain Errors', () => {
@@ -181,5 +185,37 @@ describe('Domain Errors', () => {
         expect(detailedError.details![0].returnedQuantity).toBe(5);
         expect(detailedError.details![0].totalToCheckin).toBe(5);
         expect(detailedError.details![0].reservedStock).toBe(2);
+    });
+
+    it('EventTagConflictError should have correct message and name', () => {
+        const error = new EventTagConflictError('family');
+        expect(error.name).toBe('EventTagConflictError');
+        expect(error.message).toBe(
+            "Event tag with slug 'family' already exists.",
+        );
+        expect(error).toBeInstanceOf(Error);
+    });
+
+    it('InvalidEventTagSlugError should have correct message and name', () => {
+        const error = new InvalidEventTagSlugError();
+        expect(error.name).toBe('InvalidEventTagSlugError');
+        expect(error.message).toBe(
+            'Event tag slug cannot be empty or invalid.',
+        );
+        expect(error).toBeInstanceOf(Error);
+    });
+
+    it('EventTagNotFoundError should have correct message and name', () => {
+        const error = new EventTagNotFoundError('tag-123');
+        expect(error.name).toBe('EventTagNotFoundError');
+        expect(error.message).toBe("Event tag with id 'tag-123' not found.");
+        expect(error).toBeInstanceOf(Error);
+    });
+
+    it('CannotDeleteSystemTagError should have correct message and name', () => {
+        const error = new CannotDeleteSystemTagError();
+        expect(error.name).toBe('CannotDeleteSystemTagError');
+        expect(error.message).toBe('Cannot delete system default event tag.');
+        expect(error).toBeInstanceOf(Error);
     });
 });
