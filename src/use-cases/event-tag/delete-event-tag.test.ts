@@ -9,10 +9,7 @@ import {
 } from '../../domain/index.js';
 import { ShopNotFoundError } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
-import {
-    EventTagNotFoundError,
-    CannotDeleteSystemTagError,
-} from '../../errors/event-tag.js';
+import { EventTagNotFoundError } from '../../errors/event-tag.js';
 
 describe('DeleteEventTagUseCase (Unit Tests)', () => {
     let sut: DeleteEventTagUseCase;
@@ -24,11 +21,11 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
         'findByShopAndUserId'
     >;
 
-    let tags: (EventTag & { is_system?: boolean })[];
+    let tags: EventTag[];
     let reassignCalls: Array<{
         shopId: string;
         fromSlug: string;
-        toSlug: string;
+        toSlug: string | null;
     }>;
 
     const shopId = '11111111-1111-4111-8111-111111111111';
@@ -43,7 +40,6 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
                 name: 'Aniversário',
                 slug: 'aniversario',
                 color: 'bg-emerald-500',
-                is_system: false,
                 created_at: new Date(),
             },
             {
@@ -52,16 +48,14 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
                 name: 'Outra Loja',
                 slug: 'outra-loja',
                 color: 'bg-red-500',
-                is_system: false,
                 created_at: new Date(),
             },
             {
-                id: 'system-persisted-tag',
+                id: 'custom-tag-family',
                 shop_id: shopId,
-                name: 'Builtin',
-                slug: 'builtin',
+                name: 'Família Custom',
+                slug: 'family',
                 color: 'bg-blue-500',
-                is_system: true,
                 created_at: new Date(),
             },
         ];
@@ -94,7 +88,7 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
             reassignTag: async (
                 sId: string,
                 fromSlug: string,
-                toSlug: string,
+                toSlug: string | null,
             ): Promise<number> => {
                 reassignCalls.push({ shopId: sId, fromSlug, toSlug });
                 return 3;
@@ -140,7 +134,7 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
         );
     });
 
-    it('should delete custom event tag and reassign referencing events to etc', async () => {
+    it('should delete custom event tag and reassign referencing events to null', async () => {
         const result = await sut.execute({
             shopId,
             tagId: 'custom-tag-1',
@@ -155,18 +149,27 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
         expect(reassignCalls[0]).toEqual({
             shopId,
             fromSlug: 'aniversario',
-            toSlug: 'etc',
+            toSlug: null,
         });
     });
 
-    it('should throw EventTagNotFoundError when tagId starts with system- but is not a recognized system tag', async () => {
-        await expect(
-            sut.execute({
-                shopId,
-                tagId: 'system-unknown',
-                userId,
-            }),
-        ).rejects.toThrow(EventTagNotFoundError);
+    it('should allow deleting custom tag even with slug matching former system names and reassign to null', async () => {
+        const result = await sut.execute({
+            shopId,
+            tagId: 'custom-tag-family',
+            userId,
+        });
+
+        expect(result.id).toBe('custom-tag-family');
+        expect(result.slug).toBe('family');
+        expect(tags.find((t) => t.id === 'custom-tag-family')).toBeUndefined();
+
+        expect(reassignCalls).toHaveLength(1);
+        expect(reassignCalls[0]).toEqual({
+            shopId,
+            fromSlug: 'family',
+            toSlug: null,
+        });
     });
 
     it('should throw ShopNotFoundError when shop does not exist', async () => {
@@ -189,7 +192,7 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
-    it('should throw CannotDeleteSystemTagError when tagId is a system default tag ID', async () => {
+    it('should throw EventTagNotFoundError when attempting to delete a system tag ID that does not exist in the shop', async () => {
         const systemIds = [
             'system-family',
             'system-business',
@@ -205,27 +208,7 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
                     tagId: sysId,
                     userId,
                 }),
-            ).rejects.toThrow(CannotDeleteSystemTagError);
-        }
-    });
-
-    it('should throw CannotDeleteSystemTagError when tagId is a system tag slug', async () => {
-        const systemSlugs = [
-            'family',
-            'business',
-            'personal',
-            'holiday',
-            'etc',
-        ];
-
-        for (const slug of systemSlugs) {
-            await expect(
-                sut.execute({
-                    shopId,
-                    tagId: slug,
-                    userId,
-                }),
-            ).rejects.toThrow(CannotDeleteSystemTagError);
+            ).rejects.toThrow(EventTagNotFoundError);
         }
     });
 
@@ -247,15 +230,5 @@ describe('DeleteEventTagUseCase (Unit Tests)', () => {
                 userId,
             }),
         ).rejects.toThrow(EventTagNotFoundError);
-    });
-
-    it('should throw CannotDeleteSystemTagError when persisted tag has is_system === true', async () => {
-        await expect(
-            sut.execute({
-                shopId,
-                tagId: 'system-persisted-tag',
-                userId,
-            }),
-        ).rejects.toThrow(CannotDeleteSystemTagError);
     });
 });

@@ -100,7 +100,7 @@ export class PostgresEventRepository implements EventRepository {
     async reassignTag(
         shopId: string,
         fromSlug: string,
-        toSlug: string,
+        toSlug: string | null,
     ): Promise<number> {
         const updated = await this.database
             .update(eventsTable)

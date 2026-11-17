@@ -18,10 +18,3 @@ export class EventTagNotFoundError extends Error {
         this.name = 'EventTagNotFoundError';
     }
 }
-
-export class CannotDeleteSystemTagError extends Error {
-    constructor(message = 'Cannot delete system default event tag.') {
-        super(message);
-        this.name = 'CannotDeleteSystemTagError';
-    }
-}

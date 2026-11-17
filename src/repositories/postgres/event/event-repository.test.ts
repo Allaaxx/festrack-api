@@ -286,6 +286,40 @@ describe('Postgres Event Repository', () => {
     });
 
     describe('reassignTag', () => {
+        it('should reassign tag from fromSlug to null for all events in the specified shop', async () => {
+            const { id: _id, ...eventData } = event;
+            const event1 = await sut.create({
+                ...eventData,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'festival',
+            });
+            const event2 = await sut.create({
+                ...eventData,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'festival',
+            });
+            const event3 = await sut.create({
+                ...eventData,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'wedding',
+            });
+
+            const count = await sut.reassignTag(shop.id, 'festival', null);
+            expect(count).toBe(2);
+
+            const found1 = await sut.findById(event1.id);
+            expect(found1?.tag).toBeNull();
+
+            const found2 = await sut.findById(event2.id);
+            expect(found2?.tag).toBeNull();
+
+            const found3 = await sut.findById(event3.id);
+            expect(found3?.tag).toBe('wedding');
+        });
+
         it('should update tag from fromSlug to toSlug for all events in the specified shop', async () => {
             const { id: _id, ...eventData } = event;
             const event1 = await sut.create({

@@ -570,7 +570,7 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
             expect(deleteRes.body.id).toBe(createdTagId);
         });
 
-        it('should automatically reassign shop events referencing the deleted tag slug to etc', async () => {
+        it('should automatically reassign shop events referencing the deleted tag slug to null', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
 
@@ -630,18 +630,18 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                 .set('Authorization', owner.bearerHeader);
             expect(deleteRes.status).toBe(200);
 
-            // Check events now have fallback tag 'etc'
+            // Check events now have fallback tag null
             const getEvt1 = await client
                 .get(`/api/shops/${shop.id}/events/${evt1Res.body.id}`)
                 .set('Authorization', owner.bearerHeader);
             expect(getEvt1.status).toBe(200);
-            expect(getEvt1.body.tag).toBe('etc');
+            expect(getEvt1.body.tag).toBeNull();
 
             const getEvt2 = await client
                 .get(`/api/shops/${shop.id}/events/${evt2Res.body.id}`)
                 .set('Authorization', owner.bearerHeader);
             expect(getEvt2.status).toBe(200);
-            expect(getEvt2.body.tag).toBe('etc');
+            expect(getEvt2.body.tag).toBeNull();
 
             // Check business event remains unaffected
             const getEvt3 = await client
@@ -651,7 +651,7 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
             expect(getEvt3.body.tag).toBe('business');
         });
 
-        it('should return 400 when attempting to delete a system default tag ID', async () => {
+        it('should return 404 when attempting to delete a non-existent system default tag ID', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
 
@@ -668,7 +668,7 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     .delete(`/api/shops/${shop.id}/event-tags/${sysId}`)
                     .set('Authorization', owner.bearerHeader);
 
-                expect(response.status).toBe(400);
+                expect(response.status).toBe(404);
             }
         });
 
