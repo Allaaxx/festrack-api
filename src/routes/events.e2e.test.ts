@@ -494,6 +494,29 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             const names = response.body.map((e: any) => e.name);
             expect(names).toContain('Owner Event');
             expect(names).toContain('Member Event');
+
+            const ownerEvent = response.body.find(
+                (e: any) => e.name === 'Owner Event',
+            );
+            const memberEvent = response.body.find(
+                (e: any) => e.name === 'Member Event',
+            );
+            expect(ownerEvent.author).toEqual({
+                id: owner.user.id,
+                name: owner.user.name,
+                first_name: owner.user.first_name,
+                last_name: owner.user.last_name,
+                email: owner.user.email,
+                image: null,
+            });
+            expect(memberEvent.author).toEqual({
+                id: member.user.id,
+                name: member.user.name,
+                first_name: member.user.first_name,
+                last_name: member.user.last_name,
+                email: member.user.email,
+                image: null,
+            });
         });
 
         it('should not return events from other shops (tenant isolation)', async () => {
@@ -1044,6 +1067,111 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
 
                 expect(response.status).toBe(200);
                 expect(deleted).toBe(true);
+            } finally {
+                globalThis.fetch = originalFetch;
+            }
+        });
+    });
+
+    describe('Centralized Shop OWNER Google Calendar Sync (E2E)', () => {
+        it('should sync MEMBER create, update (with 404 fallback insert), and delete against Shop OWNER Google account', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const member = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+            await addMemberToShop(shop.id, member.user.id, 'MEMBER');
+
+            await db
+                .update(user)
+                .set({ google_calendar_sync_enabled: true })
+                .where(eq(user.id, owner.user.id));
+
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                accountId: 'google-sub-owner-central',
+                providerId: 'google',
+                userId: owner.user.id,
+                accessToken: 'owner-central-token',
+                refreshToken: 'owner-central-refresh',
+                accessTokenExpiresAt: new Date(Date.now() + 3600 * 1000),
+                scope: 'openid email profile https://www.googleapis.com/auth/calendar.events',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            });
+
+            const calls: Array<{ method: string; auth: string }> = [];
+            let insertCount = 0;
+            const originalFetch = globalThis.fetch;
+            globalThis.fetch = (async (
+                url: string | URL | Request,
+                init?: RequestInit,
+            ) => {
+                const urlStr = url.toString();
+                if (
+                    urlStr.includes(
+                        'googleapis.com/calendar/v3/calendars/primary/events',
+                    )
+                ) {
+                    const headers = (init?.headers ?? {}) as Record<
+                        string,
+                        string
+                    >;
+                    const method = init?.method ?? 'GET';
+                    calls.push({ method, auth: headers['Authorization'] });
+
+                    if (method === 'POST') {
+                        insertCount += 1;
+                        return new Response(
+                            JSON.stringify({
+                                id: `gcal-central-${insertCount}`,
+                            }),
+                            {
+                                status: 200,
+                                headers: { 'Content-Type': 'application/json' },
+                            },
+                        );
+                    }
+                    if (method === 'PATCH') {
+                        return new Response('Not Found', { status: 404 });
+                    }
+                    if (method === 'DELETE') {
+                        return new Response(null, { status: 204 });
+                    }
+                }
+                return originalFetch(url, init);
+            }) as any;
+
+            try {
+                // 1. MEMBER creates event -> inserts on OWNER Google Calendar
+                const createRes = await client
+                    .post(`/api/shops/${shop.id}/events`)
+                    .set('Authorization', member.bearerHeader)
+                    .send(sampleEventData);
+
+                expect(createRes.status).toBe(201);
+                expect(createRes.body.google_event_id).toBe('gcal-central-1');
+                expect(createRes.body.created_by_user_id).toBe(member.user.id);
+
+                // 2. MEMBER updates event -> PATCH returns 404 -> falls back to POST and persists new google_event_id
+                const patchRes = await client
+                    .patch(`/api/shops/${shop.id}/events/${createRes.body.id}`)
+                    .set('Authorization', member.bearerHeader)
+                    .send({ name: 'Updated by Member' });
+
+                expect(patchRes.status).toBe(200);
+                expect(patchRes.body.google_event_id).toBe('gcal-central-2');
+
+                // 3. MEMBER deletes event -> deletes from OWNER Google Calendar
+                const deleteRes = await client
+                    .delete(`/api/shops/${shop.id}/events/${createRes.body.id}`)
+                    .set('Authorization', member.bearerHeader);
+
+                expect(deleteRes.status).toBe(200);
+                expect(calls).toEqual([
+                    { method: 'POST', auth: 'Bearer owner-central-token' },
+                    { method: 'PATCH', auth: 'Bearer owner-central-token' },
+                    { method: 'POST', auth: 'Bearer owner-central-token' },
+                    { method: 'DELETE', auth: 'Bearer owner-central-token' },
+                ]);
             } finally {
                 globalThis.fetch = originalFetch;
             }

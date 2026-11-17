@@ -12,6 +12,7 @@ export interface ShopMemberRepository {
         userId: string,
     ): Promise<ShopMember | null>;
     findByShopId(shopId: string): Promise<ShopMember[]>;
+    findOwnerByShopId(shopId: string): Promise<ShopMember | null>;
     findByShopIdWithUsers(shopId: string): Promise<ShopMemberWithUser[]>;
     findByUserId(userId: string): Promise<ShopMember[]>;
     updateRole(

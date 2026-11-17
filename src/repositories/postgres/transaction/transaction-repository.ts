@@ -19,6 +19,102 @@ import { toCents, fromCents } from '../helpers/currency.js';
 
 export type { TransactionRepository, TransactionFilters };
 
+const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
+
+function formatInDefaultTimezone(date: Date): string {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: DEFAULT_TIMEZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(date);
+}
+
+function toCivilDateString(value: Date | string): string | null {
+    if (value instanceof Date) {
+        if (isNaN(value.getTime())) {
+            return null;
+        }
+        if (
+            value.getUTCHours() === 0 &&
+            value.getUTCMinutes() === 0 &&
+            value.getUTCSeconds() === 0 &&
+            value.getUTCMilliseconds() === 0
+        ) {
+            return value.toISOString().slice(0, 10);
+        }
+        return formatInDefaultTimezone(value);
+    }
+
+    const trimmed = String(value).trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        const parsed = new Date(`${trimmed}T00:00:00.000Z`);
+        if (
+            isNaN(parsed.getTime()) ||
+            parsed.toISOString().slice(0, 10) !== trimmed
+        ) {
+            return null;
+        }
+        return trimmed;
+    }
+
+    const parsed = new Date(trimmed);
+    if (isNaN(parsed.getTime())) {
+        return null;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}T.*[+-]\d{2}:?\d{2}$/.test(trimmed)) {
+        return trimmed.slice(0, 10);
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}T00:00:00(?:\.000)?Z?$/.test(trimmed)) {
+        return trimmed.slice(0, 10);
+    }
+
+    return formatInDefaultTimezone(parsed);
+}
+
+function toCivilDate(value: Date | string): Date {
+    const civilDate = toCivilDateString(value);
+    if (!civilDate) {
+        return new Date(value);
+    }
+    return new Date(`${civilDate}T00:00:00.000Z`);
+}
+
+function buildFilterConditions(
+    baseCondition: ReturnType<typeof eq>,
+    filters?: TransactionFilters,
+) {
+    const conditions = [baseCondition];
+
+    if (filters?.from) {
+        const fromDate = toCivilDateString(filters.from);
+        if (fromDate) {
+            conditions.push(
+                sql`${transactionsTable.date} >= ${fromDate}::date`,
+            );
+        }
+    }
+
+    if (filters?.to) {
+        const toDate = toCivilDateString(filters.to);
+        if (toDate) {
+            conditions.push(sql`${transactionsTable.date} <= ${toDate}::date`);
+        }
+    }
+
+    if (filters?.event_id) {
+        conditions.push(eq(transactionsTable.event_id, filters.event_id));
+    }
+
+    return conditions;
+}
+
 function mapTransaction(
     row: TransactionTableSelect,
     author?: UserTableSelect | null,
@@ -68,7 +164,7 @@ export class PostgresTransactionRepository implements TransactionRepository {
             .insert(transactionsTable)
             .values({
                 ...createTransactionParams,
-                date: new Date(createTransactionParams.date),
+                date: toCivilDate(createTransactionParams.date),
                 amount: createTransactionParams.amount.toString(),
             })
             .returning();
@@ -89,31 +185,10 @@ export class PostgresTransactionRepository implements TransactionRepository {
         shopId: string,
         filters?: TransactionFilters,
     ): Promise<Transaction[]> {
-        const conditions = [eq(transactionsTable.shop_id, shopId)];
-
-        if (filters?.from) {
-            const parsedFrom = new Date(filters.from);
-            if (!isNaN(parsedFrom.getTime())) {
-                const fromDate = parsedFrom.toISOString().slice(0, 10);
-                conditions.push(
-                    sql`${transactionsTable.date} >= ${fromDate}::date`,
-                );
-            }
-        }
-
-        if (filters?.to) {
-            const parsedTo = new Date(filters.to);
-            if (!isNaN(parsedTo.getTime())) {
-                const toDate = parsedTo.toISOString().slice(0, 10);
-                conditions.push(
-                    sql`${transactionsTable.date} <= ${toDate}::date`,
-                );
-            }
-        }
-
-        if (filters?.event_id) {
-            conditions.push(eq(transactionsTable.event_id, filters.event_id));
-        }
+        const conditions = buildFilterConditions(
+            eq(transactionsTable.shop_id, shopId),
+            filters,
+        );
 
         const rows = await this.database
             .select({
@@ -135,31 +210,10 @@ export class PostgresTransactionRepository implements TransactionRepository {
         userId: string,
         filters?: TransactionFilters,
     ): Promise<Transaction[]> {
-        const conditions = [eq(transactionsTable.created_by_user_id, userId)];
-
-        if (filters?.from) {
-            const parsedFrom = new Date(filters.from);
-            if (!isNaN(parsedFrom.getTime())) {
-                const fromDate = parsedFrom.toISOString().slice(0, 10);
-                conditions.push(
-                    sql`${transactionsTable.date} >= ${fromDate}::date`,
-                );
-            }
-        }
-
-        if (filters?.to) {
-            const parsedTo = new Date(filters.to);
-            if (!isNaN(parsedTo.getTime())) {
-                const toDate = parsedTo.toISOString().slice(0, 10);
-                conditions.push(
-                    sql`${transactionsTable.date} <= ${toDate}::date`,
-                );
-            }
-        }
-
-        if (filters?.event_id) {
-            conditions.push(eq(transactionsTable.event_id, filters.event_id));
-        }
+        const conditions = buildFilterConditions(
+            eq(transactionsTable.created_by_user_id, userId),
+            filters,
+        );
 
         const rows = await this.database
             .select({
@@ -181,31 +235,10 @@ export class PostgresTransactionRepository implements TransactionRepository {
         shopId: string,
         filters?: TransactionFilters,
     ): Promise<Balance> {
-        const conditions = [eq(transactionsTable.shop_id, shopId)];
-
-        if (filters?.from) {
-            const parsedFrom = new Date(filters.from);
-            if (!isNaN(parsedFrom.getTime())) {
-                const fromDate = parsedFrom.toISOString().slice(0, 10);
-                conditions.push(
-                    sql`${transactionsTable.date} >= ${fromDate}::date`,
-                );
-            }
-        }
-
-        if (filters?.to) {
-            const parsedTo = new Date(filters.to);
-            if (!isNaN(parsedTo.getTime())) {
-                const toDate = parsedTo.toISOString().slice(0, 10);
-                conditions.push(
-                    sql`${transactionsTable.date} <= ${toDate}::date`,
-                );
-            }
-        }
-
-        if (filters?.event_id) {
-            conditions.push(eq(transactionsTable.event_id, filters.event_id));
-        }
+        const conditions = buildFilterConditions(
+            eq(transactionsTable.shop_id, shopId),
+            filters,
+        );
 
         const [aggregation] = await this.database
             .select({
@@ -254,7 +287,7 @@ export class PostgresTransactionRepository implements TransactionRepository {
             .set({
                 ...updateTransactionParams,
                 date: updateTransactionParams.date
-                    ? new Date(updateTransactionParams.date)
+                    ? toCivilDate(updateTransactionParams.date)
                     : undefined,
                 amount:
                     updateTransactionParams.amount !== undefined

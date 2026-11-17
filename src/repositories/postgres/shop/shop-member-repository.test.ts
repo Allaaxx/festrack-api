@@ -167,4 +167,27 @@ describe('Postgres Shop Member Repository', () => {
             expect(await sut.countOwners(shop.id)).toBe(1);
         });
     });
+
+    describe('findOwnerByShopId', () => {
+        it('should return the OWNER member of a shop and null when none exists', async () => {
+            await db.insert(usersTable).values(user);
+            const [shop] = await db
+                .insert(shopsTable)
+                .values({ name: 'Owner Lookup Shop' })
+                .returning();
+
+            expect(await sut.findOwnerByShopId(shop.id)).toBeNull();
+
+            await sut.create({
+                shop_id: shop.id,
+                user_id: user.id,
+                role: 'OWNER',
+            });
+
+            const owner = await sut.findOwnerByShopId(shop.id);
+            expect(owner).not.toBeNull();
+            expect(owner?.user_id).toBe(user.id);
+            expect(owner?.role).toBe('OWNER');
+        });
+    });
 });

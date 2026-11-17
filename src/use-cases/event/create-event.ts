@@ -1,6 +1,5 @@
 import { ShopNotFoundError } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
-import { UserNotFoundError } from '../../errors/user.js';
 import {
     Event,
     EventRepository,
@@ -10,6 +9,7 @@ import {
     GoogleCalendarAdapter,
     DEFAULT_EVENT_TAG_SLUG,
 } from '../../domain/index.js';
+import { resolveShopOwner } from './resolve-shop-owner.js';
 
 export interface CreateEventInput {
     shopId: string;
@@ -27,7 +27,7 @@ export class CreateEventUseCase {
         private readonly shopRepository: Pick<ShopRepository, 'findById'>,
         private readonly shopMemberRepository: Pick<
             ShopMemberRepository,
-            'findByShopAndUserId'
+            'findByShopAndUserId' | 'findOwnerByShopId'
         >,
         private readonly userRepository?: Pick<UserRepository, 'findById'>,
         private readonly calendarAdapter?: Pick<
@@ -52,15 +52,17 @@ export class CreateEventUseCase {
 
         let googleEventId: string | null = null;
         if (this.userRepository && this.calendarAdapter) {
-            const user = await this.userRepository.findById(input.userId);
-            if (!user) {
-                throw new UserNotFoundError(input.userId);
-            }
+            const owner = await resolveShopOwner(
+                input.shopId,
+                member,
+                this.shopMemberRepository,
+                this.userRepository,
+            );
 
-            if (user.google_calendar_sync_enabled) {
+            if (owner?.google_calendar_sync_enabled) {
                 try {
                     googleEventId = await this.calendarAdapter.insert(
-                        input.userId,
+                        owner.id,
                         {
                             name: input.name,
                             description: input.description,

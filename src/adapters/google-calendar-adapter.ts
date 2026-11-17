@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, Database } from '../db/postgres/index.js';
 import { account } from '../db/postgres/schemas/index.js';
 import { env } from '../config/env.js';
+import { GoogleCalendarNotFoundError } from '../errors/index.js';
 import {
     GoogleCalendarAdapter,
     InsertCalendarEventParams,
@@ -14,6 +15,19 @@ export interface GoogleCalendarAdapterOptions {
     clientSecret?: string;
     calendarBaseUrl?: string;
     oauthTokenUrl?: string;
+}
+
+const DEFAULT_TIME_ZONE = 'America/Sao_Paulo';
+
+function toCalendarDateTime(
+    dateValue: Date | string,
+    timeZone = DEFAULT_TIME_ZONE,
+): { dateTime: string; timeZone: string } {
+    return {
+        dateTime:
+            typeof dateValue === 'string' ? dateValue : dateValue.toISOString(),
+        timeZone,
+    };
 }
 
 export class DefaultGoogleCalendarAdapter implements GoogleCalendarAdapter {
@@ -134,12 +148,8 @@ export class DefaultGoogleCalendarAdapter implements GoogleCalendarAdapter {
         const requestBody = {
             summary: event.name,
             description: event.description ?? undefined,
-            start: {
-                dateTime: new Date(event.start_date).toISOString(),
-            },
-            end: {
-                dateTime: new Date(event.end_date).toISOString(),
-            },
+            start: toCalendarDateTime(event.start_date, event.timeZone),
+            end: toCalendarDateTime(event.end_date, event.timeZone),
         };
 
         const url = `${this.calendarBaseUrl}/calendars/primary/events`;
@@ -192,14 +202,16 @@ export class DefaultGoogleCalendarAdapter implements GoogleCalendarAdapter {
         if (event.description !== undefined)
             requestBody.description = event.description ?? '';
         if (event.start_date !== undefined) {
-            requestBody.start = {
-                dateTime: new Date(event.start_date).toISOString(),
-            };
+            requestBody.start = toCalendarDateTime(
+                event.start_date,
+                event.timeZone,
+            );
         }
         if (event.end_date !== undefined) {
-            requestBody.end = {
-                dateTime: new Date(event.end_date).toISOString(),
-            };
+            requestBody.end = toCalendarDateTime(
+                event.end_date,
+                event.timeZone,
+            );
         }
 
         const url = `${this.calendarBaseUrl}/calendars/primary/events/${encodeURIComponent(googleEventId)}`;
@@ -226,6 +238,12 @@ export class DefaultGoogleCalendarAdapter implements GoogleCalendarAdapter {
 
         if (!response.ok) {
             const errText = await response.text();
+            if (response.status === 404 || response.status === 410) {
+                throw new GoogleCalendarNotFoundError(
+                    response.status,
+                    `Google Calendar patch failed (${response.status}): ${errText}`,
+                );
+            }
             throw new Error(
                 `Google Calendar patch failed (${response.status}): ${errText}`,
             );

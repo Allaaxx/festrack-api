@@ -42,12 +42,23 @@ describe('Create Event Use Case', () => {
 
     class ShopMemberRepositoryStub implements Pick<
         ShopMemberRepository,
-        'findByShopAndUserId'
+        'findByShopAndUserId' | 'findOwnerByShopId'
     > {
         async findByShopAndUserId(
             _shopId: string,
             _userId: string,
         ): Promise<ShopMember | null> {
+            return {
+                id: 'member-1',
+                shop_id: shop.id,
+                user_id: user.id,
+                role: 'OWNER',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            };
+        }
+
+        async findOwnerByShopId(_shopId: string): Promise<ShopMember | null> {
             return {
                 id: 'member-1',
                 shop_id: shop.id,
@@ -247,5 +258,110 @@ describe('Create Event Use Case', () => {
                 tag: 'etc',
             }),
         );
+    });
+
+    it('should sync Google Calendar against the Shop OWNER when a MEMBER creates an event', async () => {
+        const {
+            sut,
+            shopMemberRepository,
+            userRepository,
+            calendarAdapter,
+            eventRepository,
+        } = makeSut();
+        const memberUserId = 'member-user-id';
+        const ownerUserId = 'owner-user-id';
+
+        jest.spyOn(
+            shopMemberRepository,
+            'findByShopAndUserId',
+        ).mockResolvedValueOnce({
+            id: 'member-2',
+            shop_id: shop.id,
+            user_id: memberUserId,
+            role: 'MEMBER',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        jest.spyOn(
+            shopMemberRepository,
+            'findOwnerByShopId',
+        ).mockResolvedValueOnce({
+            id: 'member-1',
+            shop_id: shop.id,
+            user_id: ownerUserId,
+            role: 'OWNER',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        jest.spyOn(userRepository, 'findById').mockImplementation(
+            async (id: string) => ({
+                ...user,
+                id,
+                google_calendar_sync_enabled: id === ownerUserId,
+            }),
+        );
+        const insertSpy = jest.spyOn(calendarAdapter, 'insert');
+        const createSpy = jest.spyOn(eventRepository, 'create');
+
+        await sut.execute({
+            ...createEventInput,
+            userId: memberUserId,
+        });
+
+        expect(insertSpy).toHaveBeenCalledWith(
+            ownerUserId,
+            expect.objectContaining({ name: createEventInput.name }),
+        );
+        expect(createSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                created_by_user_id: memberUserId,
+                google_event_id: 'google-event-id-123',
+            }),
+        );
+    });
+
+    it('should not sync Google Calendar when MEMBER has sync enabled but Shop OWNER has sync disabled', async () => {
+        const { sut, shopMemberRepository, userRepository, calendarAdapter } =
+            makeSut();
+        const memberUserId = 'member-user-id';
+        const ownerUserId = 'owner-user-id';
+
+        jest.spyOn(
+            shopMemberRepository,
+            'findByShopAndUserId',
+        ).mockResolvedValueOnce({
+            id: 'member-2',
+            shop_id: shop.id,
+            user_id: memberUserId,
+            role: 'MEMBER',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        jest.spyOn(
+            shopMemberRepository,
+            'findOwnerByShopId',
+        ).mockResolvedValueOnce({
+            id: 'member-1',
+            shop_id: shop.id,
+            user_id: ownerUserId,
+            role: 'OWNER',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        jest.spyOn(userRepository, 'findById').mockImplementation(
+            async (id: string) => ({
+                ...user,
+                id,
+                google_calendar_sync_enabled: id === memberUserId,
+            }),
+        );
+        const insertSpy = jest.spyOn(calendarAdapter, 'insert');
+
+        await sut.execute({
+            ...createEventInput,
+            userId: memberUserId,
+        });
+
+        expect(insertSpy).not.toHaveBeenCalled();
     });
 });

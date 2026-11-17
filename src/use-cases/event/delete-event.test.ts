@@ -45,7 +45,7 @@ describe('Delete Event Use Case', () => {
 
     class ShopMemberRepositoryStub implements Pick<
         ShopMemberRepository,
-        'findByShopAndUserId'
+        'findByShopAndUserId' | 'findOwnerByShopId'
     > {
         async findByShopAndUserId(
             _shopId: string,
@@ -56,6 +56,17 @@ describe('Delete Event Use Case', () => {
                 shop_id: shop.id,
                 user_id: user.id,
                 role: 'MEMBER',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            };
+        }
+
+        async findOwnerByShopId(_shopId: string): Promise<ShopMember | null> {
+            return {
+                id: 'owner-member-1',
+                shop_id: shop.id,
+                user_id: user.id,
+                role: 'OWNER',
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             };
@@ -188,5 +199,111 @@ describe('Delete Event Use Case', () => {
 
         expect(result).toBeDefined();
         expect(result.id).toBe(event.id);
+    });
+
+    it('should delete Google Calendar event on Shop OWNER account when a MEMBER deletes an event', async () => {
+        const {
+            sut,
+            shopMemberRepository,
+            userRepository,
+            eventRepository,
+            calendarAdapter,
+        } = makeSut();
+        const memberUserId = 'member-user-id';
+        const ownerUserId = 'owner-user-id';
+
+        jest.spyOn(
+            shopMemberRepository,
+            'findByShopAndUserId',
+        ).mockResolvedValueOnce({
+            id: 'member-2',
+            shop_id: shop.id,
+            user_id: memberUserId,
+            role: 'MEMBER',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        jest.spyOn(
+            shopMemberRepository,
+            'findOwnerByShopId',
+        ).mockResolvedValueOnce({
+            id: 'member-1',
+            shop_id: shop.id,
+            user_id: ownerUserId,
+            role: 'OWNER',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        jest.spyOn(userRepository, 'findById').mockImplementation(
+            async (id: string) => ({
+                ...user,
+                id,
+                google_calendar_sync_enabled: id === ownerUserId,
+            }),
+        );
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: memberUserId,
+            google_event_id: 'gcal-owner-del-123',
+        });
+        const delSpy = jest.spyOn(calendarAdapter, 'delete');
+
+        await sut.execute(shop.id, event.id, memberUserId);
+
+        expect(delSpy).toHaveBeenCalledWith(ownerUserId, 'gcal-owner-del-123');
+    });
+
+    it('should not delete Google Calendar event when MEMBER has sync enabled but Shop OWNER has sync disabled', async () => {
+        const {
+            sut,
+            shopMemberRepository,
+            userRepository,
+            eventRepository,
+            calendarAdapter,
+        } = makeSut();
+        const memberUserId = 'member-user-id';
+        const ownerUserId = 'owner-user-id';
+
+        jest.spyOn(
+            shopMemberRepository,
+            'findByShopAndUserId',
+        ).mockResolvedValueOnce({
+            id: 'member-2',
+            shop_id: shop.id,
+            user_id: memberUserId,
+            role: 'MEMBER',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        jest.spyOn(
+            shopMemberRepository,
+            'findOwnerByShopId',
+        ).mockResolvedValueOnce({
+            id: 'member-1',
+            shop_id: shop.id,
+            user_id: ownerUserId,
+            role: 'OWNER',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        jest.spyOn(userRepository, 'findById').mockImplementation(
+            async (id: string) => ({
+                ...user,
+                id,
+                google_calendar_sync_enabled: id === memberUserId,
+            }),
+        );
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: memberUserId,
+            google_event_id: 'gcal-owner-del-456',
+        });
+        const delSpy = jest.spyOn(calendarAdapter, 'delete');
+
+        await sut.execute(shop.id, event.id, memberUserId);
+
+        expect(delSpy).not.toHaveBeenCalled();
     });
 });

@@ -17,7 +17,7 @@ A pending authorization token sent to an email address allowing an invitee to jo
 _Avoid_: Invite, pass, ticket, request
 
 **Event**:
-A scheduled occasion or financial project (e.g. wedding, festival, party) owned by a shop, spanning a start date and an end date, against which transactions can be tracked.
+A scheduled occasion or financial project (e.g. wedding, festival, party) owned by a shop, spanning a start date and an end date, against which transactions can be tracked. Attributed to the Shop Member (Author) who created it; external Google Calendar synchronization is centralized on the Shop Owner's account.
 _Avoid_: Occasion, project, gathering
 
 **Event Tag**:
@@ -25,7 +25,7 @@ A visual classification marker and filtering token (e.g. family, business, custo
 _Avoid_: Category, EventType, Classificação, Label
 
 **Transaction**:
-An individual financial movement of money (earning, expense, or investment) belonging to a shop, optionally associated with an event and attributed to the user who recorded it. Transactions associated with an event are temporally decoupled, meaning their occurrence date is independent of the event's start date and end date.
+An individual financial movement of money (earning, expense, or investment) belonging to a shop, optionally associated with an event and attributed to the user who recorded it. Recorded against a pure civil calendar date (`YYYY-MM-DD`), independent of time-of-day or timezone offsets. Transactions associated with an event are temporally decoupled, meaning their occurrence date is independent of the event's start date and end date.
 _Avoid_: Movement, entry, record
 
 **User**:

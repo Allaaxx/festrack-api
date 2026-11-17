@@ -1,3 +1,12 @@
+export interface EventAuthor {
+    id: string;
+    name: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    image: string | null;
+}
+
 export interface Event {
     id: string;
     shop_id: string;
@@ -9,6 +18,7 @@ export interface Event {
     user_id?: string | null;
     google_event_id?: string | null;
     tag?: string | null;
+    author?: EventAuthor;
 }
 
 export interface CreateEventParams {
