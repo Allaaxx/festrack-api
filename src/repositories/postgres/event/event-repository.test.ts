@@ -321,4 +321,62 @@ describe('Postgres Event Repository', () => {
             }
         });
     });
+
+    describe('author resolution', () => {
+        const expectedAuthor = {
+            id: user.id,
+            name: user.name ?? '',
+            first_name: user.first_name,
+            last_name: user.last_name,
+            email: user.email,
+            image: user.image ?? null,
+        };
+
+        it('should return author on create, findById, findByShopId, findByUserId, and update', async () => {
+            const { id: _id, ...eventData } = event;
+            const created = await sut.create({
+                ...eventData,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+            });
+            expect(created.author).toEqual(expectedAuthor);
+
+            const byId = await sut.findById(created.id);
+            expect(byId?.author).toEqual(expectedAuthor);
+
+            const byShop = await sut.findByShopId(shop.id);
+            expect(byShop[0]?.author).toEqual(expectedAuthor);
+
+            const byUser = await sut.findByUserId(user.id);
+            expect(byUser[0]?.author).toEqual(expectedAuthor);
+
+            const updated = await sut.update(created.id, {
+                name: 'Updated Event Name',
+            });
+            expect(updated.author).toEqual(expectedAuthor);
+        });
+
+        it('should omit author when created_by_user_id is null', async () => {
+            const { id: _id, ...eventData } = event;
+            const [inserted] = await db
+                .insert(eventsTable)
+                .values({
+                    ...eventData,
+                    tag: 'etc',
+                    shop_id: shop.id,
+                    created_by_user_id: null,
+                    start_date: new Date(event.start_date),
+                    end_date: new Date(event.end_date),
+                })
+                .returning();
+
+            const byId = await sut.findById(inserted.id);
+            expect(byId).not.toBeNull();
+            expect(byId?.created_by_user_id).toBeNull();
+            expect(byId?.author).toBeUndefined();
+
+            const byShop = await sut.findByShopId(shop.id);
+            expect(byShop[0]?.author).toBeUndefined();
+        });
+    });
 });
