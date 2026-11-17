@@ -8,7 +8,6 @@ import {
     ShopMemberRepository,
     UserRepository,
     GoogleCalendarAdapter,
-    DEFAULT_EVENT_TAG_SLUG,
 } from '../../domain/index.js';
 
 export interface CreateEventInput {
@@ -78,9 +77,7 @@ export class CreateEventUseCase {
         }
 
         const tag =
-            input.tag && input.tag.trim() !== ''
-                ? input.tag
-                : DEFAULT_EVENT_TAG_SLUG;
+            input.tag && input.tag.trim() !== '' ? input.tag.trim() : null;
 
         return await this.eventRepository.create({
             shop_id: input.shopId,

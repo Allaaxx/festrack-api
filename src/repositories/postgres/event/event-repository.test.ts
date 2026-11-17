@@ -42,7 +42,18 @@ describe('Postgres Event Repository', () => {
             expect(dayjs(result.end_date).toISOString()).toBe(
                 dayjs(event.end_date).toISOString(),
             );
-            expect(result.tag).toBe('etc');
+            expect(result.tag).toBeNull();
+        });
+
+        it('should create an event with undefined tag defaulting to null', async () => {
+            const { tag: _tag, ...eventWithoutTag } = event;
+            const result = await sut.create({
+                ...eventWithoutTag,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+            });
+
+            expect(result.tag).toBeNull();
         });
 
         it('should create an event with explicit tag', async () => {
@@ -216,6 +227,26 @@ describe('Postgres Event Repository', () => {
 
             const fromDb = await sut.findById(event.id);
             expect(fromDb?.tag).toBe('wedding');
+        });
+
+        it('should clear event tag on db when updating tag to null', async () => {
+            await db.insert(eventsTable).values({
+                ...event,
+                tag: 'wedding',
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                start_date: new Date(event.start_date),
+                end_date: new Date(event.end_date),
+            });
+
+            const result = await sut.update(event.id, {
+                tag: null,
+            });
+
+            expect(result.tag).toBeNull();
+
+            const fromDb = await sut.findById(event.id);
+            expect(fromDb?.tag).toBeNull();
         });
 
         it('should throw EventNotFoundError if event does not exist', async () => {

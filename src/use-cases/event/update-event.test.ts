@@ -228,4 +228,55 @@ describe('Update Event Use Case', () => {
             }),
         );
     });
+
+    it('should trim and pass non-empty string tag to eventRepository.update', async () => {
+        const { sut, eventRepository } = makeSut();
+        const updateSpy = jest.spyOn(eventRepository, 'update');
+
+        await sut.execute(shop.id, event.id, user.id, {
+            tag: '  wedding  ',
+        });
+
+        expect(updateSpy).toHaveBeenCalledWith(
+            event.id,
+            expect.objectContaining({
+                tag: 'wedding',
+            }),
+        );
+    });
+
+    it('should pass tag: null when tag is explicitly null, empty string, or whitespace', async () => {
+        const { sut, eventRepository } = makeSut();
+        const updateSpy = jest.spyOn(eventRepository, 'update');
+
+        await sut.execute(shop.id, event.id, user.id, {
+            tag: null,
+        });
+        expect(updateSpy).toHaveBeenLastCalledWith(
+            event.id,
+            expect.objectContaining({
+                tag: null,
+            }),
+        );
+
+        await sut.execute(shop.id, event.id, user.id, {
+            tag: '',
+        });
+        expect(updateSpy).toHaveBeenLastCalledWith(
+            event.id,
+            expect.objectContaining({
+                tag: null,
+            }),
+        );
+
+        await sut.execute(shop.id, event.id, user.id, {
+            tag: '   ',
+        });
+        expect(updateSpy).toHaveBeenLastCalledWith(
+            event.id,
+            expect.objectContaining({
+                tag: null,
+            }),
+        );
+    });
 });

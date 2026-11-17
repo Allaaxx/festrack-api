@@ -110,7 +110,7 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             expect(response.body.tag).toBe('business');
         });
 
-        it('should default event tag to "etc" when tag is omitted or null', async () => {
+        it('should default event tag to null when tag is omitted or null', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
 
@@ -120,7 +120,7 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
                 .send(sampleEventData);
 
             expect(responseWithoutTag.status).toBe(201);
-            expect(responseWithoutTag.body.tag).toBe('etc');
+            expect(responseWithoutTag.body.tag).toBeNull();
 
             const responseWithNullTag = await client
                 .post(`/api/shops/${shop.id}/events`)
@@ -131,7 +131,7 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
                 });
 
             expect(responseWithNullTag.status).toBe(201);
-            expect(responseWithNullTag.body.tag).toBe('etc');
+            expect(responseWithNullTag.body.tag).toBeNull();
         });
 
         it('should return 401 when unauthorized', async () => {
@@ -417,7 +417,7 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             expect(response.body[0].shop_id).toBe(shop.id);
         });
 
-        it('should return events containing their tag property (both custom and default etc)', async () => {
+        it('should return events containing their tag property (both custom and default null)', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
 
@@ -431,7 +431,7 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
                     tag: 'business',
                 });
 
-            // Create event without tag (should default to 'etc')
+            // Create event without tag (should default to null)
             await client
                 .post(`/api/shops/${shop.id}/events`)
                 .set('Authorization', owner.bearerHeader)
@@ -458,7 +458,7 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             expect(customEvent.tag).toBe('business');
 
             expect(defaultEvent).toBeDefined();
-            expect(defaultEvent.tag).toBe('etc');
+            expect(defaultEvent.tag).toBeNull();
         });
 
         it('should return 200 with all shop events for MEMBER (including events created by OWNER)', async () => {
@@ -746,6 +746,38 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
 
             expect(getRes.status).toBe(200);
             expect(getRes.body.tag).toBe('personal');
+        });
+
+        it('should return 200 and clear event tag when updating tag to null', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    ...sampleEventData,
+                    tag: 'business',
+                });
+
+            const eventId = createRes.body.id;
+
+            const response = await client
+                .patch(`/api/shops/${shop.id}/events/${eventId}`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    tag: null,
+                });
+
+            expect(response.status).toBe(200);
+            expect(response.body.tag).toBeNull();
+
+            const getRes = await client
+                .get(`/api/shops/${shop.id}/events/${eventId}`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(getRes.status).toBe(200);
+            expect(getRes.body.tag).toBeNull();
         });
 
         it('should return 403 when non-member tries to update event', async () => {

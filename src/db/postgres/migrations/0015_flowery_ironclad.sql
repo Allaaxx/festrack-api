@@ -1,0 +1,2 @@
+ALTER TABLE "Event" ALTER COLUMN "tag" DROP DEFAULT;--> statement-breakpoint
+ALTER TABLE "Event" ALTER COLUMN "tag" DROP NOT NULL;
