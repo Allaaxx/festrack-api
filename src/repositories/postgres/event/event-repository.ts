@@ -1,6 +1,11 @@
 import { and, eq } from 'drizzle-orm';
 import { db, Database } from '../../../db/postgres/index.js';
-import { eventsTable } from '../../../db/postgres/schemas/index.js';
+import {
+    eventsTable,
+    EventTableSelect,
+    usersTable,
+    UserTableSelect,
+} from '../../../db/postgres/schemas/index.js';
 import { EventNotFoundError } from '../../../errors/event.js';
 import {
     Event,
@@ -11,6 +16,29 @@ import {
 } from '../../../domain/index.js';
 
 export type { EventRepository };
+
+function mapEvent(
+    row: EventTableSelect,
+    author?: UserTableSelect | null,
+): Event {
+    const mapped: Event = {
+        ...row,
+        user_id: row.created_by_user_id,
+    };
+
+    if (author) {
+        mapped.author = {
+            id: author.id,
+            name: author.name,
+            first_name: author.first_name,
+            last_name: author.last_name,
+            email: author.email,
+            image: author.image ?? null,
+        };
+    }
+
+    return mapped;
+}
 
 export class PostgresEventRepository implements EventRepository {
     constructor(private readonly database: Database = db) {}
@@ -28,34 +56,55 @@ export class PostgresEventRepository implements EventRepository {
             })
             .returning();
 
-        return { ...createdEvent, user_id: createdEvent.created_by_user_id };
+        return (await this.findById(createdEvent.id)) ?? mapEvent(createdEvent);
     }
 
     async findById(eventId: string): Promise<Event | null> {
-        const [event] = await this.database
-            .select()
+        const [row] = await this.database
+            .select({
+                event: eventsTable,
+                author: usersTable,
+            })
             .from(eventsTable)
+            .leftJoin(
+                usersTable,
+                eq(eventsTable.created_by_user_id, usersTable.id),
+            )
             .where(eq(eventsTable.id, eventId));
 
-        return event ? { ...event, user_id: event.created_by_user_id } : null;
+        return row ? mapEvent(row.event, row.author) : null;
     }
 
     async findByShopId(shopId: string): Promise<Event[]> {
-        const events = await this.database
-            .select()
+        const rows = await this.database
+            .select({
+                event: eventsTable,
+                author: usersTable,
+            })
             .from(eventsTable)
+            .leftJoin(
+                usersTable,
+                eq(eventsTable.created_by_user_id, usersTable.id),
+            )
             .where(eq(eventsTable.shop_id, shopId));
 
-        return events.map((e) => ({ ...e, user_id: e.created_by_user_id }));
+        return rows.map((row) => mapEvent(row.event, row.author));
     }
 
     async findByUserId(userId: string): Promise<Event[]> {
-        const events = await this.database
-            .select()
+        const rows = await this.database
+            .select({
+                event: eventsTable,
+                author: usersTable,
+            })
             .from(eventsTable)
+            .leftJoin(
+                usersTable,
+                eq(eventsTable.created_by_user_id, usersTable.id),
+            )
             .where(eq(eventsTable.created_by_user_id, userId));
 
-        return events.map((e) => ({ ...e, user_id: e.created_by_user_id }));
+        return rows.map((row) => mapEvent(row.event, row.author));
     }
 
     async update(
@@ -84,7 +133,7 @@ export class PostgresEventRepository implements EventRepository {
             throw new EventNotFoundError(eventId);
         }
 
-        return { ...updatedEvent, user_id: updatedEvent.created_by_user_id };
+        return (await this.findById(updatedEvent.id)) ?? mapEvent(updatedEvent);
     }
 
     async delete(eventId: string): Promise<Event> {

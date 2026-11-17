@@ -494,6 +494,29 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             const names = response.body.map((e: any) => e.name);
             expect(names).toContain('Owner Event');
             expect(names).toContain('Member Event');
+
+            const ownerEvent = response.body.find(
+                (e: any) => e.name === 'Owner Event',
+            );
+            const memberEvent = response.body.find(
+                (e: any) => e.name === 'Member Event',
+            );
+            expect(ownerEvent.author).toEqual({
+                id: owner.user.id,
+                name: owner.user.name,
+                first_name: owner.user.first_name,
+                last_name: owner.user.last_name,
+                email: owner.user.email,
+                image: null,
+            });
+            expect(memberEvent.author).toEqual({
+                id: member.user.id,
+                name: member.user.name,
+                first_name: member.user.first_name,
+                last_name: member.user.last_name,
+                email: member.user.email,
+                image: null,
+            });
         });
 
         it('should not return events from other shops (tenant isolation)', async () => {
