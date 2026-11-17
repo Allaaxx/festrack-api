@@ -41,7 +41,6 @@ describe('CreateEventTagUseCase (Unit Tests)', () => {
                     name: params.name,
                     slug: params.slug,
                     color: params.color,
-                    is_system: params.is_system ?? false,
                     created_at: new Date(),
                 };
                 createdTags.push(tag);
@@ -99,7 +98,7 @@ describe('CreateEventTagUseCase (Unit Tests)', () => {
         expect(result.name).toBe('Aniversário de Casamento');
         expect(result.slug).toBe('aniversario-de-casamento');
         expect(result.color).toBe('bg-emerald-500');
-        expect(result.is_system).toBe(false);
+        expect('is_system' in result).toBe(false);
     });
 
     it('should normalize explicit slug to lowercase kebab-case', async () => {
@@ -175,55 +174,57 @@ describe('CreateEventTagUseCase (Unit Tests)', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
-    it('should throw EventTagConflictError when slug conflicts with a system default tag', async () => {
-        // System tags are: family, business, personal, holiday, etc
-        await expect(
-            sut.execute({
-                shopId,
-                userId,
-                name: 'Family',
-                color: 'bg-emerald-500',
-            }),
-        ).rejects.toThrow(EventTagConflictError);
+    it('should allow creating custom tags with slugs that were previously system defaults', async () => {
+        // Slugs previously reserved: family, holiday, business, personal, etc
+        const familyTag = await sut.execute({
+            shopId,
+            userId,
+            name: 'Family',
+            color: 'bg-emerald-500',
+        });
+        expect(familyTag.slug).toBe('family');
+        expect(familyTag.name).toBe('Family');
+        expect(familyTag.shop_id).toBe(shopId);
+        expect('is_system' in familyTag).toBe(false);
 
-        await expect(
-            sut.execute({
-                shopId,
-                userId,
-                name: 'Custom Holiday',
-                color: 'bg-amber-500',
-                slug: 'holiday',
-            }),
-        ).rejects.toThrow(EventTagConflictError);
+        const holidayTag = await sut.execute({
+            shopId,
+            userId,
+            name: 'Custom Holiday',
+            color: 'bg-amber-500',
+            slug: 'holiday',
+        });
+        expect(holidayTag.slug).toBe('holiday');
+        expect('is_system' in holidayTag).toBe(false);
 
-        await expect(
-            sut.execute({
-                shopId,
-                userId,
-                name: 'Outros Negócios',
-                color: 'bg-blue-500',
-                slug: 'business',
-            }),
-        ).rejects.toThrow(EventTagConflictError);
+        const businessTag = await sut.execute({
+            shopId,
+            userId,
+            name: 'Outros Negócios',
+            color: 'bg-blue-500',
+            slug: 'business',
+        });
+        expect(businessTag.slug).toBe('business');
+        expect('is_system' in businessTag).toBe(false);
 
-        await expect(
-            sut.execute({
-                shopId,
-                userId,
-                name: 'Personal Tag',
-                color: 'bg-purple-500',
-                slug: 'PERSONAL',
-            }),
-        ).rejects.toThrow(EventTagConflictError);
+        const personalTag = await sut.execute({
+            shopId,
+            userId,
+            name: 'Personal Tag',
+            color: 'bg-purple-500',
+            slug: 'PERSONAL',
+        });
+        expect(personalTag.slug).toBe('personal');
+        expect('is_system' in personalTag).toBe(false);
 
-        await expect(
-            sut.execute({
-                shopId,
-                userId,
-                name: 'Etc',
-                color: 'bg-slate-500',
-            }),
-        ).rejects.toThrow(EventTagConflictError);
+        const etcTag = await sut.execute({
+            shopId,
+            userId,
+            name: 'Etc',
+            color: 'bg-slate-500',
+        });
+        expect(etcTag.slug).toBe('etc');
+        expect('is_system' in etcTag).toBe(false);
     });
 
     it('should throw EventTagConflictError when slug already exists in the same shop', async () => {

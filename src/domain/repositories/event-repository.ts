@@ -17,6 +17,6 @@ export interface EventRepository {
     reassignTag(
         shopId: string,
         fromSlug: string,
-        toSlug: string,
+        toSlug: string | null,
     ): Promise<number>;
 }

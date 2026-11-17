@@ -42,7 +42,18 @@ describe('Postgres Event Repository', () => {
             expect(dayjs(result.end_date).toISOString()).toBe(
                 dayjs(event.end_date).toISOString(),
             );
-            expect(result.tag).toBe('etc');
+            expect(result.tag).toBeNull();
+        });
+
+        it('should create an event with undefined tag defaulting to null', async () => {
+            const { tag: _tag, ...eventWithoutTag } = event;
+            const result = await sut.create({
+                ...eventWithoutTag,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+            });
+
+            expect(result.tag).toBeNull();
         });
 
         it('should create an event with explicit tag', async () => {
@@ -218,6 +229,26 @@ describe('Postgres Event Repository', () => {
             expect(fromDb?.tag).toBe('wedding');
         });
 
+        it('should clear event tag on db when updating tag to null', async () => {
+            await db.insert(eventsTable).values({
+                ...event,
+                tag: 'wedding',
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                start_date: new Date(event.start_date),
+                end_date: new Date(event.end_date),
+            });
+
+            const result = await sut.update(event.id, {
+                tag: null,
+            });
+
+            expect(result.tag).toBeNull();
+
+            const fromDb = await sut.findById(event.id);
+            expect(fromDb?.tag).toBeNull();
+        });
+
         it('should throw EventNotFoundError if event does not exist', async () => {
             await expect(
                 sut.update(event.id, { name: 'Non Existent' }),
@@ -255,6 +286,40 @@ describe('Postgres Event Repository', () => {
     });
 
     describe('reassignTag', () => {
+        it('should reassign tag from fromSlug to null for all events in the specified shop', async () => {
+            const { id: _id, ...eventData } = event;
+            const event1 = await sut.create({
+                ...eventData,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'festival',
+            });
+            const event2 = await sut.create({
+                ...eventData,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'festival',
+            });
+            const event3 = await sut.create({
+                ...eventData,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                tag: 'wedding',
+            });
+
+            const count = await sut.reassignTag(shop.id, 'festival', null);
+            expect(count).toBe(2);
+
+            const found1 = await sut.findById(event1.id);
+            expect(found1?.tag).toBeNull();
+
+            const found2 = await sut.findById(event2.id);
+            expect(found2?.tag).toBeNull();
+
+            const found3 = await sut.findById(event3.id);
+            expect(found3?.tag).toBe('wedding');
+        });
+
         it('should update tag from fromSlug to toSlug for all events in the specified shop', async () => {
             const { id: _id, ...eventData } = event;
             const event1 = await sut.create({

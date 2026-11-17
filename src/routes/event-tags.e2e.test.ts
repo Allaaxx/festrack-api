@@ -35,7 +35,7 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
     };
 
     describe('GET /api/shops/:shopId/event-tags', () => {
-        it('should return 200 and list the 5 built-in system default tags for shop OWNER', async () => {
+        it('should return 200 and an empty array when shop has no custom tags for shop OWNER', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
 
@@ -45,70 +45,11 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
 
             expect(response.status).toBe(200);
             expect(Array.isArray(response.body)).toBe(true);
-            expect(response.body).toHaveLength(5);
-
-            const slugs = response.body.map((t: any) => t.slug);
-            expect(slugs).toContain('family');
-            expect(slugs).toContain('business');
-            expect(slugs).toContain('personal');
-            expect(slugs).toContain('holiday');
-            expect(slugs).toContain('etc');
-
-            const familyTag = response.body.find(
-                (t: any) => t.slug === 'family',
-            );
-            expect(familyTag).toMatchObject({
-                name: 'Família',
-                slug: 'family',
-                color: 'bg-emerald-500',
-                is_system: true,
-                shop_id: shop.id,
-            });
-
-            const businessTag = response.body.find(
-                (t: any) => t.slug === 'business',
-            );
-            expect(businessTag).toMatchObject({
-                name: 'Negócios',
-                slug: 'business',
-                color: 'bg-blue-500',
-                is_system: true,
-                shop_id: shop.id,
-            });
-
-            const personalTag = response.body.find(
-                (t: any) => t.slug === 'personal',
-            );
-            expect(personalTag).toMatchObject({
-                name: 'Pessoal',
-                slug: 'personal',
-                color: 'bg-purple-500',
-                is_system: true,
-                shop_id: shop.id,
-            });
-
-            const holidayTag = response.body.find(
-                (t: any) => t.slug === 'holiday',
-            );
-            expect(holidayTag).toMatchObject({
-                name: 'Feriado',
-                slug: 'holiday',
-                color: 'bg-amber-500',
-                is_system: true,
-                shop_id: shop.id,
-            });
-
-            const etcTag = response.body.find((t: any) => t.slug === 'etc');
-            expect(etcTag).toMatchObject({
-                name: 'Outros',
-                slug: 'etc',
-                color: 'bg-slate-500',
-                is_system: true,
-                shop_id: shop.id,
-            });
+            expect(response.body).toHaveLength(0);
+            expect(response.body).toEqual([]);
         });
 
-        it('should return 200 with system tags for a shop MEMBER', async () => {
+        it('should return 200 and an empty array when shop has no custom tags for a shop MEMBER', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
             const member = await createAuthenticatedUser(client);
@@ -119,10 +60,10 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                 .set('Authorization', member.bearerHeader);
 
             expect(response.status).toBe(200);
-            expect(response.body).toHaveLength(5);
+            expect(response.body).toEqual([]);
         });
 
-        it('should merge system default tags with existing shop custom tags', async () => {
+        it('should return only shop custom tags without system default tags', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
 
@@ -134,7 +75,6 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     name: 'Workshop VIP',
                     slug: 'workshop-vip',
                     color: 'bg-rose-500',
-                    is_system: false,
                 })
                 .returning();
 
@@ -143,20 +83,17 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                 .set('Authorization', owner.bearerHeader);
 
             expect(response.status).toBe(200);
-            expect(response.body).toHaveLength(6);
+            expect(response.body).toHaveLength(1);
 
-            const foundCustom = response.body.find(
-                (t: any) => t.slug === 'workshop-vip',
-            );
-            expect(foundCustom).toBeDefined();
+            const foundCustom = response.body[0];
             expect(foundCustom).toMatchObject({
                 id: customTag.id,
                 shop_id: shop.id,
                 name: 'Workshop VIP',
                 slug: 'workshop-vip',
                 color: 'bg-rose-500',
-                is_system: false,
             });
+            expect(foundCustom.is_system).toBeUndefined();
         });
 
         it('should not return custom event tags from other shops (tenant isolation)', async () => {
@@ -172,7 +109,6 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                 name: 'Shop A Exclusive',
                 slug: 'exclusive-a',
                 color: 'bg-teal-500',
-                is_system: false,
             });
 
             // Query from Shop B
@@ -249,8 +185,8 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                 name: 'Aniversário de 15 Anos',
                 slug: 'aniversario-de-15-anos',
                 color: 'bg-emerald-500',
-                is_system: false,
             });
+            expect(response.body.is_system).toBeUndefined();
             expect(response.body.id).toBeDefined();
             expect(response.body.created_at).toBeDefined();
         });
@@ -271,7 +207,7 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
 
             expect(response.status).toBe(201);
             expect(response.body.slug).toBe('reuniao-semanal');
-            expect(response.body.is_system).toBe(false);
+            expect(response.body.is_system).toBeUndefined();
         });
 
         it('should return 201 and accept an explicit slug normalized to kebab-case', async () => {
@@ -292,11 +228,11 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
             expect(response.body.slug).toBe('corporate-gala');
         });
 
-        it('should return 409 when slug conflicts with a built-in system default tag', async () => {
+        it('should allow creating custom tags with slugs that were previously system defaults', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
 
-            // Attempt colliding with 'family' (via derived slug)
+            // Attempt creating with 'family' (via derived slug)
             const responseFamily = await client
                 .post(`/api/shops/${shop.id}/event-tags`)
                 .set('Authorization', owner.bearerHeader)
@@ -304,10 +240,13 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     name: 'Family',
                     color: 'bg-emerald-500',
                 });
-            expect(responseFamily.status).toBe(409);
-            expect(responseFamily.body.message).toContain('family');
+            expect(responseFamily.status).toBe(201);
+            expect(responseFamily.body.slug).toBe('family');
+            expect(responseFamily.body.name).toBe('Family');
+            expect(responseFamily.body.shop_id).toBe(shop.id);
+            expect(responseFamily.body.is_system).toBeUndefined();
 
-            // Attempt colliding with 'holiday' (via explicit slug)
+            // Attempt creating with 'holiday' (via explicit slug)
             const responseHoliday = await client
                 .post(`/api/shops/${shop.id}/event-tags`)
                 .set('Authorization', owner.bearerHeader)
@@ -316,10 +255,11 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     color: 'bg-amber-500',
                     slug: 'holiday',
                 });
-            expect(responseHoliday.status).toBe(409);
-            expect(responseHoliday.body.message).toContain('holiday');
+            expect(responseHoliday.status).toBe(201);
+            expect(responseHoliday.body.slug).toBe('holiday');
+            expect(responseHoliday.body.is_system).toBeUndefined();
 
-            // Attempt colliding with 'business'
+            // Attempt creating with 'business'
             const responseBusiness = await client
                 .post(`/api/shops/${shop.id}/event-tags`)
                 .set('Authorization', owner.bearerHeader)
@@ -328,9 +268,11 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     color: 'bg-blue-500',
                     slug: 'BUSINESS',
                 });
-            expect(responseBusiness.status).toBe(409);
+            expect(responseBusiness.status).toBe(201);
+            expect(responseBusiness.body.slug).toBe('business');
+            expect(responseBusiness.body.is_system).toBeUndefined();
 
-            // Attempt colliding with 'personal'
+            // Attempt creating with 'personal'
             const responsePersonal = await client
                 .post(`/api/shops/${shop.id}/event-tags`)
                 .set('Authorization', owner.bearerHeader)
@@ -339,9 +281,11 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     color: 'bg-purple-500',
                     slug: 'personal',
                 });
-            expect(responsePersonal.status).toBe(409);
+            expect(responsePersonal.status).toBe(201);
+            expect(responsePersonal.body.slug).toBe('personal');
+            expect(responsePersonal.body.is_system).toBeUndefined();
 
-            // Attempt colliding with 'etc'
+            // Attempt creating with 'etc'
             const responseEtc = await client
                 .post(`/api/shops/${shop.id}/event-tags`)
                 .set('Authorization', owner.bearerHeader)
@@ -349,7 +293,19 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     name: 'Etc',
                     color: 'bg-slate-500',
                 });
-            expect(responseEtc.status).toBe(409);
+            expect(responseEtc.status).toBe(201);
+            expect(responseEtc.body.slug).toBe('etc');
+            expect(responseEtc.body.is_system).toBeUndefined();
+
+            // Duplicate within same shop returns 409
+            const duplicateEtc = await client
+                .post(`/api/shops/${shop.id}/event-tags`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Etc',
+                    color: 'bg-slate-500',
+                });
+            expect(duplicateEtc.status).toBe(409);
         });
 
         it('should return 409 when slug already exists in the same shop', async () => {
@@ -614,7 +570,7 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
             expect(deleteRes.body.id).toBe(createdTagId);
         });
 
-        it('should automatically reassign shop events referencing the deleted tag slug to etc', async () => {
+        it('should automatically reassign shop events referencing the deleted tag slug to null', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
 
@@ -674,18 +630,18 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                 .set('Authorization', owner.bearerHeader);
             expect(deleteRes.status).toBe(200);
 
-            // Check events now have fallback tag 'etc'
+            // Check events now have fallback tag null
             const getEvt1 = await client
                 .get(`/api/shops/${shop.id}/events/${evt1Res.body.id}`)
                 .set('Authorization', owner.bearerHeader);
             expect(getEvt1.status).toBe(200);
-            expect(getEvt1.body.tag).toBe('etc');
+            expect(getEvt1.body.tag).toBeNull();
 
             const getEvt2 = await client
                 .get(`/api/shops/${shop.id}/events/${evt2Res.body.id}`)
                 .set('Authorization', owner.bearerHeader);
             expect(getEvt2.status).toBe(200);
-            expect(getEvt2.body.tag).toBe('etc');
+            expect(getEvt2.body.tag).toBeNull();
 
             // Check business event remains unaffected
             const getEvt3 = await client
@@ -695,7 +651,7 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
             expect(getEvt3.body.tag).toBe('business');
         });
 
-        it('should return 400 when attempting to delete a system default tag ID', async () => {
+        it('should return 404 when attempting to delete a non-existent system default tag ID', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
 
@@ -712,7 +668,7 @@ describe('Shop-Scoped Event Tags Routes (Elysia E2E)', () => {
                     .delete(`/api/shops/${shop.id}/event-tags/${sysId}`)
                     .set('Authorization', owner.bearerHeader);
 
-                expect(response.status).toBe(400);
+                expect(response.status).toBe(404);
             }
         });
 

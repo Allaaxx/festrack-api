@@ -153,7 +153,7 @@ describe('Create Event Use Case', () => {
             start_date: createEventInput.start_date,
             end_date: createEventInput.end_date,
             google_event_id: null,
-            tag: 'etc',
+            tag: null,
         });
     });
 
@@ -225,7 +225,7 @@ describe('Create Event Use Case', () => {
         );
     });
 
-    it('should default tag to "etc" if tag is undefined, null, or empty string', async () => {
+    it('should default tag to null if tag is undefined, null, empty string, or whitespace', async () => {
         const { sut, eventRepository } = makeSut();
         const createSpy = jest.spyOn(eventRepository, 'create');
 
@@ -235,7 +235,7 @@ describe('Create Event Use Case', () => {
         });
         expect(createSpy).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                tag: 'etc',
+                tag: null,
             }),
         );
 
@@ -245,7 +245,7 @@ describe('Create Event Use Case', () => {
         });
         expect(createSpy).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                tag: 'etc',
+                tag: null,
             }),
         );
 
@@ -255,7 +255,33 @@ describe('Create Event Use Case', () => {
         });
         expect(createSpy).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                tag: 'etc',
+                tag: null,
+            }),
+        );
+
+        await sut.execute({
+            ...createEventInput,
+            tag: '   ',
+        });
+        expect(createSpy).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                tag: null,
+            }),
+        );
+    });
+
+    it('should trim tag if non-empty string provided', async () => {
+        const { sut, eventRepository } = makeSut();
+        const createSpy = jest.spyOn(eventRepository, 'create');
+
+        await sut.execute({
+            ...createEventInput,
+            tag: '  business  ',
+        });
+
+        expect(createSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tag: 'business',
             }),
         );
     });

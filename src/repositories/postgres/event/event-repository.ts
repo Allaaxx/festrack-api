@@ -12,7 +12,6 @@ import {
     CreateEventParams,
     UpdateEventParams,
     EventRepository,
-    DEFAULT_EVENT_TAG_SLUG,
 } from '../../../domain/index.js';
 
 export type { EventRepository };
@@ -62,7 +61,7 @@ export class PostgresEventRepository implements EventRepository {
             .insert(eventsTable)
             .values({
                 ...rest,
-                tag: tag ?? DEFAULT_EVENT_TAG_SLUG,
+                tag: tag ?? null,
                 start_date: new Date(createEventParams.start_date),
                 end_date: new Date(createEventParams.end_date),
                 google_event_id: createEventParams.google_event_id ?? null,
@@ -111,9 +110,7 @@ export class PostgresEventRepository implements EventRepository {
                 end_date: updateEventParams.end_date
                     ? new Date(updateEventParams.end_date)
                     : undefined,
-                ...(tag !== undefined
-                    ? { tag: tag ?? DEFAULT_EVENT_TAG_SLUG }
-                    : {}),
+                ...(tag !== undefined ? { tag: tag ?? null } : {}),
             })
             .where(eq(eventsTable.id, eventId))
             .returning();
@@ -141,7 +138,7 @@ export class PostgresEventRepository implements EventRepository {
     async reassignTag(
         shopId: string,
         fromSlug: string,
-        toSlug: string,
+        toSlug: string | null,
     ): Promise<number> {
         const updated = await this.database
             .update(eventsTable)

@@ -1,6 +1,5 @@
 import { relations } from 'drizzle-orm';
 import {
-    boolean,
     index,
     pgTable,
     text,
@@ -25,7 +24,6 @@ export const eventTags = pgTable(
         name: varchar('name', { length: 50 }).notNull(),
         slug: varchar('slug', { length: 50 }).notNull(),
         color: varchar('color', { length: 30 }).notNull(),
-        is_system: boolean('is_system').default(false).notNull(),
         created_at: timestamp('created_at', { precision: 3, mode: 'date' })
             .defaultNow()
             .notNull(),

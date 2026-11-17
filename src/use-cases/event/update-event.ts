@@ -12,7 +12,6 @@ import {
     ShopMemberRepository,
     UserRepository,
     GoogleCalendarAdapter,
-    DEFAULT_EVENT_TAG_SLUG,
 } from '../../domain/index.js';
 import { resolveShopOwner } from './resolve-shop-owner.js';
 
@@ -140,8 +139,8 @@ export class UpdateEventUseCase {
         if (updateParams.tag !== undefined) {
             updateData.tag =
                 updateParams.tag && updateParams.tag.trim() !== ''
-                    ? updateParams.tag
-                    : DEFAULT_EVENT_TAG_SLUG;
+                    ? updateParams.tag.trim()
+                    : null;
         }
 
         return await this.eventRepository.update(eventId, updateData);

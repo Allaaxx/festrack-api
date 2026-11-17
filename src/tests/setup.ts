@@ -14,7 +14,10 @@ beforeAll(async () => {
             DROP INDEX IF EXISTS "products_slug_unique";
             DROP INDEX IF EXISTS "products_slug_idx";
             CREATE UNIQUE INDEX IF NOT EXISTS "products_shop_slug_idx" ON "products" ("shop_id", "slug");
-            ALTER TABLE "Event" ADD COLUMN IF NOT EXISTS "tag" varchar(50) DEFAULT 'etc' NOT NULL;
+            ALTER TABLE "Event" ADD COLUMN IF NOT EXISTS "tag" varchar(50);
+            ALTER TABLE "Event" ALTER COLUMN "tag" DROP DEFAULT;
+            ALTER TABLE "Event" ALTER COLUMN "tag" DROP NOT NULL;
+            ALTER TABLE "event_tags" DROP COLUMN IF EXISTS "is_system";
         `);
     } catch {
         // Safe fallback if database is not reachable or tables do not exist

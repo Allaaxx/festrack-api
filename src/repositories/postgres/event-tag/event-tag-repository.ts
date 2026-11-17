@@ -21,7 +21,6 @@ export class PostgresEventTagRepository implements EventTagRepository {
                 name: params.name,
                 slug: params.slug,
                 color: params.color,
-                is_system: params.is_system ?? false,
             })
             .returning();
 

@@ -9,7 +9,6 @@ import {
     EventTagRepository,
     ShopRepository,
     ShopMemberRepository,
-    SYSTEM_EVENT_TAG_SLUGS,
 } from '../../domain/index.js';
 
 export interface CreateEventTagInput {
@@ -66,11 +65,6 @@ export class CreateEventTagUseCase {
             throw new InvalidEventTagSlugError();
         }
 
-        const isSystemDefault = SYSTEM_EVENT_TAG_SLUGS.has(slug);
-        if (isSystemDefault) {
-            throw new EventTagConflictError(slug);
-        }
-
         const existingTag = await this.eventTagRepository.findBySlug(
             input.shopId,
             slug,
@@ -84,7 +78,6 @@ export class CreateEventTagUseCase {
             name: input.name.trim(),
             slug,
             color: input.color.trim(),
-            is_system: false,
         });
     }
 }
