@@ -3,6 +3,7 @@ export interface InsertCalendarEventParams {
     description?: string | null;
     start_date: Date | string;
     end_date: Date | string;
+    timeZone?: string;
 }
 
 export interface PatchCalendarEventParams {
@@ -10,6 +11,7 @@ export interface PatchCalendarEventParams {
     description?: string | null;
     start_date?: Date | string;
     end_date?: Date | string;
+    timeZone?: string;
 }
 
 export interface GoogleCalendarAdapter {

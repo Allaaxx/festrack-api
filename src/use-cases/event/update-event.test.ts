@@ -1,4 +1,7 @@
-import { EventNotFoundError } from '../../errors/event.js';
+import {
+    EventNotFoundError,
+    GoogleCalendarNotFoundError,
+} from '../../errors/event.js';
 import { ShopNotFoundError } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import { event, user, shop } from '../../tests/index.js';
@@ -54,7 +57,7 @@ describe('Update Event Use Case', () => {
 
     class ShopMemberRepositoryStub implements Pick<
         ShopMemberRepository,
-        'findByShopAndUserId'
+        'findByShopAndUserId' | 'findOwnerByShopId'
     > {
         async findByShopAndUserId(
             _shopId: string,
@@ -69,6 +72,17 @@ describe('Update Event Use Case', () => {
                 updated_at: new Date().toISOString(),
             };
         }
+
+        async findOwnerByShopId(_shopId: string): Promise<ShopMember | null> {
+            return {
+                id: 'owner-member-1',
+                shop_id: shop.id,
+                user_id: user.id,
+                role: 'OWNER',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            };
+        }
     }
 
     class UserRepositoryStub implements Pick<UserRepository, 'findById'> {
@@ -77,8 +91,14 @@ describe('Update Event Use Case', () => {
         }
     }
 
-    class CalendarAdapterStub implements Pick<GoogleCalendarAdapter, 'patch'> {
+    class CalendarAdapterStub implements Pick<
+        GoogleCalendarAdapter,
+        'patch' | 'insert'
+    > {
         async patch(): Promise<void> {}
+        async insert(): Promise<string> {
+            return 'google-event-fallback-123';
+        }
     }
 
     const makeSut = () => {
@@ -229,54 +249,224 @@ describe('Update Event Use Case', () => {
         );
     });
 
-    it('should trim and pass non-empty string tag to eventRepository.update', async () => {
-        const { sut, eventRepository } = makeSut();
+    it('should patch Google Calendar event on Shop OWNER account when a MEMBER updates an event', async () => {
+        const {
+            sut,
+            shopMemberRepository,
+            userRepository,
+            eventRepository,
+            calendarAdapter,
+        } = makeSut();
+        const memberUserId = 'member-user-id';
+        const ownerUserId = 'owner-user-id';
+
+        jest.spyOn(
+            shopMemberRepository,
+            'findByShopAndUserId',
+        ).mockResolvedValueOnce({
+            id: 'member-2',
+            shop_id: shop.id,
+            user_id: memberUserId,
+            role: 'MEMBER',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        jest.spyOn(
+            shopMemberRepository,
+            'findOwnerByShopId',
+        ).mockResolvedValueOnce({
+            id: 'member-1',
+            shop_id: shop.id,
+            user_id: ownerUserId,
+            role: 'OWNER',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        jest.spyOn(userRepository, 'findById').mockImplementation(
+            async (id: string) => ({
+                ...user,
+                id,
+                google_calendar_sync_enabled: id === ownerUserId,
+            }),
+        );
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: memberUserId,
+            google_event_id: 'gcal-owner-patch-123',
+        });
+        const patchSpy = jest.spyOn(calendarAdapter, 'patch');
+
+        await sut.execute(shop.id, event.id, memberUserId, updateParams);
+
+        expect(patchSpy).toHaveBeenCalledWith(
+            ownerUserId,
+            'gcal-owner-patch-123',
+            expect.objectContaining({ name: updateParams.name }),
+        );
+    });
+
+    it('should fall back to insert on Shop OWNER Google Calendar and persist google_event_id when event lacks google_event_id', async () => {
+        const {
+            sut,
+            shopMemberRepository,
+            userRepository,
+            eventRepository,
+            calendarAdapter,
+        } = makeSut();
+        const ownerUserId = 'owner-user-id';
+
+        jest.spyOn(
+            shopMemberRepository,
+            'findOwnerByShopId',
+        ).mockResolvedValueOnce({
+            id: 'member-1',
+            shop_id: shop.id,
+            user_id: ownerUserId,
+            role: 'OWNER',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            id: ownerUserId,
+            google_calendar_sync_enabled: true,
+        });
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            google_event_id: null,
+        });
+        const patchSpy = jest.spyOn(calendarAdapter, 'patch');
+        const insertSpy = jest
+            .spyOn(calendarAdapter, 'insert')
+            .mockResolvedValueOnce('new-gcal-id-1');
         const updateSpy = jest.spyOn(eventRepository, 'update');
 
-        await sut.execute(shop.id, event.id, user.id, {
-            tag: '  wedding  ',
-        });
+        await sut.execute(shop.id, event.id, user.id, { name: 'Updated Name' });
 
+        expect(patchSpy).not.toHaveBeenCalled();
+        expect(insertSpy).toHaveBeenCalledWith(
+            ownerUserId,
+            expect.objectContaining({
+                name: 'Updated Name',
+                description: event.description,
+                start_date: event.start_date,
+                end_date: event.end_date,
+            }),
+        );
         expect(updateSpy).toHaveBeenCalledWith(
             event.id,
             expect.objectContaining({
-                tag: 'wedding',
+                name: 'Updated Name',
+                google_event_id: 'new-gcal-id-1',
             }),
         );
     });
 
-    it('should pass tag: null when tag is explicitly null, empty string, or whitespace', async () => {
-        const { sut, eventRepository } = makeSut();
+    it('should fall back to insert on Shop OWNER Google Calendar and persist new google_event_id when patch throws GoogleCalendarNotFoundError', async () => {
+        const {
+            sut,
+            shopMemberRepository,
+            userRepository,
+            eventRepository,
+            calendarAdapter,
+        } = makeSut();
+        const ownerUserId = 'owner-user-id';
+
+        jest.spyOn(
+            shopMemberRepository,
+            'findOwnerByShopId',
+        ).mockResolvedValueOnce({
+            id: 'member-1',
+            shop_id: shop.id,
+            user_id: ownerUserId,
+            role: 'OWNER',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            id: ownerUserId,
+            google_calendar_sync_enabled: true,
+        });
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            google_event_id: 'stale-gcal-id',
+        });
+        jest.spyOn(calendarAdapter, 'patch').mockRejectedValueOnce(
+            new GoogleCalendarNotFoundError(404),
+        );
+        const insertSpy = jest
+            .spyOn(calendarAdapter, 'insert')
+            .mockResolvedValueOnce('recreated-gcal-id-2');
         const updateSpy = jest.spyOn(eventRepository, 'update');
 
-        await sut.execute(shop.id, event.id, user.id, {
-            tag: null,
-        });
-        expect(updateSpy).toHaveBeenLastCalledWith(
+        await sut.execute(shop.id, event.id, user.id, { name: 'Recreated' });
+
+        expect(insertSpy).toHaveBeenCalledWith(
+            ownerUserId,
+            expect.objectContaining({
+                name: 'Recreated',
+                description: event.description,
+                start_date: event.start_date,
+                end_date: event.end_date,
+            }),
+        );
+        expect(updateSpy).toHaveBeenCalledWith(
             event.id,
             expect.objectContaining({
-                tag: null,
+                name: 'Recreated',
+                google_event_id: 'recreated-gcal-id-2',
             }),
+        );
+    });
+
+    it('should tolerate fallback insert failure and still update event (non-blocking resilience)', async () => {
+        const {
+            sut,
+            shopMemberRepository,
+            userRepository,
+            eventRepository,
+            calendarAdapter,
+        } = makeSut();
+
+        jest.spyOn(
+            shopMemberRepository,
+            'findOwnerByShopId',
+        ).mockResolvedValueOnce({
+            id: 'member-1',
+            shop_id: shop.id,
+            user_id: user.id,
+            role: 'OWNER',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            google_event_id: null,
+        });
+        jest.spyOn(calendarAdapter, 'insert').mockRejectedValueOnce(
+            new Error('Insert failed'),
         );
 
-        await sut.execute(shop.id, event.id, user.id, {
-            tag: '',
-        });
-        expect(updateSpy).toHaveBeenLastCalledWith(
+        const result = await sut.execute(
+            shop.id,
             event.id,
-            expect.objectContaining({
-                tag: null,
-            }),
+            user.id,
+            updateParams,
         );
 
-        await sut.execute(shop.id, event.id, user.id, {
-            tag: '   ',
-        });
-        expect(updateSpy).toHaveBeenLastCalledWith(
-            event.id,
-            expect.objectContaining({
-                tag: null,
-            }),
-        );
+        expect(result).toBeDefined();
+        expect(result.name).toBe(updateParams.name!);
     });
 });

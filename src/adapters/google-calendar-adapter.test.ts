@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { DefaultGoogleCalendarAdapter } from './google-calendar-adapter.js';
+import { GoogleCalendarNotFoundError } from '../errors/index.js';
 import { db } from '../db/postgres/index.js';
 import { account, user } from '../db/postgres/schemas/index.js';
 import { eq } from 'drizzle-orm';
@@ -85,6 +86,118 @@ describe('DefaultGoogleCalendarAdapter', () => {
                 });
 
                 expect(result).toBe('google-event-xyz');
+            } finally {
+                globalThis.fetch = originalFetch;
+            }
+        });
+
+        it('should preserve timezone offset in dateTime and include timeZone defaulting to America/Sao_Paulo', async () => {
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                userId: testUserId,
+                providerId: 'google',
+                accountId: 'google-acc-tz-1',
+                accessToken: 'valid-access-token',
+                accessTokenExpiresAt: new Date(Date.now() + 3600000),
+            });
+
+            let capturedBody: Record<string, unknown> | null = null;
+            const originalFetch = globalThis.fetch;
+            globalThis.fetch = mock(
+                (url: string | URL | Request, init?: RequestInit) => {
+                    const urlStr = url.toString();
+                    if (urlStr.includes('/calendars/primary/events')) {
+                        capturedBody = JSON.parse(init?.body as string);
+                        return Promise.resolve(
+                            new Response(
+                                JSON.stringify({ id: 'google-event-tz' }),
+                                {
+                                    status: 200,
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                },
+                            ),
+                        );
+                    }
+                    return Promise.reject(
+                        new Error(`Unexpected fetch: ${urlStr}`),
+                    );
+                },
+            ) as any;
+
+            try {
+                await adapter.insert(testUserId, {
+                    name: 'Local Time Event',
+                    start_date: '2026-10-20T14:00:00-03:00',
+                    end_date: '2026-10-20T18:00:00-03:00',
+                });
+
+                expect(capturedBody).not.toBeNull();
+                expect(capturedBody!.start).toEqual({
+                    dateTime: '2026-10-20T14:00:00-03:00',
+                    timeZone: 'America/Sao_Paulo',
+                });
+                expect(capturedBody!.end).toEqual({
+                    dateTime: '2026-10-20T18:00:00-03:00',
+                    timeZone: 'America/Sao_Paulo',
+                });
+            } finally {
+                globalThis.fetch = originalFetch;
+            }
+        });
+
+        it('should use explicit timeZone when provided on insert', async () => {
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                userId: testUserId,
+                providerId: 'google',
+                accountId: 'google-acc-tz-2',
+                accessToken: 'valid-access-token',
+                accessTokenExpiresAt: new Date(Date.now() + 3600000),
+            });
+
+            let capturedBody: Record<string, unknown> | null = null;
+            const originalFetch = globalThis.fetch;
+            globalThis.fetch = mock(
+                (url: string | URL | Request, init?: RequestInit) => {
+                    const urlStr = url.toString();
+                    if (urlStr.includes('/calendars/primary/events')) {
+                        capturedBody = JSON.parse(init?.body as string);
+                        return Promise.resolve(
+                            new Response(
+                                JSON.stringify({ id: 'google-event-ny' }),
+                                {
+                                    status: 200,
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                },
+                            ),
+                        );
+                    }
+                    return Promise.reject(
+                        new Error(`Unexpected fetch: ${urlStr}`),
+                    );
+                },
+            ) as any;
+
+            try {
+                await adapter.insert(testUserId, {
+                    name: 'NY Event',
+                    start_date: '2026-10-20T14:00:00-04:00',
+                    end_date: '2026-10-20T16:00:00-04:00',
+                    timeZone: 'America/New_York',
+                });
+
+                expect(capturedBody!.start).toEqual({
+                    dateTime: '2026-10-20T14:00:00-04:00',
+                    timeZone: 'America/New_York',
+                });
+                expect(capturedBody!.end).toEqual({
+                    dateTime: '2026-10-20T16:00:00-04:00',
+                    timeZone: 'America/New_York',
+                });
             } finally {
                 globalThis.fetch = originalFetch;
             }
@@ -283,6 +396,85 @@ describe('DefaultGoogleCalendarAdapter', () => {
                     name: 'Updated Title',
                 });
                 expect(patched).toBe(true);
+            } finally {
+                globalThis.fetch = originalFetch;
+            }
+        });
+
+        it('should preserve timezone offset in dateTime and include timeZone when patching dates', async () => {
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                userId: testUserId,
+                providerId: 'google',
+                accountId: 'google-acc-patch-tz',
+                accessToken: 'patch-token',
+                accessTokenExpiresAt: new Date(Date.now() + 3600000),
+            });
+
+            let capturedBody: Record<string, unknown> | null = null;
+            const originalFetch = globalThis.fetch;
+            globalThis.fetch = mock(
+                (url: string | URL | Request, init?: RequestInit) => {
+                    const urlStr = url.toString();
+                    if (urlStr.includes('/calendars/primary/events/g-456')) {
+                        capturedBody = JSON.parse(init?.body as string);
+                        return Promise.resolve(
+                            new Response('{}', { status: 200 }),
+                        );
+                    }
+                    return Promise.reject(
+                        new Error(`Unexpected fetch: ${urlStr}`),
+                    );
+                },
+            ) as any;
+
+            try {
+                await adapter.patch(testUserId, 'g-456', {
+                    start_date: '2026-10-21T14:00:00-03:00',
+                    end_date: '2026-10-21T17:00:00-03:00',
+                });
+
+                expect(capturedBody).not.toBeNull();
+                expect(capturedBody!.start).toEqual({
+                    dateTime: '2026-10-21T14:00:00-03:00',
+                    timeZone: 'America/Sao_Paulo',
+                });
+                expect(capturedBody!.end).toEqual({
+                    dateTime: '2026-10-21T17:00:00-03:00',
+                    timeZone: 'America/Sao_Paulo',
+                });
+            } finally {
+                globalThis.fetch = originalFetch;
+            }
+        });
+
+        it('should throw GoogleCalendarNotFoundError when Google returns 404 or 410 on patch', async () => {
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                userId: testUserId,
+                providerId: 'google',
+                accountId: 'google-acc-patch-404',
+                accessToken: 'patch-token-404',
+                accessTokenExpiresAt: new Date(Date.now() + 3600000),
+            });
+
+            const originalFetch = globalThis.fetch;
+            globalThis.fetch = mock(() =>
+                Promise.resolve(new Response('Not Found', { status: 404 })),
+            ) as any;
+
+            try {
+                await expect(
+                    adapter.patch(testUserId, 'missing-id', { name: 'Test' }),
+                ).rejects.toThrow(GoogleCalendarNotFoundError);
+
+                globalThis.fetch = mock(() =>
+                    Promise.resolve(new Response('Gone', { status: 410 })),
+                ) as any;
+
+                await expect(
+                    adapter.patch(testUserId, 'gone-id', { name: 'Test' }),
+                ).rejects.toThrow(GoogleCalendarNotFoundError);
             } finally {
                 globalThis.fetch = originalFetch;
             }

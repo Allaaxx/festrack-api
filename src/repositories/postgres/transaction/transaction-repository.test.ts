@@ -50,6 +50,41 @@ describe('Postgres Transaction Repository', () => {
                 dayjs(transaction.date).year(),
             );
         });
+
+        it('should preserve local civil date without UTC day shift when given YYYY-MM-DD or late-evening offset', async () => {
+            const baseParams = {
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                name: transaction.name,
+                amount: transaction.amount,
+                type: transaction.type,
+            };
+
+            const fromCivilDate = await sut.create({
+                ...baseParams,
+                date: '2026-11-17',
+            });
+
+            const fromOffsetIso = await sut.create({
+                ...baseParams,
+                date: '2026-11-17T22:59:00-03:00',
+            });
+
+            const fromLateUtcIso = await sut.create({
+                ...baseParams,
+                date: '2026-11-18T01:59:00.000Z',
+            });
+
+            expect(
+                new Date(fromCivilDate.date).toISOString().slice(0, 10),
+            ).toBe('2026-11-17');
+            expect(
+                new Date(fromOffsetIso.date).toISOString().slice(0, 10),
+            ).toBe('2026-11-17');
+            expect(
+                new Date(fromLateUtcIso.date).toISOString().slice(0, 10),
+            ).toBe('2026-11-17');
+        });
     });
 
     describe('findById', () => {
@@ -259,6 +294,28 @@ describe('Postgres Transaction Repository', () => {
 
             expect(result.length).toBe(1);
         });
+
+        it('should filter by civil date without UTC day shift when from/to have late-evening offset or UTC timestamp', async () => {
+            await db.insert(transactionsTable).values({
+                ...transaction,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                date: new Date('2026-11-17T00:00:00.000Z'),
+                amount: '150.00',
+            });
+
+            const byOffset = await sut.findByShopId(shop.id, {
+                from: '2026-11-17T22:59:00-03:00',
+                to: '2026-11-17T23:59:59-03:00',
+            });
+            const byLateUtc = await sut.findByShopId(shop.id, {
+                from: '2026-11-18T01:59:00.000Z',
+                to: '2026-11-18T02:59:00.000Z',
+            });
+
+            expect(byOffset.length).toBe(1);
+            expect(byLateUtc.length).toBe(1);
+        });
     });
 
     describe('findByUserId', () => {
@@ -281,6 +338,23 @@ describe('Postgres Transaction Repository', () => {
 
             expect(result.length).toBe(1);
             expect(result[0].name).toBe(transaction.name);
+        });
+
+        it('should filter by civil date without UTC day shift when from/to have late-evening offset', async () => {
+            await db.insert(transactionsTable).values({
+                ...transaction,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                date: new Date('2026-11-17T00:00:00.000Z'),
+                amount: '150.00',
+            });
+
+            const result = await sut.findByUserId(user.id, {
+                from: '2026-11-17T22:59:00-03:00',
+                to: '2026-11-17T23:59:59-03:00',
+            });
+
+            expect(result.length).toBe(1);
         });
     });
 
@@ -305,6 +379,24 @@ describe('Postgres Transaction Repository', () => {
 
             expect(result.name).toBe(params.name);
             expect(String(result.amount)).toBe(String(params.amount));
+        });
+
+        it('should preserve local civil date without UTC day shift when updating date', async () => {
+            await db.insert(transactionsTable).values({
+                ...transaction,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                date: new Date('2026-11-01'),
+                amount: transaction.amount.toString(),
+            });
+
+            const updated = await sut.update(transaction.id, {
+                date: '2026-11-17T22:59:00-03:00',
+            });
+
+            expect(new Date(updated.date).toISOString().slice(0, 10)).toBe(
+                '2026-11-17',
+            );
         });
 
         it('should throw TransactionNotFoundError if transaction does not exist', async () => {
@@ -489,6 +581,25 @@ describe('Postgres Transaction Repository', () => {
 
             expect(result.balance).toBe('0');
             expect(result.earnings).toBe('0');
+        });
+
+        it('should include transaction in balance when filtering same civil day with late-evening offset', async () => {
+            await db.insert(transactionsTable).values({
+                name: 'Late Night Sale',
+                amount: '250.00',
+                date: new Date('2026-11-17T00:00:00.000Z'),
+                type: 'EARNING',
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+            });
+
+            const result = await sut.getBalanceByShopId(shop.id, {
+                from: '2026-11-17T22:59:00-03:00',
+                to: '2026-11-17T23:59:59-03:00',
+            });
+
+            expect(Number(result.earnings)).toBe(250);
+            expect(Number(result.balance)).toBe(250);
         });
     });
 });

@@ -1,4 +1,7 @@
-import { EventNotFoundError } from '../../errors/event.js';
+import {
+    EventNotFoundError,
+    GoogleCalendarNotFoundError,
+} from '../../errors/event.js';
 import { ShopNotFoundError } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
 import {
@@ -10,6 +13,7 @@ import {
     UserRepository,
     GoogleCalendarAdapter,
 } from '../../domain/index.js';
+import { resolveShopOwner } from './resolve-shop-owner.js';
 
 export interface UpdateEventInput {
     name?: string;
@@ -29,10 +33,13 @@ export class UpdateEventUseCase {
         private readonly shopRepository: Pick<ShopRepository, 'findById'>,
         private readonly shopMemberRepository: Pick<
             ShopMemberRepository,
-            'findByShopAndUserId'
+            'findByShopAndUserId' | 'findOwnerByShopId'
         >,
         private readonly userRepository?: Pick<UserRepository, 'findById'>,
-        private readonly calendarAdapter?: Pick<GoogleCalendarAdapter, 'patch'>,
+        private readonly calendarAdapter?: Pick<
+            GoogleCalendarAdapter,
+            'patch' | 'insert'
+        >,
     ) {}
 
     async execute(
@@ -59,36 +66,76 @@ export class UpdateEventUseCase {
             throw new EventNotFoundError(eventId);
         }
 
-        if (
-            event.google_event_id &&
-            this.calendarAdapter &&
-            this.userRepository
-        ) {
-            const user = await this.userRepository.findById(userId);
-            if (user?.google_calendar_sync_enabled) {
-                try {
-                    await this.calendarAdapter.patch(
-                        userId,
-                        event.google_event_id,
-                        {
-                            name: updateParams.name,
-                            description: updateParams.description,
-                            start_date: updateParams.start_date,
-                            end_date: updateParams.end_date,
-                        },
-                    );
-                } catch (error) {
-                    console.error(
-                        'Failed to patch event on Google Calendar (non-blocking):',
-                        error,
-                    );
-                }
-            }
-        }
-
         const updateData: UpdateEventParams = {
             ...updateParams,
         };
+
+        if (this.calendarAdapter && this.userRepository) {
+            const owner = await resolveShopOwner(
+                shopId,
+                member,
+                this.shopMemberRepository,
+                this.userRepository,
+            );
+
+            if (owner?.google_calendar_sync_enabled) {
+                const insertOnOwnerCalendar = async () => {
+                    try {
+                        const insertedGoogleEventId =
+                            await this.calendarAdapter!.insert(owner.id, {
+                                name: updateParams.name ?? event.name,
+                                description:
+                                    updateParams.description !== undefined
+                                        ? updateParams.description
+                                        : event.description,
+                                start_date:
+                                    updateParams.start_date ?? event.start_date,
+                                end_date:
+                                    updateParams.end_date ?? event.end_date,
+                            });
+                        if (insertedGoogleEventId) {
+                            updateData.google_event_id = insertedGoogleEventId;
+                        }
+                    } catch (insertError) {
+                        console.error(
+                            'Failed to insert fallback event on Google Calendar (non-blocking):',
+                            insertError,
+                        );
+                    }
+                };
+
+                if (!event.google_event_id) {
+                    await insertOnOwnerCalendar();
+                } else {
+                    try {
+                        await this.calendarAdapter.patch(
+                            owner.id,
+                            event.google_event_id,
+                            {
+                                name: updateParams.name,
+                                description: updateParams.description,
+                                start_date: updateParams.start_date,
+                                end_date: updateParams.end_date,
+                            },
+                        );
+                    } catch (error) {
+                        const status = (error as { status?: number })?.status;
+                        if (
+                            error instanceof GoogleCalendarNotFoundError ||
+                            status === 404 ||
+                            status === 410
+                        ) {
+                            await insertOnOwnerCalendar();
+                        } else {
+                            console.error(
+                                'Failed to patch event on Google Calendar (non-blocking):',
+                                error,
+                            );
+                        }
+                    }
+                }
+            }
+        }
         if (updateParams.tag !== undefined) {
             updateData.tag =
                 updateParams.tag && updateParams.tag.trim() !== ''

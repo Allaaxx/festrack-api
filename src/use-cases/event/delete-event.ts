@@ -9,6 +9,7 @@ import {
     UserRepository,
     GoogleCalendarAdapter,
 } from '../../domain/index.js';
+import { resolveShopOwner } from './resolve-shop-owner.js';
 
 export class DeleteEventUseCase {
     constructor(
@@ -19,7 +20,7 @@ export class DeleteEventUseCase {
         private readonly shopRepository: Pick<ShopRepository, 'findById'>,
         private readonly shopMemberRepository: Pick<
             ShopMemberRepository,
-            'findByShopAndUserId'
+            'findByShopAndUserId' | 'findOwnerByShopId'
         >,
         private readonly userRepository?: Pick<UserRepository, 'findById'>,
         private readonly calendarAdapter?: Pick<
@@ -56,11 +57,17 @@ export class DeleteEventUseCase {
             this.calendarAdapter &&
             this.userRepository
         ) {
-            const user = await this.userRepository.findById(userId);
-            if (user?.google_calendar_sync_enabled) {
+            const owner = await resolveShopOwner(
+                shopId,
+                member,
+                this.shopMemberRepository,
+                this.userRepository,
+            );
+
+            if (owner?.google_calendar_sync_enabled) {
                 try {
                     await this.calendarAdapter.delete(
-                        userId,
+                        owner.id,
                         event.google_event_id,
                     );
                 } catch (error) {
