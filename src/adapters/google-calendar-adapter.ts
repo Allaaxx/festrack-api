@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, Database } from '../db/postgres/index.js';
 import { account } from '../db/postgres/schemas/index.js';
 import { env } from '../config/env.js';
+import { GoogleCalendarNotFoundError } from '../errors/index.js';
 import {
     GoogleCalendarAdapter,
     InsertCalendarEventParams,
@@ -237,6 +238,12 @@ export class DefaultGoogleCalendarAdapter implements GoogleCalendarAdapter {
 
         if (!response.ok) {
             const errText = await response.text();
+            if (response.status === 404 || response.status === 410) {
+                throw new GoogleCalendarNotFoundError(
+                    response.status,
+                    `Google Calendar patch failed (${response.status}): ${errText}`,
+                );
+            }
             throw new Error(
                 `Google Calendar patch failed (${response.status}): ${errText}`,
             );

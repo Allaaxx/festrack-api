@@ -55,6 +55,20 @@ export class PostgresShopMemberRepository implements ShopMemberRepository {
             .where(eq(shopMembersTable.shop_id, shopId));
     }
 
+    async findOwnerByShopId(shopId: string): Promise<ShopMember | null> {
+        const [owner] = await this.database
+            .select()
+            .from(shopMembersTable)
+            .where(
+                and(
+                    eq(shopMembersTable.shop_id, shopId),
+                    eq(shopMembersTable.role, 'OWNER'),
+                ),
+            );
+
+        return owner || null;
+    }
+
     async findByShopIdWithUsers(shopId: string): Promise<ShopMemberWithUser[]> {
         const rows = await this.database
             .select({

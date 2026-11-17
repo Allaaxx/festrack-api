@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { DefaultGoogleCalendarAdapter } from './google-calendar-adapter.js';
+import { GoogleCalendarNotFoundError } from '../errors/index.js';
 import { db } from '../db/postgres/index.js';
 import { account, user } from '../db/postgres/schemas/index.js';
 import { eq } from 'drizzle-orm';
@@ -442,6 +443,38 @@ describe('DefaultGoogleCalendarAdapter', () => {
                     dateTime: '2026-10-21T17:00:00-03:00',
                     timeZone: 'America/Sao_Paulo',
                 });
+            } finally {
+                globalThis.fetch = originalFetch;
+            }
+        });
+
+        it('should throw GoogleCalendarNotFoundError when Google returns 404 or 410 on patch', async () => {
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                userId: testUserId,
+                providerId: 'google',
+                accountId: 'google-acc-patch-404',
+                accessToken: 'patch-token-404',
+                accessTokenExpiresAt: new Date(Date.now() + 3600000),
+            });
+
+            const originalFetch = globalThis.fetch;
+            globalThis.fetch = mock(() =>
+                Promise.resolve(new Response('Not Found', { status: 404 })),
+            ) as any;
+
+            try {
+                await expect(
+                    adapter.patch(testUserId, 'missing-id', { name: 'Test' }),
+                ).rejects.toThrow(GoogleCalendarNotFoundError);
+
+                globalThis.fetch = mock(() =>
+                    Promise.resolve(new Response('Gone', { status: 410 })),
+                ) as any;
+
+                await expect(
+                    adapter.patch(testUserId, 'gone-id', { name: 'Test' }),
+                ).rejects.toThrow(GoogleCalendarNotFoundError);
             } finally {
                 globalThis.fetch = originalFetch;
             }

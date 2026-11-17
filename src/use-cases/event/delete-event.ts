@@ -19,7 +19,7 @@ export class DeleteEventUseCase {
         private readonly shopRepository: Pick<ShopRepository, 'findById'>,
         private readonly shopMemberRepository: Pick<
             ShopMemberRepository,
-            'findByShopAndUserId'
+            'findByShopAndUserId' | 'findOwnerByShopId'
         >,
         private readonly userRepository?: Pick<UserRepository, 'findById'>,
         private readonly calendarAdapter?: Pick<
@@ -56,11 +56,18 @@ export class DeleteEventUseCase {
             this.calendarAdapter &&
             this.userRepository
         ) {
-            const user = await this.userRepository.findById(userId);
-            if (user?.google_calendar_sync_enabled) {
+            const ownerMember =
+                member.role === 'OWNER'
+                    ? member
+                    : await this.shopMemberRepository.findOwnerByShopId(shopId);
+            const owner = ownerMember
+                ? await this.userRepository.findById(ownerMember.user_id)
+                : null;
+
+            if (owner?.google_calendar_sync_enabled) {
                 try {
                     await this.calendarAdapter.delete(
-                        userId,
+                        owner.id,
                         event.google_event_id,
                     );
                 } catch (error) {
