@@ -28,7 +28,7 @@ beforeAll(async () => {
 beforeEach(async () => {
     try {
         await sqlClient.unsafe(
-            'TRUNCATE TABLE "stock_movements", "bundle_items", "stock", "products", "Transaction", "Event", "shops", "shop_members", "session", "account", "verification", "user" CASCADE;',
+            'TRUNCATE TABLE "stock_movements", "bundle_items", "stock", "products", "Transaction", "Event", "event_tags", "shop_invitations", "shops", "shop_members", "session", "account", "verification", "user" CASCADE;',
         );
     } catch {
         try {
