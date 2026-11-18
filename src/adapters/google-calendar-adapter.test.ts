@@ -203,6 +203,176 @@ describe('DefaultGoogleCalendarAdapter', () => {
             }
         });
 
+        it('should send { date } bounds with exclusive +1 day end.date when all_day is true', async () => {
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                userId: testUserId,
+                providerId: 'google',
+                accountId: 'google-acc-all-day-1',
+                accessToken: 'valid-access-token',
+                accessTokenExpiresAt: new Date(Date.now() + 3600000),
+            });
+
+            let capturedBody: Record<string, unknown> | null = null;
+            const originalFetch = globalThis.fetch;
+            globalThis.fetch = mock(
+                (url: string | URL | Request, init?: RequestInit) => {
+                    const urlStr = url.toString();
+                    if (urlStr.includes('/calendars/primary/events')) {
+                        capturedBody = JSON.parse(init?.body as string);
+                        return Promise.resolve(
+                            new Response(
+                                JSON.stringify({ id: 'google-event-all-day' }),
+                                {
+                                    status: 200,
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                },
+                            ),
+                        );
+                    }
+                    return Promise.reject(
+                        new Error(`Unexpected fetch: ${urlStr}`),
+                    );
+                },
+            ) as any;
+
+            try {
+                const result = await adapter.insert(testUserId, {
+                    name: 'All-Day Wedding',
+                    start_date: '2026-11-18T00:00:00.000Z',
+                    end_date: '2026-11-18T23:59:59.000Z',
+                    all_day: true,
+                });
+
+                expect(result).toBe('google-event-all-day');
+                expect(capturedBody!.start).toEqual({ date: '2026-11-18' });
+                expect(capturedBody!.end).toEqual({ date: '2026-11-19' });
+            } finally {
+                globalThis.fetch = originalFetch;
+            }
+        });
+
+        it('should handle month and year rollovers when computing exclusive +1 day end.date for all_day: true', async () => {
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                userId: testUserId,
+                providerId: 'google',
+                accountId: 'google-acc-all-day-rollover',
+                accessToken: 'valid-access-token',
+                accessTokenExpiresAt: new Date(Date.now() + 3600000),
+            });
+
+            const capturedBodies: Array<Record<string, unknown>> = [];
+            const originalFetch = globalThis.fetch;
+            globalThis.fetch = mock(
+                (url: string | URL | Request, init?: RequestInit) => {
+                    const urlStr = url.toString();
+                    if (urlStr.includes('/calendars/primary/events')) {
+                        capturedBodies.push(JSON.parse(init?.body as string));
+                        return Promise.resolve(
+                            new Response(
+                                JSON.stringify({
+                                    id: `google-event-rollover-${capturedBodies.length}`,
+                                }),
+                                {
+                                    status: 200,
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                },
+                            ),
+                        );
+                    }
+                    return Promise.reject(
+                        new Error(`Unexpected fetch: ${urlStr}`),
+                    );
+                },
+            ) as any;
+
+            try {
+                await adapter.insert(testUserId, {
+                    name: 'New Year Eve Multi-Day',
+                    start_date: '2026-12-30T00:00:00.000Z',
+                    end_date: '2026-12-31T23:59:59.000Z',
+                    all_day: true,
+                });
+
+                await adapter.insert(testUserId, {
+                    name: 'Month End Date Instance',
+                    start_date: new Date('2026-11-30T00:00:00.000Z'),
+                    end_date: new Date('2026-11-30T23:59:59.000Z'),
+                    all_day: true,
+                });
+
+                expect(capturedBodies[0].start).toEqual({ date: '2026-12-30' });
+                expect(capturedBodies[0].end).toEqual({ date: '2027-01-01' });
+                expect(capturedBodies[1].start).toEqual({ date: '2026-11-30' });
+                expect(capturedBodies[1].end).toEqual({ date: '2026-12-01' });
+            } finally {
+                globalThis.fetch = originalFetch;
+            }
+        });
+
+        it('should send { dateTime, timeZone } when all_day is explicitly false', async () => {
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                userId: testUserId,
+                providerId: 'google',
+                accountId: 'google-acc-timed-explicit',
+                accessToken: 'valid-access-token',
+                accessTokenExpiresAt: new Date(Date.now() + 3600000),
+            });
+
+            let capturedBody: Record<string, unknown> | null = null;
+            const originalFetch = globalThis.fetch;
+            globalThis.fetch = mock(
+                (url: string | URL | Request, init?: RequestInit) => {
+                    const urlStr = url.toString();
+                    if (urlStr.includes('/calendars/primary/events')) {
+                        capturedBody = JSON.parse(init?.body as string);
+                        return Promise.resolve(
+                            new Response(
+                                JSON.stringify({
+                                    id: 'google-event-timed-explicit',
+                                }),
+                                {
+                                    status: 200,
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                },
+                            ),
+                        );
+                    }
+                    return Promise.reject(
+                        new Error(`Unexpected fetch: ${urlStr}`),
+                    );
+                },
+            ) as any;
+
+            try {
+                await adapter.insert(testUserId, {
+                    name: '24h Timed Event',
+                    start_date: '2026-11-18T00:00:00-03:00',
+                    end_date: '2026-11-18T23:59:59-03:00',
+                    all_day: false,
+                });
+
+                expect(capturedBody!.start).toEqual({
+                    dateTime: '2026-11-18T00:00:00-03:00',
+                    timeZone: 'America/Sao_Paulo',
+                });
+                expect(capturedBody!.end).toEqual({
+                    dateTime: '2026-11-18T23:59:59-03:00',
+                    timeZone: 'America/Sao_Paulo',
+                });
+            } finally {
+                globalThis.fetch = originalFetch;
+            }
+        });
+
         it('should automatically refresh expired access token and persist new token before inserting', async () => {
             const accountId = crypto.randomUUID();
             await db.insert(account).values({

@@ -228,18 +228,52 @@ describe('Create Event Use Case', () => {
     });
 
     it('should export event to Google Calendar and persist google_event_id when sync is enabled', async () => {
-        const { sut, userRepository, eventRepository } = makeSut();
+        const { sut, userRepository, eventRepository, calendarAdapter } =
+            makeSut();
         jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
             ...user,
             google_calendar_sync_enabled: true,
         });
+        const insertSpy = jest.spyOn(calendarAdapter, 'insert');
         const createSpy = jest.spyOn(eventRepository, 'create');
 
         await sut.execute(createEventInput);
 
+        expect(insertSpy).toHaveBeenCalledWith(
+            user.id,
+            expect.objectContaining({
+                all_day: false,
+            }),
+        );
         expect(createSpy).toHaveBeenCalledWith(
             expect.objectContaining({
                 google_event_id: 'google-event-id-123',
+            }),
+        );
+    });
+
+    it('should forward all_day: true and normalized UTC dates to GoogleCalendarAdapter.insert for an All-Day Event', async () => {
+        const { sut, userRepository, calendarAdapter } = makeSut();
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
+        const insertSpy = jest.spyOn(calendarAdapter, 'insert');
+
+        await sut.execute({
+            ...createEventInput,
+            start_date: '2026-11-18T00:00:00-03:00',
+            end_date: '2026-11-20T23:59:59-03:00',
+            all_day: true,
+        });
+
+        expect(insertSpy).toHaveBeenCalledWith(
+            user.id,
+            expect.objectContaining({
+                name: createEventInput.name,
+                start_date: '2026-11-18T00:00:00.000Z',
+                end_date: '2026-11-20T23:59:59.000Z',
+                all_day: true,
             }),
         );
     });

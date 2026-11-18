@@ -78,6 +78,7 @@ export class CreateEventUseCase {
                             description: input.description,
                             start_date: normalizedStartDate,
                             end_date: normalizedEndDate,
+                            all_day: allDay,
                         },
                     );
                 } catch (error) {
