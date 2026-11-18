@@ -7,6 +7,7 @@ import {
     GoogleCalendarAdapter,
     InsertCalendarEventParams,
     PatchCalendarEventParams,
+    extractCivilDate,
 } from '../domain/index.js';
 
 export interface GoogleCalendarAdapterOptions {
@@ -28,6 +29,20 @@ function toCalendarDateTime(
             typeof dateValue === 'string' ? dateValue : dateValue.toISOString(),
         timeZone,
     };
+}
+
+function toCalendarDate(
+    dateValue: Date | string,
+    addDays = 0,
+): { date: string } {
+    const civilDate = extractCivilDate(dateValue);
+    if (addDays === 0) {
+        return { date: civilDate };
+    }
+
+    const [year, month, day] = civilDate.split('-').map(Number);
+    const shifted = new Date(Date.UTC(year, month - 1, day + addDays));
+    return { date: shifted.toISOString().slice(0, 10) };
 }
 
 export class DefaultGoogleCalendarAdapter implements GoogleCalendarAdapter {
@@ -148,8 +163,12 @@ export class DefaultGoogleCalendarAdapter implements GoogleCalendarAdapter {
         const requestBody = {
             summary: event.name,
             description: event.description ?? undefined,
-            start: toCalendarDateTime(event.start_date, event.timeZone),
-            end: toCalendarDateTime(event.end_date, event.timeZone),
+            start: event.all_day
+                ? toCalendarDate(event.start_date)
+                : toCalendarDateTime(event.start_date, event.timeZone),
+            end: event.all_day
+                ? toCalendarDate(event.end_date, 1)
+                : toCalendarDateTime(event.end_date, event.timeZone),
         };
 
         const url = `${this.calendarBaseUrl}/calendars/primary/events`;
