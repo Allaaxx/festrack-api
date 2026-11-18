@@ -154,7 +154,77 @@ describe('Create Event Use Case', () => {
             end_date: createEventInput.end_date,
             google_event_id: null,
             tag: null,
+            all_day: false,
         });
+    });
+
+    it('should pass all_day: true and normalize start_date and end_date to UTC civil-date bounds', async () => {
+        const { sut, eventRepository } = makeSut();
+        const createSpy = jest.spyOn(eventRepository, 'create');
+
+        const result = await sut.execute({
+            ...createEventInput,
+            start_date: '2026-11-18T00:00:00-03:00',
+            end_date: '2026-11-18T23:59:59-03:00',
+            all_day: true,
+        });
+
+        expect(result.all_day).toBe(true);
+        expect(result.start_date).toBe('2026-11-18T00:00:00.000Z');
+        expect(result.end_date).toBe('2026-11-18T23:59:59.000Z');
+        expect(createSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                all_day: true,
+                start_date: '2026-11-18T00:00:00.000Z',
+                end_date: '2026-11-18T23:59:59.000Z',
+            }),
+        );
+    });
+
+    it('should normalize multi-day civil dates when all_day is true', async () => {
+        const { sut, eventRepository } = makeSut();
+        const createSpy = jest.spyOn(eventRepository, 'create');
+
+        const result = await sut.execute({
+            ...createEventInput,
+            start_date: '2026-11-18',
+            end_date: '2026-11-20',
+            all_day: true,
+        });
+
+        expect(result.all_day).toBe(true);
+        expect(result.start_date).toBe('2026-11-18T00:00:00.000Z');
+        expect(result.end_date).toBe('2026-11-20T23:59:59.000Z');
+        expect(createSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                all_day: true,
+                start_date: '2026-11-18T00:00:00.000Z',
+                end_date: '2026-11-20T23:59:59.000Z',
+            }),
+        );
+    });
+
+    it('should preserve raw timestamps and all_day: false for a 00:00-23:59 timed event', async () => {
+        const { sut, eventRepository } = makeSut();
+        const createSpy = jest.spyOn(eventRepository, 'create');
+
+        const result = await sut.execute({
+            ...createEventInput,
+            start_date: '2026-11-18T00:00:00-03:00',
+            end_date: '2026-11-18T23:59:59-03:00',
+            all_day: false,
+        });
+
+        expect(result.all_day).toBe(false);
+        expect(result.start_date).toBe('2026-11-18T00:00:00-03:00');
+        expect(result.end_date).toBe('2026-11-18T23:59:59-03:00');
+        expect(createSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                all_day: false,
+                start_date: '2026-11-18T00:00:00-03:00',
+                end_date: '2026-11-18T23:59:59-03:00',
+            }),
+        );
     });
 
     it('should export event to Google Calendar and persist google_event_id when sync is enabled', async () => {

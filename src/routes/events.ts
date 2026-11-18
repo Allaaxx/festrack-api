@@ -17,6 +17,7 @@ import { DefaultGoogleCalendarAdapter } from '../adapters/index.js';
 import { EventNotFoundError } from '../errors/event.js';
 import { ShopNotFoundError } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/index.js';
+import { normalizeAllDayDates } from '../domain/index.js';
 import { isIsoDateValid } from './helpers.js';
 
 export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
@@ -32,7 +33,12 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
                 set.status = 400;
                 return { message: 'End date must be a valid date.' };
             }
-            if (new Date(body.end_date) < new Date(body.start_date)) {
+            const { start_date: effectiveStart, end_date: effectiveEnd } =
+                body.all_day
+                    ? normalizeAllDayDates(body.start_date, body.end_date)
+                    : { start_date: body.start_date, end_date: body.end_date };
+
+            if (new Date(effectiveEnd) < new Date(effectiveStart)) {
                 set.status = 400;
                 return {
                     message:
@@ -63,6 +69,7 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
                     start_date: body.start_date,
                     end_date: body.end_date,
                     tag: body.tag,
+                    all_day: body.all_day,
                 });
                 set.status = 201;
                 return event;
@@ -121,6 +128,7 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
                             }),
                         ),
                     ),
+                    all_day: t.Optional(t.Boolean()),
                 },
                 { additionalProperties: false },
             ),

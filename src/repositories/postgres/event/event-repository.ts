@@ -12,6 +12,7 @@ import {
     CreateEventParams,
     UpdateEventParams,
     EventRepository,
+    normalizeAllDayDates,
 } from '../../../domain/index.js';
 
 export type { EventRepository };
@@ -56,14 +57,26 @@ export class PostgresEventRepository implements EventRepository {
     }
 
     async create(createEventParams: CreateEventParams): Promise<Event> {
-        const { tag, ...rest } = createEventParams;
+        const { tag, all_day, ...rest } = createEventParams;
+        const isAllDay = all_day ?? false;
+        const normalizedDates = isAllDay
+            ? normalizeAllDayDates(
+                  createEventParams.start_date,
+                  createEventParams.end_date,
+              )
+            : {
+                  start_date: createEventParams.start_date,
+                  end_date: createEventParams.end_date,
+              };
+
         const [createdEvent] = await this.database
             .insert(eventsTable)
             .values({
                 ...rest,
                 tag: tag ?? null,
-                start_date: new Date(createEventParams.start_date),
-                end_date: new Date(createEventParams.end_date),
+                all_day: isAllDay,
+                start_date: new Date(normalizedDates.start_date),
+                end_date: new Date(normalizedDates.end_date),
                 google_event_id: createEventParams.google_event_id ?? null,
             })
             .returning();

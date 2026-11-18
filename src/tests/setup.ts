@@ -17,6 +17,7 @@ beforeAll(async () => {
             ALTER TABLE "Event" ADD COLUMN IF NOT EXISTS "tag" varchar(50);
             ALTER TABLE "Event" ALTER COLUMN "tag" DROP DEFAULT;
             ALTER TABLE "Event" ALTER COLUMN "tag" DROP NOT NULL;
+            ALTER TABLE "Event" ADD COLUMN IF NOT EXISTS "all_day" boolean DEFAULT false NOT NULL;
             ALTER TABLE "event_tags" DROP COLUMN IF EXISTS "is_system";
         `);
     } catch {

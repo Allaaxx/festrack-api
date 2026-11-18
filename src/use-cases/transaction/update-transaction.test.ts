@@ -61,6 +61,7 @@ describe('Update Transaction Use Case', () => {
                 start_date: '2026-06-01',
                 end_date: '2026-06-02',
                 created_by_user_id: user.id,
+                all_day: false,
             })),
         };
 
@@ -141,6 +142,7 @@ describe('Update Transaction Use Case', () => {
             start_date: '2026-06-01',
             end_date: '2026-06-02',
             created_by_user_id: user.id,
+            all_day: false,
         }));
 
         await expect(

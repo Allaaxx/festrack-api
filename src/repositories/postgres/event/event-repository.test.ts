@@ -43,17 +43,61 @@ describe('Postgres Event Repository', () => {
                 dayjs(event.end_date).toISOString(),
             );
             expect(result.tag).toBeNull();
+            expect(result.all_day).toBe(false);
         });
 
-        it('should create an event with undefined tag defaulting to null', async () => {
-            const { tag: _tag, ...eventWithoutTag } = event;
+        it('should create an all-day event with normalized UTC civil-date bounds', async () => {
             const result = await sut.create({
-                ...eventWithoutTag,
+                ...event,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                start_date: '2026-11-18T00:00:00-03:00',
+                end_date: '2026-11-18T23:59:59-03:00',
+                all_day: true,
+            });
+
+            expect(result.all_day).toBe(true);
+            expect(new Date(result.start_date).toISOString()).toBe(
+                '2026-11-18T00:00:00.000Z',
+            );
+            expect(new Date(result.end_date).toISOString()).toBe(
+                '2026-11-18T23:59:59.000Z',
+            );
+        });
+
+        it('should preserve all_day as false for a 00:00-23:59 timed event', async () => {
+            const result = await sut.create({
+                ...event,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                start_date: '2026-11-18T00:00:00.000Z',
+                end_date: '2026-11-18T23:59:59.000Z',
+                all_day: false,
+            });
+
+            expect(result.all_day).toBe(false);
+            expect(new Date(result.start_date).toISOString()).toBe(
+                '2026-11-18T00:00:00.000Z',
+            );
+            expect(new Date(result.end_date).toISOString()).toBe(
+                '2026-11-18T23:59:59.000Z',
+            );
+        });
+
+        it('should create an event with undefined tag and undefined all_day defaulting to null and false', async () => {
+            const {
+                tag: _tag,
+                all_day: _allDay,
+                ...eventWithoutOptionals
+            } = event;
+            const result = await sut.create({
+                ...eventWithoutOptionals,
                 shop_id: shop.id,
                 created_by_user_id: user.id,
             });
 
             expect(result.tag).toBeNull();
+            expect(result.all_day).toBe(false);
         });
 
         it('should create an event with explicit tag', async () => {
@@ -100,6 +144,23 @@ describe('Postgres Event Repository', () => {
             expect(result?.name).toBe(event.name);
             expect(result?.shop_id).toBe(shop.id);
             expect(result?.created_by_user_id).toBe(user.id);
+            expect(result?.all_day).toBe(false);
+        });
+
+        it('should return all_day: true for an all-day event by id', async () => {
+            await db.insert(eventsTable).values({
+                ...event,
+                tag: event.tag ?? 'etc',
+                all_day: true,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                start_date: new Date('2026-11-18T00:00:00.000Z'),
+                end_date: new Date('2026-11-18T23:59:59.000Z'),
+            });
+
+            const result = await sut.findById(event.id);
+
+            expect(result?.all_day).toBe(true);
         });
 
         it('should return null if event is not found', async () => {
@@ -126,6 +187,7 @@ describe('Postgres Event Repository', () => {
             expect(result[0].id).toBe(event.id);
             expect(result[0].shop_id).toBe(shop.id);
             expect(result[0].created_by_user_id).toBe(user.id);
+            expect(result[0].all_day).toBe(false);
         });
 
         it('should return empty list if shop has no events', async () => {
@@ -152,6 +214,7 @@ describe('Postgres Event Repository', () => {
                     id: secondEventId,
                     name: 'Custom Tag Event',
                     tag: 'festival',
+                    all_day: true,
                     shop_id: shop.id,
                     created_by_user_id: user.id,
                     start_date: new Date(event.start_date),
@@ -167,10 +230,12 @@ describe('Postgres Event Repository', () => {
 
             expect(defaultEvt).toBeDefined();
             expect(defaultEvt?.tag).toBe('etc');
+            expect(defaultEvt?.all_day).toBe(false);
             expect(defaultEvt?.created_by_user_id).toBe(user.id);
 
             expect(customEvt).toBeDefined();
             expect(customEvt?.tag).toBe('festival');
+            expect(customEvt?.all_day).toBe(true);
             expect(customEvt?.created_by_user_id).toBe(user.id);
         });
 
