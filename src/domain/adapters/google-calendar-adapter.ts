@@ -13,6 +13,7 @@ export interface PatchCalendarEventParams {
     start_date?: Date | string;
     end_date?: Date | string;
     timeZone?: string;
+    all_day?: boolean;
 }
 
 export interface GoogleCalendarAdapter {
