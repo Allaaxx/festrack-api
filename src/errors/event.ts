@@ -14,3 +14,12 @@ export class GoogleCalendarNotFoundError extends Error {
         this.status = status;
     }
 }
+
+export class InvalidEventDateRangeError extends Error {
+    constructor(
+        message = 'End date must be greater than or equal to start date.',
+    ) {
+        super(message);
+        this.name = 'InvalidEventDateRangeError';
+    }
+}

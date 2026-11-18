@@ -1,6 +1,7 @@
 import {
     EventNotFoundError,
     GoogleCalendarNotFoundError,
+    InvalidEventDateRangeError,
 } from '../../errors/event.js';
 import { ShopNotFoundError } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
@@ -38,13 +39,13 @@ describe('Update Event Use Case', () => {
 
         async update(
             _eventId: string,
-            _updateEventParams: UpdateEventParams,
+            updateEventParams: UpdateEventParams,
         ): Promise<Event> {
             return {
                 ...event,
                 shop_id: shop.id,
                 created_by_user_id: user.id,
-                ...updateParams,
+                ...updateEventParams,
             };
         }
     }
@@ -468,5 +469,130 @@ describe('Update Event Use Case', () => {
 
         expect(result).toBeDefined();
         expect(result.name).toBe(updateParams.name!);
+    });
+
+    it('should switch timed event to all_day: true without new dates and normalize existing bounds', async () => {
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            all_day: false,
+            start_date: new Date('2026-11-18T14:00:00.000Z'),
+            end_date: new Date('2026-11-19T18:30:00.000Z'),
+        });
+        const updateSpy = jest.spyOn(eventRepository, 'update');
+
+        const result = await sut.execute(shop.id, event.id, user.id, {
+            all_day: true,
+        });
+
+        expect(updateSpy).toHaveBeenCalledWith(
+            event.id,
+            expect.objectContaining({
+                all_day: true,
+                start_date: '2026-11-18T00:00:00.000Z',
+                end_date: '2026-11-19T23:59:59.000Z',
+            }),
+        );
+        expect(result.all_day).toBe(true);
+    });
+
+    it('should switch timed event to all_day: true with new offset dates and normalize civil-date bounds', async () => {
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            all_day: false,
+        });
+        const updateSpy = jest.spyOn(eventRepository, 'update');
+
+        const result = await sut.execute(shop.id, event.id, user.id, {
+            all_day: true,
+            start_date: '2026-11-18T00:00:00-03:00',
+            end_date: '2026-11-18T23:59:59-03:00',
+        });
+
+        expect(updateSpy).toHaveBeenCalledWith(
+            event.id,
+            expect.objectContaining({
+                all_day: true,
+                start_date: '2026-11-18T00:00:00.000Z',
+                end_date: '2026-11-18T23:59:59.000Z',
+            }),
+        );
+        expect(result.all_day).toBe(true);
+    });
+
+    it('should switch all_day event to all_day: false with new timed dates preserving instants', async () => {
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            all_day: true,
+            start_date: new Date('2026-11-18T00:00:00.000Z'),
+            end_date: new Date('2026-11-18T23:59:59.000Z'),
+        });
+        const updateSpy = jest.spyOn(eventRepository, 'update');
+
+        const result = await sut.execute(shop.id, event.id, user.id, {
+            all_day: false,
+            start_date: '2026-11-18T14:00:00-03:00',
+            end_date: '2026-11-18T16:00:00-03:00',
+        });
+
+        expect(updateSpy).toHaveBeenCalledWith(
+            event.id,
+            expect.objectContaining({
+                all_day: false,
+                start_date: '2026-11-18T14:00:00-03:00',
+                end_date: '2026-11-18T16:00:00-03:00',
+            }),
+        );
+        expect(result.all_day).toBe(false);
+    });
+
+    it('should normalize updated start_date when event is already all_day: true', async () => {
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            all_day: true,
+            start_date: new Date('2026-11-18T00:00:00.000Z'),
+            end_date: new Date('2026-11-20T23:59:59.000Z'),
+        });
+        const updateSpy = jest.spyOn(eventRepository, 'update');
+
+        await sut.execute(shop.id, event.id, user.id, {
+            start_date: '2026-11-19',
+        });
+
+        expect(updateSpy).toHaveBeenCalledWith(
+            event.id,
+            expect.objectContaining({
+                start_date: '2026-11-19T00:00:00.000Z',
+            }),
+        );
+    });
+
+    it('should throw InvalidEventDateRangeError when updated end_date is before start_date', async () => {
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            all_day: true,
+            start_date: new Date('2026-11-18T00:00:00.000Z'),
+            end_date: new Date('2026-11-18T23:59:59.000Z'),
+        });
+
+        const promise = sut.execute(shop.id, event.id, user.id, {
+            start_date: '2026-11-20',
+        });
+
+        await expect(promise).rejects.toThrow(new InvalidEventDateRangeError());
     });
 });

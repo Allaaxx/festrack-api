@@ -14,11 +14,26 @@ import {
     PostgresUserRepository,
 } from '../repositories/postgres/index.js';
 import { DefaultGoogleCalendarAdapter } from '../adapters/index.js';
-import { EventNotFoundError } from '../errors/event.js';
+import {
+    EventNotFoundError,
+    InvalidEventDateRangeError,
+} from '../errors/event.js';
 import { ShopNotFoundError } from '../errors/shop.js';
 import { ForbiddenError } from '../errors/index.js';
 import { normalizeAllDayDates } from '../domain/index.js';
 import { isIsoDateValid } from './helpers.js';
+
+function isValidEventDateRange(
+    startDate: string,
+    endDate: string,
+    allDay?: boolean,
+): boolean {
+    const { start_date: effectiveStart, end_date: effectiveEnd } = allDay
+        ? normalizeAllDayDates(startDate, endDate)
+        : { start_date: startDate, end_date: endDate };
+
+    return new Date(effectiveEnd) >= new Date(effectiveStart);
+}
 
 export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
     .use(authPlugin)
@@ -33,12 +48,13 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
                 set.status = 400;
                 return { message: 'End date must be a valid date.' };
             }
-            const { start_date: effectiveStart, end_date: effectiveEnd } =
-                body.all_day
-                    ? normalizeAllDayDates(body.start_date, body.end_date)
-                    : { start_date: body.start_date, end_date: body.end_date };
-
-            if (new Date(effectiveEnd) < new Date(effectiveStart)) {
+            if (
+                !isValidEventDateRange(
+                    body.start_date,
+                    body.end_date,
+                    body.all_day,
+                )
+            ) {
                 set.status = 400;
                 return {
                     message:
@@ -255,14 +271,20 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
                 set.status = 400;
                 return { message: 'End date must be a valid date.' };
             }
-            if (body.start_date && body.end_date) {
-                if (new Date(body.end_date) < new Date(body.start_date)) {
-                    set.status = 400;
-                    return {
-                        message:
-                            'End date must be greater than or equal to start date.',
-                    };
-                }
+            if (
+                body.start_date &&
+                body.end_date &&
+                !isValidEventDateRange(
+                    body.start_date,
+                    body.end_date,
+                    body.all_day,
+                )
+            ) {
+                set.status = 400;
+                return {
+                    message:
+                        'End date must be greater than or equal to start date.',
+                };
             }
 
             const eventRepository = new PostgresEventRepository();
@@ -289,6 +311,10 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
                 set.status = 200;
                 return event;
             } catch (error) {
+                if (error instanceof InvalidEventDateRangeError) {
+                    set.status = 400;
+                    return { message: error.message };
+                }
                 if (error instanceof EventNotFoundError) {
                     set.status = 404;
                     return { message: 'Event not found.' };
@@ -347,6 +373,7 @@ export const eventsRoutes = new Elysia({ prefix: '/api/shops/:shopId/events' })
                             }),
                         ),
                     ),
+                    all_day: t.Optional(t.Boolean()),
                 },
                 { additionalProperties: false },
             ),
