@@ -7,6 +7,7 @@ import {
     ShopMemberRepository,
     UserRepository,
     GoogleCalendarAdapter,
+    normalizeAllDayDates,
 } from '../../domain/index.js';
 import { resolveShopOwner } from './resolve-shop-owner.js';
 
@@ -18,6 +19,7 @@ export interface CreateEventInput {
     start_date: Date | string;
     end_date: Date | string;
     tag?: string | null;
+    all_day?: boolean;
 }
 
 export class CreateEventUseCase {
@@ -49,6 +51,15 @@ export class CreateEventUseCase {
             throw new ForbiddenError();
         }
 
+        const allDay = input.all_day ?? false;
+        const { start_date: normalizedStartDate, end_date: normalizedEndDate } =
+            allDay
+                ? normalizeAllDayDates(input.start_date, input.end_date)
+                : {
+                      start_date: input.start_date,
+                      end_date: input.end_date,
+                  };
+
         let googleEventId: string | null = null;
         if (this.userRepository && this.calendarAdapter) {
             const owner = await resolveShopOwner(
@@ -65,8 +76,8 @@ export class CreateEventUseCase {
                         {
                             name: input.name,
                             description: input.description,
-                            start_date: input.start_date,
-                            end_date: input.end_date,
+                            start_date: normalizedStartDate,
+                            end_date: normalizedEndDate,
                         },
                     );
                 } catch (error) {
@@ -86,10 +97,11 @@ export class CreateEventUseCase {
             created_by_user_id: input.userId,
             name: input.name,
             description: input.description,
-            start_date: input.start_date,
-            end_date: input.end_date,
+            start_date: normalizedStartDate,
+            end_date: normalizedEndDate,
             google_event_id: googleEventId,
             tag,
+            all_day: allDay,
         });
     }
 }
