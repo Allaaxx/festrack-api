@@ -324,6 +324,40 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             );
         });
 
+        it('should return 400 for non-existent calendar dates like 2026-02-30 instead of rolling over', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const timedResponse = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Impossible Timed Date',
+                    start_date: '2026-02-30T10:00:00Z',
+                    end_date: '2026-03-02T12:00:00Z',
+                });
+
+            expect(timedResponse.status).toBe(400);
+            expect(timedResponse.body.message).toBe(
+                'Start date must be a valid date.',
+            );
+
+            const allDayResponse = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Impossible All-Day Date',
+                    start_date: '2026-02-15',
+                    end_date: '2026-04-31',
+                    all_day: true,
+                });
+
+            expect(allDayResponse.status).toBe(400);
+            expect(allDayResponse.body.message).toBe(
+                'End date must be a valid date.',
+            );
+        });
+
         it('should export event to Google Calendar and persist google_event_id when sync is enabled', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
@@ -1182,6 +1216,58 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             expect(response.status).toBe(400);
             expect(response.body.message).toBe(
                 'End date must be greater than or equal to start date.',
+            );
+        });
+
+        it('should return 200 for valid same-day offset update on existing All-Day Event when all_day is omitted', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Existing All-Day Event',
+                    start_date: '2026-11-17',
+                    end_date: '2026-11-17',
+                    all_day: true,
+                });
+
+            expect(createRes.status).toBe(201);
+
+            const response = await client
+                .patch(`/api/shops/${shop.id}/events/${createRes.body.id}`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    start_date: '2026-11-18T22:00:00-03:00',
+                    end_date: '2026-11-18T10:00:00Z',
+                });
+
+            expect(response.status).toBe(200);
+            expect(response.body.all_day).toBe(true);
+            expect(response.body.start_date).toBe('2026-11-18T00:00:00.000Z');
+            expect(response.body.end_date).toBe('2026-11-18T23:59:59.000Z');
+        });
+
+        it('should return 400 when updating event with a non-existent calendar date like 2026-02-30', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send(sampleEventData);
+
+            const response = await client
+                .patch(`/api/shops/${shop.id}/events/${createRes.body.id}`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    start_date: '2026-02-30',
+                });
+
+            expect(response.status).toBe(400);
+            expect(response.body.message).toBe(
+                'Start date must be a valid date.',
             );
         });
 

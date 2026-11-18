@@ -1,5 +1,6 @@
 import { ShopNotFoundError } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
+import { InvalidEventDateRangeError } from '../../errors/event.js';
 import { event, user, shop } from '../../tests/index.js';
 import { CreateEventUseCase, CreateEventInput } from './create-event.js';
 import {
@@ -225,6 +226,45 @@ describe('Create Event Use Case', () => {
                 end_date: '2026-11-18T23:59:59-03:00',
             }),
         );
+    });
+
+    it('should throw InvalidEventDateRangeError when end_date is before start_date for a timed event', async () => {
+        const { sut } = makeSut();
+
+        const promise = sut.execute({
+            ...createEventInput,
+            start_date: '2026-11-18T14:00:00.000Z',
+            end_date: '2026-11-18T10:00:00.000Z',
+            all_day: false,
+        });
+
+        await expect(promise).rejects.toThrow(new InvalidEventDateRangeError());
+    });
+
+    it('should throw InvalidEventDateRangeError when end_date civil day is before start_date for an all-day event', async () => {
+        const { sut } = makeSut();
+
+        const promise = sut.execute({
+            ...createEventInput,
+            start_date: '2026-11-18',
+            end_date: '2026-11-17',
+            all_day: true,
+        });
+
+        await expect(promise).rejects.toThrow(new InvalidEventDateRangeError());
+    });
+
+    it('should throw InvalidEventDateRangeError when start_date or end_date is an impossible calendar date', async () => {
+        const { sut } = makeSut();
+
+        const promise = sut.execute({
+            ...createEventInput,
+            start_date: '2026-02-30',
+            end_date: '2026-03-02',
+            all_day: true,
+        });
+
+        await expect(promise).rejects.toThrow(InvalidEventDateRangeError);
     });
 
     it('should export event to Google Calendar and persist google_event_id when sync is enabled', async () => {

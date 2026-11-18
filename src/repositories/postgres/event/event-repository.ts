@@ -12,8 +12,6 @@ import {
     CreateEventParams,
     UpdateEventParams,
     EventRepository,
-    extractCivilDate,
-    normalizeAllDayDates,
 } from '../../../domain/index.js';
 
 export type { EventRepository };
@@ -59,25 +57,15 @@ export class PostgresEventRepository implements EventRepository {
 
     async create(createEventParams: CreateEventParams): Promise<Event> {
         const { tag, all_day, ...rest } = createEventParams;
-        const isAllDay = all_day ?? false;
-        const normalizedDates = isAllDay
-            ? normalizeAllDayDates(
-                  createEventParams.start_date,
-                  createEventParams.end_date,
-              )
-            : {
-                  start_date: createEventParams.start_date,
-                  end_date: createEventParams.end_date,
-              };
 
         const [createdEvent] = await this.database
             .insert(eventsTable)
             .values({
                 ...rest,
                 tag: tag ?? null,
-                all_day: isAllDay,
-                start_date: new Date(normalizedDates.start_date),
-                end_date: new Date(normalizedDates.end_date),
+                all_day: all_day ?? false,
+                start_date: new Date(createEventParams.start_date),
+                end_date: new Date(createEventParams.end_date),
                 google_event_id: createEventParams.google_event_id ?? null,
             })
             .returning();
@@ -115,23 +103,13 @@ export class PostgresEventRepository implements EventRepository {
     ): Promise<Event> {
         const { tag, all_day, start_date, end_date, ...rest } =
             updateEventParams;
-        const normalizedStart =
-            all_day === true && start_date
-                ? `${extractCivilDate(start_date)}T00:00:00.000Z`
-                : start_date;
-        const normalizedEnd =
-            all_day === true && end_date
-                ? `${extractCivilDate(end_date)}T23:59:59.000Z`
-                : end_date;
 
         const [updatedEvent] = await this.database
             .update(eventsTable)
             .set({
                 ...rest,
-                start_date: normalizedStart
-                    ? new Date(normalizedStart)
-                    : undefined,
-                end_date: normalizedEnd ? new Date(normalizedEnd) : undefined,
+                start_date: start_date ? new Date(start_date) : undefined,
+                end_date: end_date ? new Date(end_date) : undefined,
                 ...(tag !== undefined ? { tag: tag ?? null } : {}),
                 ...(all_day !== undefined ? { all_day } : {}),
             })
