@@ -596,6 +596,50 @@ describe('Update Event Use Case', () => {
         await expect(promise).rejects.toThrow(new InvalidEventDateRangeError());
     });
 
+    it('should allow and normalize same-day offset timestamps on an existing all-day event when all_day is omitted', async () => {
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            all_day: true,
+            start_date: new Date('2026-11-17T00:00:00.000Z'),
+            end_date: new Date('2026-11-17T23:59:59.000Z'),
+        });
+        const updateSpy = jest.spyOn(eventRepository, 'update');
+
+        const result = await sut.execute(shop.id, event.id, user.id, {
+            start_date: '2026-11-18T22:00:00-03:00',
+            end_date: '2026-11-18T10:00:00Z',
+        });
+
+        expect(updateSpy).toHaveBeenCalledWith(
+            event.id,
+            expect.objectContaining({
+                start_date: '2026-11-18T00:00:00.000Z',
+                end_date: '2026-11-18T23:59:59.000Z',
+            }),
+        );
+        expect(result.start_date).toBe('2026-11-18T00:00:00.000Z');
+        expect(result.end_date).toBe('2026-11-18T23:59:59.000Z');
+    });
+
+    it('should throw InvalidEventDateRangeError when updated date is a non-existent calendar date', async () => {
+        const { sut, eventRepository } = makeSut();
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            all_day: false,
+        });
+
+        const promise = sut.execute(shop.id, event.id, user.id, {
+            start_date: '2026-02-30',
+        });
+
+        await expect(promise).rejects.toThrow(InvalidEventDateRangeError);
+    });
+
     it('should forward all_day: true and normalized bounds to Google Calendar patch when switching timed event to all-day without dates', async () => {
         const { sut, userRepository, eventRepository, calendarAdapter } =
             makeSut();

@@ -46,7 +46,7 @@ describe('Postgres Event Repository', () => {
             expect(result.all_day).toBe(false);
         });
 
-        it('should create an all-day event with normalized UTC civil-date bounds', async () => {
+        it('should persist all_day: true and passed timestamps verbatim without domain normalization', async () => {
             const result = await sut.create({
                 ...event,
                 shop_id: shop.id,
@@ -58,10 +58,10 @@ describe('Postgres Event Repository', () => {
 
             expect(result.all_day).toBe(true);
             expect(new Date(result.start_date).toISOString()).toBe(
-                '2026-11-18T00:00:00.000Z',
+                '2026-11-18T03:00:00.000Z',
             );
             expect(new Date(result.end_date).toISOString()).toBe(
-                '2026-11-18T23:59:59.000Z',
+                '2026-11-19T02:59:59.000Z',
             );
         });
 
@@ -333,10 +333,10 @@ describe('Postgres Event Repository', () => {
 
             expect(toAllDay.all_day).toBe(true);
             expect(new Date(toAllDay.start_date).toISOString()).toBe(
-                '2026-11-18T00:00:00.000Z',
+                '2026-11-18T03:00:00.000Z',
             );
             expect(new Date(toAllDay.end_date).toISOString()).toBe(
-                '2026-11-18T23:59:59.000Z',
+                '2026-11-19T02:59:59.000Z',
             );
 
             const toTimed = await sut.update(event.id, {

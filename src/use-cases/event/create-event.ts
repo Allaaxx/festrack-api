@@ -7,7 +7,7 @@ import {
     ShopMemberRepository,
     UserRepository,
     GoogleCalendarAdapter,
-    normalizeAllDayDates,
+    resolveEventDateRange,
 } from '../../domain/index.js';
 import { resolveShopOwner } from './resolve-shop-owner.js';
 
@@ -53,12 +53,7 @@ export class CreateEventUseCase {
 
         const allDay = input.all_day ?? false;
         const { start_date: normalizedStartDate, end_date: normalizedEndDate } =
-            allDay
-                ? normalizeAllDayDates(input.start_date, input.end_date)
-                : {
-                      start_date: input.start_date,
-                      end_date: input.end_date,
-                  };
+            resolveEventDateRange(input.start_date, input.end_date, allDay);
 
         let googleEventId: string | null = null;
         if (this.userRepository && this.calendarAdapter) {
