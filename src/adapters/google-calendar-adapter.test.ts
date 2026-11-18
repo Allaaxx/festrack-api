@@ -618,6 +618,110 @@ describe('DefaultGoogleCalendarAdapter', () => {
             }
         });
 
+        it('should send { date, dateTime: null } with exclusive +1 day end.date when patching with all_day: true', async () => {
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                userId: testUserId,
+                providerId: 'google',
+                accountId: 'google-acc-patch-all-day',
+                accessToken: 'patch-token',
+                accessTokenExpiresAt: new Date(Date.now() + 3600000),
+            });
+
+            let capturedBody: Record<string, unknown> | null = null;
+            const originalFetch = globalThis.fetch;
+            globalThis.fetch = mock(
+                (url: string | URL | Request, init?: RequestInit) => {
+                    const urlStr = url.toString();
+                    if (
+                        urlStr.includes('/calendars/primary/events/g-all-day')
+                    ) {
+                        capturedBody = JSON.parse(init?.body as string);
+                        return Promise.resolve(
+                            new Response('{}', { status: 200 }),
+                        );
+                    }
+                    return Promise.reject(
+                        new Error(`Unexpected fetch: ${urlStr}`),
+                    );
+                },
+            ) as any;
+
+            try {
+                await adapter.patch(testUserId, 'g-all-day', {
+                    start_date: '2026-11-18T00:00:00.000Z',
+                    end_date: '2026-11-18T23:59:59.000Z',
+                    all_day: true,
+                });
+
+                expect(capturedBody).not.toBeNull();
+                expect(capturedBody!.start).toEqual({
+                    date: '2026-11-18',
+                    dateTime: null,
+                });
+                expect(capturedBody!.end).toEqual({
+                    date: '2026-11-19',
+                    dateTime: null,
+                });
+            } finally {
+                globalThis.fetch = originalFetch;
+            }
+        });
+
+        it('should send { dateTime, timeZone, date: null } when patching with all_day: false', async () => {
+            await db.insert(account).values({
+                id: crypto.randomUUID(),
+                userId: testUserId,
+                providerId: 'google',
+                accountId: 'google-acc-patch-timed-mode',
+                accessToken: 'patch-token',
+                accessTokenExpiresAt: new Date(Date.now() + 3600000),
+            });
+
+            let capturedBody: Record<string, unknown> | null = null;
+            const originalFetch = globalThis.fetch;
+            globalThis.fetch = mock(
+                (url: string | URL | Request, init?: RequestInit) => {
+                    const urlStr = url.toString();
+                    if (
+                        urlStr.includes(
+                            '/calendars/primary/events/g-timed-mode',
+                        )
+                    ) {
+                        capturedBody = JSON.parse(init?.body as string);
+                        return Promise.resolve(
+                            new Response('{}', { status: 200 }),
+                        );
+                    }
+                    return Promise.reject(
+                        new Error(`Unexpected fetch: ${urlStr}`),
+                    );
+                },
+            ) as any;
+
+            try {
+                await adapter.patch(testUserId, 'g-timed-mode', {
+                    start_date: '2026-11-18T14:00:00-03:00',
+                    end_date: '2026-11-18T16:00:00-03:00',
+                    all_day: false,
+                });
+
+                expect(capturedBody).not.toBeNull();
+                expect(capturedBody!.start).toEqual({
+                    dateTime: '2026-11-18T14:00:00-03:00',
+                    timeZone: 'America/Sao_Paulo',
+                    date: null,
+                });
+                expect(capturedBody!.end).toEqual({
+                    dateTime: '2026-11-18T16:00:00-03:00',
+                    timeZone: 'America/Sao_Paulo',
+                    date: null,
+                });
+            } finally {
+                globalThis.fetch = originalFetch;
+            }
+        });
+
         it('should throw GoogleCalendarNotFoundError when Google returns 404 or 410 on patch', async () => {
             await db.insert(account).values({
                 id: crypto.randomUUID(),

@@ -45,6 +45,21 @@ function toCalendarDate(
     return { date: shifted.toISOString().slice(0, 10) };
 }
 
+function toPatchBound(
+    dateValue: Date | string,
+    allDay: boolean | undefined,
+    timeZone: string | undefined,
+    addDays = 0,
+): Record<string, unknown> {
+    if (allDay === true) {
+        return { ...toCalendarDate(dateValue, addDays), dateTime: null };
+    }
+    if (allDay === false) {
+        return { ...toCalendarDateTime(dateValue, timeZone), date: null };
+    }
+    return toCalendarDateTime(dateValue, timeZone);
+}
+
 export class DefaultGoogleCalendarAdapter implements GoogleCalendarAdapter {
     private readonly database: Database;
     private readonly clientId: string;
@@ -221,15 +236,18 @@ export class DefaultGoogleCalendarAdapter implements GoogleCalendarAdapter {
         if (event.description !== undefined)
             requestBody.description = event.description ?? '';
         if (event.start_date !== undefined) {
-            requestBody.start = toCalendarDateTime(
+            requestBody.start = toPatchBound(
                 event.start_date,
+                event.all_day,
                 event.timeZone,
             );
         }
         if (event.end_date !== undefined) {
-            requestBody.end = toCalendarDateTime(
+            requestBody.end = toPatchBound(
                 event.end_date,
+                event.all_day,
                 event.timeZone,
+                1,
             );
         }
 

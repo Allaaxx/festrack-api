@@ -129,9 +129,9 @@ export class UpdateEventUseCase {
                                     updateParams.description !== undefined
                                         ? updateParams.description
                                         : event.description,
-                                start_date:
-                                    updateData.start_date ?? event.start_date,
-                                end_date: updateData.end_date ?? event.end_date,
+                                start_date: effectiveStartDate,
+                                end_date: effectiveEndDate,
+                                all_day: effectiveAllDay,
                             });
                         if (insertedGoogleEventId) {
                             updateData.google_event_id = insertedGoogleEventId;
@@ -148,14 +148,27 @@ export class UpdateEventUseCase {
                     await insertOnOwnerCalendar();
                 } else {
                     try {
+                        const isSwitchingAllDayMode =
+                            updateParams.all_day !== undefined;
+                        const hasPatchedDates =
+                            isSwitchingAllDayMode ||
+                            updateData.start_date !== undefined ||
+                            updateData.end_date !== undefined;
                         await this.calendarAdapter.patch(
                             owner.id,
                             event.google_event_id,
                             {
                                 name: updateParams.name,
                                 description: updateParams.description,
-                                start_date: updateData.start_date,
-                                end_date: updateData.end_date,
+                                start_date: isSwitchingAllDayMode
+                                    ? effectiveStartDate
+                                    : updateData.start_date,
+                                end_date: isSwitchingAllDayMode
+                                    ? effectiveEndDate
+                                    : updateData.end_date,
+                                all_day: hasPatchedDates
+                                    ? effectiveAllDay
+                                    : undefined,
                             },
                         );
                     } catch (error) {

@@ -595,4 +595,174 @@ describe('Update Event Use Case', () => {
 
         await expect(promise).rejects.toThrow(new InvalidEventDateRangeError());
     });
+
+    it('should forward all_day: true and normalized bounds to Google Calendar patch when switching timed event to all-day without dates', async () => {
+        const { sut, userRepository, eventRepository, calendarAdapter } =
+            makeSut();
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            google_event_id: 'gcal-switch-to-all-day',
+            all_day: false,
+            start_date: new Date('2026-11-18T14:00:00.000Z'),
+            end_date: new Date('2026-11-19T18:30:00.000Z'),
+        });
+        const patchSpy = jest.spyOn(calendarAdapter, 'patch');
+
+        await sut.execute(shop.id, event.id, user.id, {
+            all_day: true,
+        });
+
+        expect(patchSpy).toHaveBeenCalledWith(
+            user.id,
+            'gcal-switch-to-all-day',
+            expect.objectContaining({
+                all_day: true,
+                start_date: '2026-11-18T00:00:00.000Z',
+                end_date: '2026-11-19T23:59:59.000Z',
+            }),
+        );
+    });
+
+    it('should forward all_day: false and existing bounds to Google Calendar patch when switching all-day event to timed without dates', async () => {
+        const { sut, userRepository, eventRepository, calendarAdapter } =
+            makeSut();
+        const existingStart = new Date('2026-11-18T00:00:00.000Z');
+        const existingEnd = new Date('2026-11-18T23:59:59.000Z');
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            google_event_id: 'gcal-switch-to-timed',
+            all_day: true,
+            start_date: existingStart,
+            end_date: existingEnd,
+        });
+        const patchSpy = jest.spyOn(calendarAdapter, 'patch');
+
+        await sut.execute(shop.id, event.id, user.id, {
+            all_day: false,
+        });
+
+        expect(patchSpy).toHaveBeenCalledWith(
+            user.id,
+            'gcal-switch-to-timed',
+            expect.objectContaining({
+                all_day: false,
+                start_date: existingStart,
+                end_date: existingEnd,
+            }),
+        );
+    });
+
+    it('should forward all_day: true to Google Calendar patch when updating dates of an existing all-day event without all_day in payload', async () => {
+        const { sut, userRepository, eventRepository, calendarAdapter } =
+            makeSut();
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            google_event_id: 'gcal-existing-all-day',
+            all_day: true,
+            start_date: new Date('2026-11-18T00:00:00.000Z'),
+            end_date: new Date('2026-11-20T23:59:59.000Z'),
+        });
+        const patchSpy = jest.spyOn(calendarAdapter, 'patch');
+
+        await sut.execute(shop.id, event.id, user.id, {
+            start_date: '2026-11-19',
+        });
+
+        expect(patchSpy).toHaveBeenCalledWith(
+            user.id,
+            'gcal-existing-all-day',
+            expect.objectContaining({
+                all_day: true,
+                start_date: '2026-11-19T00:00:00.000Z',
+            }),
+        );
+    });
+
+    it('should forward all_day: effectiveAllDay and effective dates on fallback insert when google_event_id is missing', async () => {
+        const { sut, userRepository, eventRepository, calendarAdapter } =
+            makeSut();
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            google_event_id: null,
+            all_day: false,
+            start_date: new Date('2026-11-18T14:00:00.000Z'),
+            end_date: new Date('2026-11-18T18:00:00.000Z'),
+        });
+        const insertSpy = jest.spyOn(calendarAdapter, 'insert');
+
+        await sut.execute(shop.id, event.id, user.id, {
+            all_day: true,
+        });
+
+        expect(insertSpy).toHaveBeenCalledWith(
+            user.id,
+            expect.objectContaining({
+                all_day: true,
+                start_date: '2026-11-18T00:00:00.000Z',
+                end_date: '2026-11-18T23:59:59.000Z',
+            }),
+        );
+    });
+
+    it('should preserve existing event.all_day on fallback insert when patch returns 404 and all_day is omitted', async () => {
+        const { sut, userRepository, eventRepository, calendarAdapter } =
+            makeSut();
+        const existingStart = new Date('2026-11-18T00:00:00.000Z');
+        const existingEnd = new Date('2026-11-18T23:59:59.000Z');
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
+        jest.spyOn(eventRepository, 'findById').mockResolvedValueOnce({
+            ...event,
+            shop_id: shop.id,
+            created_by_user_id: user.id,
+            google_event_id: 'stale-all-day-gcal-id',
+            all_day: true,
+            start_date: existingStart,
+            end_date: existingEnd,
+        });
+        jest.spyOn(calendarAdapter, 'patch').mockRejectedValueOnce(
+            new GoogleCalendarNotFoundError(404),
+        );
+        const insertSpy = jest.spyOn(calendarAdapter, 'insert');
+
+        await sut.execute(shop.id, event.id, user.id, {
+            name: 'Recreated All-Day Event',
+        });
+
+        expect(insertSpy).toHaveBeenCalledWith(
+            user.id,
+            expect.objectContaining({
+                name: 'Recreated All-Day Event',
+                all_day: true,
+                start_date: existingStart,
+                end_date: existingEnd,
+            }),
+        );
+    });
 });
