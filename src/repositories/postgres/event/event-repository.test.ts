@@ -314,6 +314,46 @@ describe('Postgres Event Repository', () => {
             expect(fromDb?.tag).toBeNull();
         });
 
+        it('should update all_day from false to true and back to false on db', async () => {
+            await db.insert(eventsTable).values({
+                ...event,
+                tag: event.tag ?? 'etc',
+                all_day: false,
+                shop_id: shop.id,
+                created_by_user_id: user.id,
+                start_date: new Date(event.start_date),
+                end_date: new Date(event.end_date),
+            });
+
+            const toAllDay = await sut.update(event.id, {
+                all_day: true,
+                start_date: '2026-11-18T00:00:00-03:00',
+                end_date: '2026-11-18T23:59:59-03:00',
+            });
+
+            expect(toAllDay.all_day).toBe(true);
+            expect(new Date(toAllDay.start_date).toISOString()).toBe(
+                '2026-11-18T00:00:00.000Z',
+            );
+            expect(new Date(toAllDay.end_date).toISOString()).toBe(
+                '2026-11-18T23:59:59.000Z',
+            );
+
+            const toTimed = await sut.update(event.id, {
+                all_day: false,
+                start_date: '2026-11-18T14:00:00.000Z',
+                end_date: '2026-11-18T16:00:00.000Z',
+            });
+
+            expect(toTimed.all_day).toBe(false);
+            expect(new Date(toTimed.start_date).toISOString()).toBe(
+                '2026-11-18T14:00:00.000Z',
+            );
+            expect(new Date(toTimed.end_date).toISOString()).toBe(
+                '2026-11-18T16:00:00.000Z',
+            );
+        });
+
         it('should throw EventNotFoundError if event does not exist', async () => {
             await expect(
                 sut.update(event.id, { name: 'Non Existent' }),

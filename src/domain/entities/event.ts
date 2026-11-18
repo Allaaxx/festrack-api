@@ -41,6 +41,7 @@ export interface UpdateEventParams {
     end_date?: Date | string;
     google_event_id?: string | null;
     tag?: string | null;
+    all_day?: boolean;
 }
 
 /**

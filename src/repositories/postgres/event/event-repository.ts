@@ -12,6 +12,7 @@ import {
     CreateEventParams,
     UpdateEventParams,
     EventRepository,
+    extractCivilDate,
     normalizeAllDayDates,
 } from '../../../domain/index.js';
 
@@ -112,18 +113,27 @@ export class PostgresEventRepository implements EventRepository {
         eventId: string,
         updateEventParams: UpdateEventParams,
     ): Promise<Event> {
-        const { tag, ...rest } = updateEventParams;
+        const { tag, all_day, start_date, end_date, ...rest } =
+            updateEventParams;
+        const normalizedStart =
+            all_day === true && start_date
+                ? `${extractCivilDate(start_date)}T00:00:00.000Z`
+                : start_date;
+        const normalizedEnd =
+            all_day === true && end_date
+                ? `${extractCivilDate(end_date)}T23:59:59.000Z`
+                : end_date;
+
         const [updatedEvent] = await this.database
             .update(eventsTable)
             .set({
                 ...rest,
-                start_date: updateEventParams.start_date
-                    ? new Date(updateEventParams.start_date)
+                start_date: normalizedStart
+                    ? new Date(normalizedStart)
                     : undefined,
-                end_date: updateEventParams.end_date
-                    ? new Date(updateEventParams.end_date)
-                    : undefined,
+                end_date: normalizedEnd ? new Date(normalizedEnd) : undefined,
                 ...(tag !== undefined ? { tag: tag ?? null } : {}),
+                ...(all_day !== undefined ? { all_day } : {}),
             })
             .where(eq(eventsTable.id, eventId))
             .returning();
