@@ -113,6 +113,20 @@
             "when": 1794938605017,
             "tag": "0015_flowery_ironclad",
             "breakpoints": true
+        },
+        {
+            "idx": 16,
+            "version": "7",
+            "when": 1795038869015,
+            "tag": "0016_mushy_chronomancer",
+            "breakpoints": true
+        },
+        {
+            "idx": 17,
+            "version": "7",
+            "when": 1795040117844,
+            "tag": "0017_backfill_all_day_events",
+            "breakpoints": true
         }
     ]
 }

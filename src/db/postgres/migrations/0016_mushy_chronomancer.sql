@@ -1,0 +1,1 @@
+ALTER TABLE "Event" ADD COLUMN "all_day" boolean DEFAULT false NOT NULL;

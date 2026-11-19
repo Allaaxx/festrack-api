@@ -1,5 +1,11 @@
 import { relations } from 'drizzle-orm';
-import { pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core';
+import {
+    boolean,
+    pgTable,
+    text,
+    timestamp,
+    varchar,
+} from 'drizzle-orm/pg-core';
 import { user } from './users.js';
 import { shops } from './shops.js';
 import { transactionsTable } from './transactions.js';
@@ -27,6 +33,7 @@ export const eventsTable = pgTable('Event', {
     }),
     google_event_id: text('google_event_id'),
     tag: varchar('tag', { length: 50 }),
+    all_day: boolean('all_day').default(false).notNull(),
 });
 
 export const eventsRelations = relations(eventsTable, ({ one, many }) => ({

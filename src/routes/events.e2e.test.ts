@@ -110,6 +110,80 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             expect(response.body.tag).toBe('business');
         });
 
+        it('should default all_day to false when omitted', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const response = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send(sampleEventData);
+
+            expect(response.status).toBe(201);
+            expect(response.body.all_day).toBe(false);
+        });
+
+        it('should create an All-Day Event with all_day: true and normalized UTC civil-date bounds', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const response = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Holiday All-Day',
+                    description: 'Full civil day event',
+                    start_date: '2026-11-18T00:00:00-03:00',
+                    end_date: '2026-11-18T23:59:59-03:00',
+                    all_day: true,
+                });
+
+            expect(response.status).toBe(201);
+            expect(response.body.all_day).toBe(true);
+            expect(response.body.start_date).toBe('2026-11-18T00:00:00.000Z');
+            expect(response.body.end_date).toBe('2026-11-18T23:59:59.000Z');
+        });
+
+        it('should create a Timed Event spanning 00:00-23:59 with all_day: false', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const response = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: '24h Shift Timed Event',
+                    start_date: '2026-11-18T00:00:00.000Z',
+                    end_date: '2026-11-18T23:59:59.000Z',
+                    all_day: false,
+                });
+
+            expect(response.status).toBe(201);
+            expect(response.body.all_day).toBe(false);
+            expect(response.body.start_date).toBe('2026-11-18T00:00:00.000Z');
+            expect(response.body.end_date).toBe('2026-11-18T23:59:59.000Z');
+        });
+
+        it('should return 400 when all_day is true and end_date civil day is before start_date', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const response = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Invalid Range All-Day',
+                    start_date: '2026-11-18',
+                    end_date: '2026-11-17',
+                    all_day: true,
+                });
+
+            expect(response.status).toBe(400);
+            expect(response.body.message).toBe(
+                'End date must be greater than or equal to start date.',
+            );
+        });
+
         it('should default event tag to null when tag is omitted or null', async () => {
             const owner = await createAuthenticatedUser(client);
             const shop = await createShop(owner);
@@ -247,6 +321,40 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             expect(response.status).toBe(400);
             expect(response.body.message).toBe(
                 'Start date must be a valid date.',
+            );
+        });
+
+        it('should return 400 for non-existent calendar dates like 2026-02-30 instead of rolling over', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const timedResponse = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Impossible Timed Date',
+                    start_date: '2026-02-30T10:00:00Z',
+                    end_date: '2026-03-02T12:00:00Z',
+                });
+
+            expect(timedResponse.status).toBe(400);
+            expect(timedResponse.body.message).toBe(
+                'Start date must be a valid date.',
+            );
+
+            const allDayResponse = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Impossible All-Day Date',
+                    start_date: '2026-02-15',
+                    end_date: '2026-04-31',
+                    all_day: true,
+                });
+
+            expect(allDayResponse.status).toBe(400);
+            expect(allDayResponse.body.message).toBe(
+                'End date must be a valid date.',
             );
         });
 
@@ -461,6 +569,49 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             expect(defaultEvent.tag).toBeNull();
         });
 
+        it('should return events containing explicit all_day boolean for both All-Day and Timed Events', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'All-Day Event',
+                    start_date: '2026-11-18',
+                    end_date: '2026-11-18',
+                    all_day: true,
+                });
+
+            await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    ...sampleEventData,
+                    name: 'Timed Event',
+                    all_day: false,
+                });
+
+            const response = await client
+                .get(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(response.status).toBe(200);
+            expect(response.body).toHaveLength(2);
+
+            const allDayEvt = response.body.find(
+                (e: any) => e.name === 'All-Day Event',
+            );
+            const timedEvt = response.body.find(
+                (e: any) => e.name === 'Timed Event',
+            );
+
+            expect(allDayEvt.all_day).toBe(true);
+            expect(allDayEvt.start_date).toBe('2026-11-18T00:00:00.000Z');
+            expect(allDayEvt.end_date).toBe('2026-11-18T23:59:59.000Z');
+            expect(timedEvt.all_day).toBe(false);
+        });
+
         it('should return 200 with all shop events for MEMBER (including events created by OWNER)', async () => {
             const owner = await createAuthenticatedUser(client);
             const member = await createAuthenticatedUser(client);
@@ -602,6 +753,34 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             expect(response.body.id).toBe(eventId);
             expect(response.body.name).toBe(sampleEventData.name);
             expect(response.body.shop_id).toBe(shop.id);
+            expect(response.body.all_day).toBe(false);
+        });
+
+        it('should return 200 with all_day: true when retrieving an All-Day Event by id', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Single All-Day Event',
+                    start_date: '2026-11-18T00:00:00-03:00',
+                    end_date: '2026-11-18T23:59:59-03:00',
+                    all_day: true,
+                });
+
+            const eventId = createRes.body.id;
+
+            const response = await client
+                .get(`/api/shops/${shop.id}/events/${eventId}`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(response.status).toBe(200);
+            expect(response.body.id).toBe(eventId);
+            expect(response.body.all_day).toBe(true);
+            expect(response.body.start_date).toBe('2026-11-18T00:00:00.000Z');
+            expect(response.body.end_date).toBe('2026-11-18T23:59:59.000Z');
         });
 
         it('should return 200 when MEMBER retrieves event created by OWNER', async () => {
@@ -872,6 +1051,242 @@ describe('Shop-Scoped Events Routes (Elysia E2E)', () => {
             expect(response.body.message).toBe(
                 'End date must be greater than or equal to start date.',
             );
+        });
+
+        it('should return 200 and switch a Timed Event to all_day: true (with and without new dates)', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Timed to All-Day',
+                    start_date: '2026-11-18T14:00:00.000Z',
+                    end_date: '2026-11-18T16:00:00.000Z',
+                    all_day: false,
+                });
+
+            const eventId = createRes.body.id;
+
+            // Switch to all_day: true without sending new dates
+            const switchOnlyRes = await client
+                .patch(`/api/shops/${shop.id}/events/${eventId}`)
+                .set('Authorization', owner.bearerHeader)
+                .send({ all_day: true });
+
+            expect(switchOnlyRes.status).toBe(200);
+            expect(switchOnlyRes.body.all_day).toBe(true);
+            expect(switchOnlyRes.body.start_date).toBe(
+                '2026-11-18T00:00:00.000Z',
+            );
+            expect(switchOnlyRes.body.end_date).toBe(
+                '2026-11-18T23:59:59.000Z',
+            );
+
+            // Update dates with local offset while switching/keeping all_day: true
+            const withDatesRes = await client
+                .patch(`/api/shops/${shop.id}/events/${eventId}`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    all_day: true,
+                    start_date: '2026-11-20T00:00:00-03:00',
+                    end_date: '2026-11-21T23:59:59-03:00',
+                });
+
+            expect(withDatesRes.status).toBe(200);
+            expect(withDatesRes.body.all_day).toBe(true);
+            expect(withDatesRes.body.start_date).toBe(
+                '2026-11-20T00:00:00.000Z',
+            );
+            expect(withDatesRes.body.end_date).toBe('2026-11-21T23:59:59.000Z');
+
+            const getRes = await client
+                .get(`/api/shops/${shop.id}/events/${eventId}`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(getRes.status).toBe(200);
+            expect(getRes.body.all_day).toBe(true);
+            expect(getRes.body.start_date).toBe('2026-11-20T00:00:00.000Z');
+            expect(getRes.body.end_date).toBe('2026-11-21T23:59:59.000Z');
+        });
+
+        it('should return 200 and switch an All-Day Event to all_day: false (with and without new dates)', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'All-Day to Timed',
+                    start_date: '2026-11-18',
+                    end_date: '2026-11-18',
+                    all_day: true,
+                });
+
+            const eventId = createRes.body.id;
+
+            // Switch to all_day: false with explicit timed instants
+            const withTimedDatesRes = await client
+                .patch(`/api/shops/${shop.id}/events/${eventId}`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    all_day: false,
+                    start_date: '2026-11-18T14:00:00-03:00',
+                    end_date: '2026-11-18T16:00:00-03:00',
+                });
+
+            expect(withTimedDatesRes.status).toBe(200);
+            expect(withTimedDatesRes.body.all_day).toBe(false);
+            expect(withTimedDatesRes.body.start_date).toBe(
+                '2026-11-18T17:00:00.000Z',
+            );
+            expect(withTimedDatesRes.body.end_date).toBe(
+                '2026-11-18T19:00:00.000Z',
+            );
+
+            // Switch back to all_day: true, then switch to all_day: false without dates
+            await client
+                .patch(`/api/shops/${shop.id}/events/${eventId}`)
+                .set('Authorization', owner.bearerHeader)
+                .send({ all_day: true });
+
+            const switchOnlyRes = await client
+                .patch(`/api/shops/${shop.id}/events/${eventId}`)
+                .set('Authorization', owner.bearerHeader)
+                .send({ all_day: false });
+
+            expect(switchOnlyRes.status).toBe(200);
+            expect(switchOnlyRes.body.all_day).toBe(false);
+
+            const getRes = await client
+                .get(`/api/shops/${shop.id}/events/${eventId}`)
+                .set('Authorization', owner.bearerHeader);
+
+            expect(getRes.status).toBe(200);
+            expect(getRes.body.all_day).toBe(false);
+        });
+
+        it('should return 400 when all_day is true and end_date civil day is before start_date on update', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send(sampleEventData);
+
+            const response = await client
+                .patch(`/api/shops/${shop.id}/events/${createRes.body.id}`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    all_day: true,
+                    start_date: '2026-11-18',
+                    end_date: '2026-11-17',
+                });
+
+            expect(response.status).toBe(400);
+            expect(response.body.message).toBe(
+                'End date must be greater than or equal to start date.',
+            );
+        });
+
+        it('should return 400 when updating only start_date after existing end_date', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Single-Day All-Day',
+                    start_date: '2026-11-18',
+                    end_date: '2026-11-18',
+                    all_day: true,
+                });
+
+            const response = await client
+                .patch(`/api/shops/${shop.id}/events/${createRes.body.id}`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    start_date: '2026-11-20',
+                });
+
+            expect(response.status).toBe(400);
+            expect(response.body.message).toBe(
+                'End date must be greater than or equal to start date.',
+            );
+        });
+
+        it('should return 200 for valid same-day offset update on existing All-Day Event when all_day is omitted', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    name: 'Existing All-Day Event',
+                    start_date: '2026-11-17',
+                    end_date: '2026-11-17',
+                    all_day: true,
+                });
+
+            expect(createRes.status).toBe(201);
+
+            const response = await client
+                .patch(`/api/shops/${shop.id}/events/${createRes.body.id}`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    start_date: '2026-11-18T22:00:00-03:00',
+                    end_date: '2026-11-18T10:00:00Z',
+                });
+
+            expect(response.status).toBe(200);
+            expect(response.body.all_day).toBe(true);
+            expect(response.body.start_date).toBe('2026-11-18T00:00:00.000Z');
+            expect(response.body.end_date).toBe('2026-11-18T23:59:59.000Z');
+        });
+
+        it('should return 400 when updating event with a non-existent calendar date like 2026-02-30', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send(sampleEventData);
+
+            const response = await client
+                .patch(`/api/shops/${shop.id}/events/${createRes.body.id}`)
+                .set('Authorization', owner.bearerHeader)
+                .send({
+                    start_date: '2026-02-30',
+                });
+
+            expect(response.status).toBe(400);
+            expect(response.body.message).toBe(
+                'Start date must be a valid date.',
+            );
+        });
+
+        it('should return 403 when non-member tries to update all_day', async () => {
+            const owner = await createAuthenticatedUser(client);
+            const nonMember = await createAuthenticatedUser(client);
+            const shop = await createShop(owner);
+
+            const createRes = await client
+                .post(`/api/shops/${shop.id}/events`)
+                .set('Authorization', owner.bearerHeader)
+                .send(sampleEventData);
+
+            const response = await client
+                .patch(`/api/shops/${shop.id}/events/${createRes.body.id}`)
+                .set('Authorization', nonMember.bearerHeader)
+                .send({ all_day: true });
+
+            expect(response.status).toBe(403);
         });
 
         it('should patch Google Calendar event when sync is enabled and event has google_event_id', async () => {

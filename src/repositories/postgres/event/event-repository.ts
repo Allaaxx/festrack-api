@@ -56,12 +56,14 @@ export class PostgresEventRepository implements EventRepository {
     }
 
     async create(createEventParams: CreateEventParams): Promise<Event> {
-        const { tag, ...rest } = createEventParams;
+        const { tag, all_day, ...rest } = createEventParams;
+
         const [createdEvent] = await this.database
             .insert(eventsTable)
             .values({
                 ...rest,
                 tag: tag ?? null,
+                all_day: all_day ?? false,
                 start_date: new Date(createEventParams.start_date),
                 end_date: new Date(createEventParams.end_date),
                 google_event_id: createEventParams.google_event_id ?? null,
@@ -99,18 +101,17 @@ export class PostgresEventRepository implements EventRepository {
         eventId: string,
         updateEventParams: UpdateEventParams,
     ): Promise<Event> {
-        const { tag, ...rest } = updateEventParams;
+        const { tag, all_day, start_date, end_date, ...rest } =
+            updateEventParams;
+
         const [updatedEvent] = await this.database
             .update(eventsTable)
             .set({
                 ...rest,
-                start_date: updateEventParams.start_date
-                    ? new Date(updateEventParams.start_date)
-                    : undefined,
-                end_date: updateEventParams.end_date
-                    ? new Date(updateEventParams.end_date)
-                    : undefined,
+                start_date: start_date ? new Date(start_date) : undefined,
+                end_date: end_date ? new Date(end_date) : undefined,
                 ...(tag !== undefined ? { tag: tag ?? null } : {}),
+                ...(all_day !== undefined ? { all_day } : {}),
             })
             .where(eq(eventsTable.id, eventId))
             .returning();

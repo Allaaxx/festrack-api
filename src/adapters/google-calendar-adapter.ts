@@ -7,6 +7,7 @@ import {
     GoogleCalendarAdapter,
     InsertCalendarEventParams,
     PatchCalendarEventParams,
+    extractCivilDate,
 } from '../domain/index.js';
 
 export interface GoogleCalendarAdapterOptions {
@@ -28,6 +29,35 @@ function toCalendarDateTime(
             typeof dateValue === 'string' ? dateValue : dateValue.toISOString(),
         timeZone,
     };
+}
+
+function toCalendarDate(
+    dateValue: Date | string,
+    addDays = 0,
+): { date: string } {
+    const civilDate = extractCivilDate(dateValue);
+    if (addDays === 0) {
+        return { date: civilDate };
+    }
+
+    const [year, month, day] = civilDate.split('-').map(Number);
+    const shifted = new Date(Date.UTC(year, month - 1, day + addDays));
+    return { date: shifted.toISOString().slice(0, 10) };
+}
+
+function toPatchBound(
+    dateValue: Date | string,
+    allDay: boolean | undefined,
+    timeZone: string | undefined,
+    addDays = 0,
+): Record<string, unknown> {
+    if (allDay === true) {
+        return { ...toCalendarDate(dateValue, addDays), dateTime: null };
+    }
+    if (allDay === false) {
+        return { ...toCalendarDateTime(dateValue, timeZone), date: null };
+    }
+    return toCalendarDateTime(dateValue, timeZone);
 }
 
 export class DefaultGoogleCalendarAdapter implements GoogleCalendarAdapter {
@@ -148,8 +178,12 @@ export class DefaultGoogleCalendarAdapter implements GoogleCalendarAdapter {
         const requestBody = {
             summary: event.name,
             description: event.description ?? undefined,
-            start: toCalendarDateTime(event.start_date, event.timeZone),
-            end: toCalendarDateTime(event.end_date, event.timeZone),
+            start: event.all_day
+                ? toCalendarDate(event.start_date)
+                : toCalendarDateTime(event.start_date, event.timeZone),
+            end: event.all_day
+                ? toCalendarDate(event.end_date, 1)
+                : toCalendarDateTime(event.end_date, event.timeZone),
         };
 
         const url = `${this.calendarBaseUrl}/calendars/primary/events`;
@@ -202,15 +236,18 @@ export class DefaultGoogleCalendarAdapter implements GoogleCalendarAdapter {
         if (event.description !== undefined)
             requestBody.description = event.description ?? '';
         if (event.start_date !== undefined) {
-            requestBody.start = toCalendarDateTime(
+            requestBody.start = toPatchBound(
                 event.start_date,
+                event.all_day,
                 event.timeZone,
             );
         }
         if (event.end_date !== undefined) {
-            requestBody.end = toCalendarDateTime(
+            requestBody.end = toPatchBound(
                 event.end_date,
+                event.all_day,
                 event.timeZone,
+                1,
             );
         }
 

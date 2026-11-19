@@ -17,8 +17,16 @@ A pending authorization token sent to an email address allowing an invitee to jo
 _Avoid_: Invite, pass, ticket, request
 
 **Event**:
-A scheduled occasion or financial project (e.g. wedding, festival, party) owned by a shop, spanning a start date and an end date, against which transactions can be tracked. Attributed to the Shop Member (Author) who created it; external Google Calendar synchronization is centralized on the Shop Owner's account.
+A scheduled occasion or financial project (e.g. wedding, festival, party) owned by a shop, spanning a start date and an end date, against which transactions can be tracked. Explicitly classified via `all_day` as either an All-Day Event or a Timed Event, attributed to the Shop Member (Author) who created it, and optionally synced to the Shop Owner's Google Calendar.
 _Avoid_: Occasion, project, gathering
+
+**All-Day Event**:
+An Event (`all_day = true`) whose timeframe represents pure civil calendar dates (`YYYY-MM-DD`, inclusive end, independent of timezone offsets) rather than clock-time instants.
+_Avoid_: Full-day event, 00:00–23:59 event
+
+**Timed Event**:
+An Event (`all_day = false`) anchored to exact clock-time instants with explicit timezone offsets from `start_date` to `end_date`.
+_Avoid_: Hourly event, partial-day event
 
 **Event Tag**:
 A visual classification marker and filtering token (e.g. family, business, custom occasions) assigned to an event to categorize and organize calendar entries across a shop. May be a built-in system default or a custom tag created by shop members.

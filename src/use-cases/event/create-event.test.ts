@@ -1,5 +1,6 @@
 import { ShopNotFoundError } from '../../errors/shop.js';
 import { ForbiddenError } from '../../errors/auth.js';
+import { InvalidEventDateRangeError } from '../../errors/event.js';
 import { event, user, shop } from '../../tests/index.js';
 import { CreateEventUseCase, CreateEventInput } from './create-event.js';
 import {
@@ -154,22 +155,165 @@ describe('Create Event Use Case', () => {
             end_date: createEventInput.end_date,
             google_event_id: null,
             tag: null,
+            all_day: false,
         });
     });
 
+    it('should pass all_day: true and normalize start_date and end_date to UTC civil-date bounds', async () => {
+        const { sut, eventRepository } = makeSut();
+        const createSpy = jest.spyOn(eventRepository, 'create');
+
+        const result = await sut.execute({
+            ...createEventInput,
+            start_date: '2026-11-18T00:00:00-03:00',
+            end_date: '2026-11-18T23:59:59-03:00',
+            all_day: true,
+        });
+
+        expect(result.all_day).toBe(true);
+        expect(result.start_date).toBe('2026-11-18T00:00:00.000Z');
+        expect(result.end_date).toBe('2026-11-18T23:59:59.000Z');
+        expect(createSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                all_day: true,
+                start_date: '2026-11-18T00:00:00.000Z',
+                end_date: '2026-11-18T23:59:59.000Z',
+            }),
+        );
+    });
+
+    it('should normalize multi-day civil dates when all_day is true', async () => {
+        const { sut, eventRepository } = makeSut();
+        const createSpy = jest.spyOn(eventRepository, 'create');
+
+        const result = await sut.execute({
+            ...createEventInput,
+            start_date: '2026-11-18',
+            end_date: '2026-11-20',
+            all_day: true,
+        });
+
+        expect(result.all_day).toBe(true);
+        expect(result.start_date).toBe('2026-11-18T00:00:00.000Z');
+        expect(result.end_date).toBe('2026-11-20T23:59:59.000Z');
+        expect(createSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                all_day: true,
+                start_date: '2026-11-18T00:00:00.000Z',
+                end_date: '2026-11-20T23:59:59.000Z',
+            }),
+        );
+    });
+
+    it('should preserve raw timestamps and all_day: false for a 00:00-23:59 timed event', async () => {
+        const { sut, eventRepository } = makeSut();
+        const createSpy = jest.spyOn(eventRepository, 'create');
+
+        const result = await sut.execute({
+            ...createEventInput,
+            start_date: '2026-11-18T00:00:00-03:00',
+            end_date: '2026-11-18T23:59:59-03:00',
+            all_day: false,
+        });
+
+        expect(result.all_day).toBe(false);
+        expect(result.start_date).toBe('2026-11-18T00:00:00-03:00');
+        expect(result.end_date).toBe('2026-11-18T23:59:59-03:00');
+        expect(createSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                all_day: false,
+                start_date: '2026-11-18T00:00:00-03:00',
+                end_date: '2026-11-18T23:59:59-03:00',
+            }),
+        );
+    });
+
+    it('should throw InvalidEventDateRangeError when end_date is before start_date for a timed event', async () => {
+        const { sut } = makeSut();
+
+        const promise = sut.execute({
+            ...createEventInput,
+            start_date: '2026-11-18T14:00:00.000Z',
+            end_date: '2026-11-18T10:00:00.000Z',
+            all_day: false,
+        });
+
+        await expect(promise).rejects.toThrow(new InvalidEventDateRangeError());
+    });
+
+    it('should throw InvalidEventDateRangeError when end_date civil day is before start_date for an all-day event', async () => {
+        const { sut } = makeSut();
+
+        const promise = sut.execute({
+            ...createEventInput,
+            start_date: '2026-11-18',
+            end_date: '2026-11-17',
+            all_day: true,
+        });
+
+        await expect(promise).rejects.toThrow(new InvalidEventDateRangeError());
+    });
+
+    it('should throw InvalidEventDateRangeError when start_date or end_date is an impossible calendar date', async () => {
+        const { sut } = makeSut();
+
+        const promise = sut.execute({
+            ...createEventInput,
+            start_date: '2026-02-30',
+            end_date: '2026-03-02',
+            all_day: true,
+        });
+
+        await expect(promise).rejects.toThrow(InvalidEventDateRangeError);
+    });
+
     it('should export event to Google Calendar and persist google_event_id when sync is enabled', async () => {
-        const { sut, userRepository, eventRepository } = makeSut();
+        const { sut, userRepository, eventRepository, calendarAdapter } =
+            makeSut();
         jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
             ...user,
             google_calendar_sync_enabled: true,
         });
+        const insertSpy = jest.spyOn(calendarAdapter, 'insert');
         const createSpy = jest.spyOn(eventRepository, 'create');
 
         await sut.execute(createEventInput);
 
+        expect(insertSpy).toHaveBeenCalledWith(
+            user.id,
+            expect.objectContaining({
+                all_day: false,
+            }),
+        );
         expect(createSpy).toHaveBeenCalledWith(
             expect.objectContaining({
                 google_event_id: 'google-event-id-123',
+            }),
+        );
+    });
+
+    it('should forward all_day: true and normalized UTC dates to GoogleCalendarAdapter.insert for an All-Day Event', async () => {
+        const { sut, userRepository, calendarAdapter } = makeSut();
+        jest.spyOn(userRepository, 'findById').mockResolvedValueOnce({
+            ...user,
+            google_calendar_sync_enabled: true,
+        });
+        const insertSpy = jest.spyOn(calendarAdapter, 'insert');
+
+        await sut.execute({
+            ...createEventInput,
+            start_date: '2026-11-18T00:00:00-03:00',
+            end_date: '2026-11-20T23:59:59-03:00',
+            all_day: true,
+        });
+
+        expect(insertSpy).toHaveBeenCalledWith(
+            user.id,
+            expect.objectContaining({
+                name: createEventInput.name,
+                start_date: '2026-11-18T00:00:00.000Z',
+                end_date: '2026-11-20T23:59:59.000Z',
+                all_day: true,
             }),
         );
     });

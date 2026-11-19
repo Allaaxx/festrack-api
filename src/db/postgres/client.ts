@@ -7,6 +7,7 @@ const connectionString = env.DATABASE_URL;
 
 export const sqlClient = postgres(connectionString, {
     max: 10,
+    onnotice: () => {},
 });
 
 export const db = drizzle(sqlClient, { schema });
